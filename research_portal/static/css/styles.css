@@ -269,6 +269,117 @@ body {
         font-size: 14px;
     }
 }
+/* Recent News Section */
+.recent-news {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Two columns */
+    gap: 20px;
+    max-width: 1200px;
+    margin: auto;
+    padding: 20px;
+}
+
+.news-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.news-item img {
+    width: 100px; /* Adjust the image size */
+    height: 100px;
+    object-fit: cover;
+    border-radius: 5px;
+}
+
+.news-content {
+    flex: 1;
+}
+
+.news-content h3 {
+    font-size: 16px;
+    margin: 0;
+    font-weight: bold;
+}
+
+.news-content p {
+    font-size: 14px;
+    color: #555;
+    margin: 5px 0 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .recent-news {
+        grid-template-columns: 1fr; /* Single column for smaller screens */
+    }
+    
+    .news-item {
+        flex-direction: row;
+    }
+
+    .news-item img {
+        width: 80px;
+        height: 80px;
+    }
+}
+/* Recent News Section */
+.recent-news {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+    padding: 20px;
+    max-width: 1200px;
+    margin: auto;
+}
+
+.news-item {
+    display: flex;
+    align-items: center;
+    width: 48%; /* Adjust for two-column layout */
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.news-item img {
+    width: 120px; /* Ensure uniform image size */
+    height: 80px;
+    object-fit: cover;
+    border-radius: 5px;
+    margin-right: 15px;
+}
+
+.news-content {
+    flex: 1;
+}
+
+.news-content h3 {
+    font-size: 16px;
+    margin: 0 0 5px;
+}
+
+.news-content p {
+    font-size: 14px;
+    color: #555;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .news-item {
+        width: 100%; /* Stack items on smaller screens */
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .news-item img {
+        width: 100%;
+        height: auto;
+        margin-bottom: 10px;
+    }
+}
 
 /* Footer Section */
 footer a {
