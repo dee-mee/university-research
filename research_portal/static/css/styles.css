@@ -1,3 +1,4 @@
+/* Global Styles */
 body {
     font-family: Arial, sans-serif;
     margin: 0;
@@ -8,7 +9,6 @@ body {
 .custom-navbar {
     background-color: white; /* White background */
     padding: 10px 0;
-    border-bottom: 3px solid black; /* Optional: slight bottom border */
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -21,7 +21,7 @@ body {
 }
 
 .custom-navbar .navbar-brand img {
-    height: 50px; /* Match logo size */
+    height: 50px; 
 }
 
 /* Navigation links */
@@ -43,13 +43,13 @@ body {
     font-size: 15px;
     color: #0d7a00;
     text-transform: uppercase;
-    margin: 0 15px; /* Space between items */
+    margin: 0 15px;
     text-decoration: none;
     padding: 10px 0;
 }
 
 .custom-navbar .navbar-nav .nav-link:hover {
-    color: #0345BF; /* Hover effect */
+    color: #0345BF;
 }
 
 /* Enable dropdown on hover */
@@ -59,27 +59,26 @@ body {
 
 /* Login button styling */
 .login-btn a {
-    background-color: #0d7a00; 
-    color: white !important; 
-    padding: 10px 25px; 
+    background-color: #0d7a00;
+    color: white !important;
+    padding: 10px 25px;
     border: none;
-    border-radius: 8px; 
-    font-size: 13.5px; 
+    border-radius: 8px;
+    font-size: 13.5px;
     font-weight: bold;
     text-decoration: none;
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 40px; 
-    margin-left: 30px; 
+    height: 40px;
+    margin-left: 30px;
     transition: background-color 0.3s ease, transform 0.2s;
 }
 
 .login-btn a:hover {
-    background-color: #0345BF; /* Change hover color */
+    background-color: #0345BF;
     transform: scale(1.05);
 }
-
 
 /* Mobile Navbar */
 @media (max-width: 991px) {
@@ -87,16 +86,13 @@ body {
         flex-direction: column;
         align-items: center;
     }
-
     .custom-navbar .navbar-nav {
         flex-direction: column;
         text-align: center;
     }
-
     .custom-navbar .navbar-nav .nav-link {
         margin: 10px 0;
     }
-
     .login-btn {
         margin-top: 10px;
     }
@@ -104,11 +100,10 @@ body {
 
 /* Carousel Styles */
 .carousel-item img {
-    height: 500px; /* Adjust height */
-    object-fit: cover; /* Ensures images fill area properly */
+    height: 500px;
+    object-fit: cover;
 }
 
-/* Enable Fade Effect */
 .carousel-item {
     transition: opacity 1s ease-in-out;
     opacity: 0;
@@ -141,8 +136,7 @@ body {
     font-size: 20px;
 }
 
-
-/*About Us Section Styles*/
+/* About Us Section */
 .about-section {
     background-color: #05124d;
     padding: 60px 0;
@@ -173,116 +167,107 @@ body {
     text-transform: uppercase;
 }
 
-.about-text {
-    padding-left: 30px;
-}
-
-.vision-title, .mission-title {
-    font-size: 24px;
-    font-weight: bold;
-    color: #ffcc00;
-}
-
-.about-text p {
-    font-size: 18px;
-    line-height: 1.6;
-    color: #dcdcdc;
-}
-
-/*About Us Section Styles End*/
-
-
-/* News Section */
-.recent-news {
-    padding: 20px 0;
-}
-
-.section-title {
-    font-size: 24px;
-    font-weight: bold;
-    text-transform: uppercase;
-    margin-bottom: 20px;
-}
-
-.news-item {
+/* Login Form Styles */
+.login-container {
     display: flex;
+    justify-content: center;
     align-items: center;
-    gap: 15px;
-    margin-bottom: 20px;
+    height: 88vh;
+    background-color: #f5f5f5;
 }
 
-.news-img {
-    width: 120px;
-    height: 80px;
-    object-fit: cover;
-    border-radius: 5px;
-}
-
-.news-content {
-    flex-grow: 1;
-}
-
-.news-content h5 {
-    font-size: 16px;
-    font-weight: bold;
-    margin: 0;
-}
-
-.news-date {
-    font-size: 12px;
-    font-weight: bold;
-    color: gray;
-    text-transform: uppercase;
-}
-
-/* Projects Section */
-.latest-projects {
-    padding: 50px 0;
-}
-
-.section-title {
-    font-size: 24px;
-    font-weight: bold;
-    text-transform: uppercase;
-    margin-bottom: 20px;
-}
-
-.latest-projects .row {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 20px;
-}
-
-.latest-projects .col-md-2 {
-    text-align: center;
-    max-width: 160px;
-}
-
-.latest-projects img {
+.login-card {
+    background-color: #4f5a04; /* Dark green background */
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
     width: 100%;
-    height: auto;
-    border-radius: 5px;
+    max-width: 420px;
+    text-align: center;
+    color: white;
 }
 
-.latest-projects h4 {
-    font-size: 14px;
+.login-card img {
+    width: 80px;
+    margin-bottom: 15px;
+}
+
+.login-card h2 {
+    font-size: 22px;
+    margin-bottom: 20px;
     font-weight: bold;
-    margin-top: 10px;
 }
 
-.latest-projects a {
-    color: #04114b;
+.login-card input {
+    width: 100%;
+    padding: 12px;
+    margin: 10px 0;
+    border: none;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+.login-card input:focus {
+    outline: none;
+    border: 2px solid #ffcc00;
+}
+
+.login-card .forgot-password {
+    text-align: right;
+    margin-top: 5px;
+}
+
+.login-card .forgot-password a {
+    color: #fff;
+    font-size: 15px;
+    font-weight: bold;
     text-decoration: none;
 }
 
-.latest-projects a:hover {
+.login-card .forgot-password a:hover {
     text-decoration: underline;
 }
 
-.latest-projects p {
+.login-button {
+    width: 100%;
+    padding: 12px;
+    background-color: #001f3f;
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 15px;
+    transition: 0.3s ease;
+}
+
+.login-button:hover {
+    background-color: #072c70;
+    transform: scale(1.05);
+}
+
+/* Footer */
+.footer-text {
+    text-align: center;
+    margin-top: 20px;
     font-size: 12px;
-    color: #666;
+    color: white;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    .login-card {
+        padding: 20px;
+    }
+    
+    .login-card h2 {
+        font-size: 18px;
+    }
+    
+    .login-button {
+        font-size: 14px;
+    }
 }
 
 /* Footer Section */

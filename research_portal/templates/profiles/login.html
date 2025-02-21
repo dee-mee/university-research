@@ -1,153 +1,134 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
-    {% load static %}
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> Login </title>
+    <title>Research Login - JOOUST</title>
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">    
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            background-color: #f5f5f5;
-            font-family: Arial, sans-serif;
-        }
+        /* Login Form Styles */
+.login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 85vh;
+    background-color: #f5f5f5;
+}
 
-        .login-card {
-            background: linear-gradient(to bottom, rgb(109, 109, 4) 0%, rgb(109, 109, 4) 50%, rgb(130, 153, 21) 50%, rgb(130, 153, 21) 100%);
-            padding: 2rem;
-            border-radius: 25px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 550px;
-            box-sizing: border-box;
-            height: 700px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            margin-bottom: 10px;
-        }
+.login-card {
+    background-color: rgb(89, 108, 0);  
+    border-radius: 10px;
+    padding: 2rem;
+    width: 100%;
+    max-width: 450px;
+    text-align: center;
+}
 
-        .school-logo {
-            text-align: center;
-            margin-bottom: 1rem;
-            margin-top: 1.5rem;
-        }
+.logo img {
+    width: 80px;  
+    height: auto;
+    margin-bottom: 1rem;
+}
 
-        .school-logo img {
-            width: 150px;
-            height: 100px;
-        }
+.login-title {
+    color: white;
+    font-size: 20px;
+    margin-bottom: 1.5rem;
+    text-transform: uppercase;
+}
 
-        .login-title {
-            color: white;
-            text-align: center;
-            font-size: 2.0rem;
-            margin-bottom: 2rem;
-            font-weight: bold;
-        }
+.input-group {
+    margin-bottom: 1.5rem;
+    text-align: left;
+}
 
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
+.input-group label {
+    display: block;
+    color: white;
+    margin-bottom: 0.5rem;
+    font-weight: normal;
+}
 
-        .form-group label {
-            display: block;
-            color: white;
-            margin-bottom: 0.5rem;
-            font-size: 1.7rem;
-        }
+.input-group input {
+    width: 100%;
+    padding: 8px;
+    border: none;
+    border-radius: 4px;
+    background-color: white;
+}
 
-        .form-group input {
-            width: 100%;
-            padding: 0.75rem;
-            border: none;
-            border-radius: 4px;
-            box-sizing: border-box;
-            font-size: 1.5rem;
-        }
 
-        .login-button {
-            width: 100%;
-            padding: 0.75rem;
-            background-color: #001f3f;  /* Dark blue color matching the button in the image */
-            color: white;
-            border: none;
-            border-radius: 4px;
-            font-size: 1.4rem;
-            cursor: pointer;
-            margin-top: 1rem;
-        }
-
-        .login-button:hover {
-            background-color: #003366;
-        }
-
-        .forgot-password {
-            text-align: right;
-            margin-top: 0.5rem;
-        }
-
-        .forgot-password a {
-            color: white;
-            text-decoration: none;
-            font-size: 1.2rem;
-        }
-
-        .forgot-password a:hover {
-            text-decoration: underline;
-        }
-
-        .footer {
-            text-align: center;
-            color: rgb(20, 7, 7);
-            font-size: 1.5rem;
-            padding: 1rem 0;
-            width: 100%;
-            background-color: #f5f5f5;
-        }
-
-        .content {
-            flex-grow: 1;
-        }
-
-        hr {
-            margin-bottom: 60px;
-            color: white;
-        }
     </style>
 </head>
 <body>
-    <div class="login-card">
-        <div class="content">
-            <div class="school-logo">
-                <img src="{% static '/images/logo.png' %}" alt="JOOUST Logo">
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg custom-navbar">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center" href="#">
+                <img src="{% static 'images/jooust_logo.png' %}" alt="Institution Logo" height="40">
+            </a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse justify-content-center" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="researchDropdown" role="button" data-bs-toggle="dropdown">
+                            RESEARCH
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="researchDropdown">
+                            <li><a class="dropdown-item" href="#">DRIE</a></li>
+                            <li><a class="dropdown-item" href="#">Vlir-OUS</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item"><a class="nav-link" href="#">ABOUT US</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">PROJECTS</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">DEPARTMENT</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">PEOPLE</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">CONTACT</a></li>
+                    <li class="nav-item login-btn">
+                        <a href="{% url 'login' %}">LOGIN</a>
+                    </li>
+                </ul>
             </div>
-            <h1 class="login-title">Research LOGIN</h1>
-            <hr>
+        </div>
+    </nav>
+
+    <!-- Login Form -->
+    <div class="login-container">
+        <div class="login-card">
+            <div class="logo">
+                <img src="{% static 'images/JOOUST.png' %}" alt="JOOUST Logo">
+            </div>
+            <h2 class="login-title">RESEARCH PORTAL</h2>
             <form action="#" method="POST">
-                <div class="form-group">
+                <div class="input-group">
                     <label for="reg-number">Username</label>
-                    <input type="text" id="reg-number" name="reg-number" placeholder="Username" required>
+                    <input type="text" id="reg-number" name="reg-number" placeholder="username">
                 </div>
-                <div class="form-group">
+                <div class="input-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" name="password" placeholder="Password" required>
+                    <input type="password" id="password" name="password" placeholder="Password">
                 </div>
                 <div class="forgot-password">
-                    <a style="color:blue" href="#">Forgot Password?</a>
+                    <a href="#">Forgot Password?</a>
                 </div>
-                <button type="submit" class="login-button">Login</button>
+                <button type="submit" class="login-button">LOGIN</button>
             </form>
+            <div class="footer-text">
+                © 2025. Designed by HVAC systems
+            </div>
         </div>
     </div>
-    <div class="footer">
-        © 2025, Designed by ❤ DSL Systems
-    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
