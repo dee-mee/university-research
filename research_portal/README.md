@@ -40,7 +40,10 @@ This project is a Django-based web application designed to facilitate research a
 - Python
 
 ## Collaborators
-- [Your Name Here]
+- [DEREK MURIUKI]
+- [FIDEL ELIUD]
+- [KELVIN NAMBALE]
+- [BERNARD KARANJA]
 
 ## License
 This project is licensed under the MIT License.
