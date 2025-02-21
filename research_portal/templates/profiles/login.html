@@ -24,9 +24,9 @@
             border-radius: 25px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             width: 100%;
-            max-width: 600px;
+            max-width: 550px;
             box-sizing: border-box;
-            height: 800px;
+            height: 700px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -35,13 +35,13 @@
 
         .school-logo {
             text-align: center;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
             margin-top: 1.5rem;
         }
 
         .school-logo img {
-            width: 240px;
-            height: auto;
+            width: 150px;
+            height: 100px;
         }
 
         .login-title {
@@ -126,14 +126,14 @@
     <div class="login-card">
         <div class="content">
             <div class="school-logo">
-                <img src="{% static '/images/logo-removebg-preview.png' %}" alt="JOOUST Logo">
+                <img src="{% static '/images/logo.png' %}" alt="JOOUST Logo">
             </div>
             <h1 class="login-title">Research LOGIN</h1>
             <hr>
             <form action="#" method="POST">
                 <div class="form-group">
-                    <label for="reg-number">Reg. Number</label>
-                    <input type="text" id="reg-number" name="reg-number" placeholder="Reg. Number" required>
+                    <label for="reg-number">Username</label>
+                    <input type="text" id="reg-number" name="reg-number" placeholder="Username" required>
                 </div>
                 <div class="form-group">
                     <label for="password">Password</label>
