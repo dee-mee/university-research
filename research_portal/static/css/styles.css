@@ -119,16 +119,77 @@ body {
 
 /* Caption Styling */
 .carousel-caption {
-    bottom: 50px;
+    position: absolute;
+    bottom: 15%;
+    left: 10%;
+    right: 10%;
     text-align: center;
+    background: rgba(0, 0, 0, 0.6);
+    padding: 15px;
+    border-radius: 10px;
 }
 
 .carousel-caption h2 {
-    font-size: 2rem;
-    color: white;
+    color: #fff;
+    font-size: 28px;
     font-weight: bold;
-    text-shadow: 2px 2px 5px rgba(0,0,0,0.7);
 }
+
+.carousel-caption p {
+    color: #ffcc00;
+    font-size: 20px;
+}
+
+
+/*About Us Section Styles*/
+.about-section {
+    background-color: #05124d;
+    padding: 60px 0;
+    color: #fff;
+}
+
+.about-image {
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.about-image img {
+    width: 100%;
+    height: auto;
+    opacity: 0.7;
+}
+
+.overlay-text {
+    position: absolute;
+    bottom: 10px;
+    left: 20px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    font-weight: bold;
+    padding: 10px 15px;
+    border-radius: 5px;
+    text-transform: uppercase;
+}
+
+.about-text {
+    padding-left: 30px;
+}
+
+.vision-title, .mission-title {
+    font-size: 24px;
+    font-weight: bold;
+    color: #ffcc00;
+}
+
+.about-text p {
+    font-size: 18px;
+    line-height: 1.6;
+    color: #dcdcdc;
+}
+
+/*About Us Section Styles End*/
+
 
 /* News Section */
 .recent-news {
