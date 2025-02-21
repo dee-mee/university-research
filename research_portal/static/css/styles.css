@@ -58,27 +58,28 @@ body {
 }
 
 /* Login button styling */
-.login-btn {
-    background-color: green; /* Default green background */
-    color: white !important; /* White text */
-    padding: 8px 20px;
+.login-btn a {
+    background-color: #0d7a00; 
+    color: white !important; 
+    padding: 10px 25px; 
     border: none;
-    border-radius: 10px; /* Rounded corners */
-    font-size: 14px;
+    border-radius: 8px; 
+    font-size: 13.5px; 
     font-weight: bold;
     text-decoration: none;
     display: flex;
     align-items: center;
     justify-content: center;
     height: 40px; 
-    margin-left: 50px;
+    margin-left: 30px; 
     transition: background-color 0.3s ease, transform 0.2s;
 }
 
-.login-btn:hover {
-    background-color: #001F3F;
+.login-btn a:hover {
+    background-color: #0345BF; /* Change hover color */
     transform: scale(1.05);
 }
+
 
 /* Mobile Navbar */
 @media (max-width: 991px) {
