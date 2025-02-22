@@ -303,8 +303,30 @@
     </div>
 </footer>
 
+    <!-- Scroll to Top Button -->
+    <button onclick="scrollToTop()" id="scrollToTopBtn" title="Go to top">^</button>
 
+    <script src="{% static 'js/script.js' %}"></script>
+    <style>
+        #scrollToTopBtn {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            right: 30px;
+            z-index: 99;
+            font-size: 18px;
+            border: none;
+            outline: none;
+            background-color: #04114b;
+            color: white;
+            cursor: pointer;
+            padding: 15px;
+            border-radius: 50%;
+        }
 
-    <script src="{% static 'js/scripts.js' %}"></script>
+        #scrollToTopBtn:hover {
+            background-color: #555;
+        }
+    </style>
 </body>
 </html>
