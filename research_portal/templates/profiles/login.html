@@ -30,7 +30,7 @@
 }
 
 .logo img {
-    width: 80px;  
+    width: 200px;  
     height: auto;
     margin-bottom: 1rem;
 }
@@ -69,8 +69,8 @@
     <header>
         <nav class="navbar navbar-expand-lg custom-navbar">
             <div class="container">
-                <a class="navbar-brand" href="#">
-                    <img src="{% static 'images/jooust_logo.png' %}" alt="Institution Logo" height="40">
+                <a class="navbar-brand" href="">
+                    <img src="{% static 'images/logo@2x.png' %}" alt="Institution Logo" height="40">
                 </a>
 
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -131,10 +131,13 @@
     <div class="login-container">
         <div class="login-card">
             <div class="logo">
-                <img src="{% static 'images/JOOUST.png' %}" alt="JOOUST Logo">
+                <img src="{% static 'images/logo@2x.png' %}" alt="JOOUST Logo">
             </div>
             <h2 class="login-title">RESEARCH PORTAL</h2>
-            <form action="#" method="POST">
+          <form action="{% url 'login' %}" method="POST">
+                {% csrf_token %}
+
+
                 <div class="input-group">
                     <label for="reg-number">Username</label>
                     <input type="text" id="reg-number" name="reg-number" placeholder="username">
