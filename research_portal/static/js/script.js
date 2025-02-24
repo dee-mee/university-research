@@ -6,7 +6,7 @@ function showSlides() {
         slide.style.display = (i === index) ? "block" : "none";
     });
     index = (index + 1) % slides.length;
-    setTimeout(showSlides, 3000);
+    setTimeout(showSlides, 1000);
 }
 
 showSlides();
