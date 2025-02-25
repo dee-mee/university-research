@@ -393,30 +393,60 @@ body {
     margin: 0;
 }
 
-/* Latest Projects Section */
-.latest-projects {
+/* Latest Projects Section with Horizontal Scrolling - Fixed Version */
+.latest-projects-container {
+    padding: 40px 0;
+    max-width: 100%;
+    overflow: hidden;
+    position: relative;
+}
+
+.projects-scroll-container {
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+}
+
+.projects-track {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 30px;
-    padding: 40px 20px;
-    max-width: 1200px;
-    margin: auto;
+    width: fit-content;
+    animation: scrollTrack 30s linear infinite;
+}
+
+.projects-wrapper {
+    display: flex;
+    gap: 20px; /* Reduced gap between items */
+    padding: 20px;
+    width: fit-content;
+}
+
+/* Animation for seamless scrolling from right to left */
+@keyframes scrollTrack {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        /* This should be exactly the width of one projects-wrapper */
+        transform: translateX(-50%);
+    }
 }
 
 .project-item {
-    width: calc(33.333% - 20px);
+    width: 320px; /* Fixed width for project cards */
+    flex-shrink: 0; /* Prevent items from shrinking */
     background: #f9f9f9;
     border-radius: 10px;
     overflow: hidden;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    transition: transform 0.2s ease;
+    transition: transform 0.3s ease;
     text-decoration: none;
     color: inherit;
+    margin-right: 0; /* Ensure no extra margin */
 }
 
 .project-item:hover {
-    transform: translateY(-3px);
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
 }
 
 .project-item img {
@@ -464,20 +494,42 @@ body {
     color: #888;
 }
 
-/* Responsive Design */
-@media (max-width: 1024px) {
+/* Pause animation on hover */
+.projects-scroll-container:hover .projects-track {
+    animation-play-state: paused;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
     .project-item {
-        width: calc(50% - 15px);
+        width: 280px;
+    }
+    
+    .projects-wrapper {
+        gap: 15px;
+        padding: 15px;
     }
 }
 
-@media (max-width: 768px) {
-    .news-item {
-        width: 100%;
-    }
+@media (max-width: 480px) {
     .project-item {
-        width: 100%;
+        width: 240px;
     }
+    
+    .projects-wrapper {
+        gap: 10px;
+        padding: 10px;
+    }
+}
+
+/* Section heading style */
+.section-heading {
+    text-align: center;
+    color: #0d7a00;
+    font-size: 28px;
+    font-weight: bold;
+    margin-bottom: 20px;
+    text-transform: uppercase;
 }
 /* Responsive Design */
 @media (max-width: 1200px) {

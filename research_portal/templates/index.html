@@ -195,45 +195,127 @@
     </section>
 
     <!-- Latest Projects Section -->
-    <section class="latest-projects">
-        <h2 class="section-heading">LATEST PROJECTS</h2>
-        
-        <a href="#" class="project-item">
-            <img src="{% static 'images/about3.png' %}"  alt="Project 1" />
-            <div class="project-content">
-                <h3>Climate Change Impact Assessment</h3>
-                <p>Analysis of climate change effects on regional water resources and ecosystem stability.</p>
-                <div class="project-meta">
-                    <span class="project-category">Climate Research</span>
-                    <span class="project-date">2025</span>
-                </div>
-            </div>
-        </a>
+<section class="latest-projects-container">
+    <h2 class="section-heading">LATEST PROJECTS</h2>
+    
+    <div class="projects-scroll-container">
+        <div class="projects-track">
+            <!-- First set of projects -->
+            <div class="projects-wrapper">
+                <a href="#" class="project-item">
+                    <img src="{% static 'images/about3.png' %}" alt="Project 1" />
+                    <div class="project-content">
+                        <h3>Climate Change Impact Assessment</h3>
+                        <p>Analysis of climate change effects on regional water resources and ecosystem stability.</p>
+                        <div class="project-meta">
+                            <span class="project-category">Climate Research</span>
+                            <span class="project-date">2025</span>
+                        </div>
+                    </div>
+                </a>
 
-        <a href="#" class="project-item">
-            <img src="{% static 'images/about3.png' %}"  alt="Project 2" />
-            <div class="project-content">
-                <h3>Water Conservation Initiative</h3>
-                <p>Developing innovative strategies for urban water management and conservation.</p>
-                <div class="project-meta">
-                    <span class="project-category">Water Management</span>
-                    <span class="project-date">2024</span>
-                </div>
-            </div>
-        </a>
+                <a href="#" class="project-item">
+                    <img src="{% static 'images/about3.png' %}" alt="Project 2" />
+                    <div class="project-content">
+                        <h3>Water Conservation Initiative</h3>
+                        <p>Developing innovative strategies for urban water management and conservation.</p>
+                        <div class="project-meta">
+                            <span class="project-category">Water Management</span>
+                            <span class="project-date">2024</span>
+                        </div>
+                    </div>
+                </a>
 
-        <a href="#" class="project-item">
-            <img src="{% static 'images/about3.png' %}"  alt="Project 3" />
-            <div class="project-content">
-                <h3>Sustainable Agriculture</h3>
-                <p>Research on climate-resilient farming practices and water efficiency in agriculture.</p>
-                <div class="project-meta">
-                    <span class="project-category">Agriculture</span>
-                    <span class="project-date">2024</span>
-                </div>
+                <a href="#" class="project-item">
+                    <img src="{% static 'images/about3.png' %}" alt="Project 3" />
+                    <div class="project-content">
+                        <h3>Sustainable Agriculture</h3>
+                        <p>Research on climate-resilient farming practices and water efficiency in agriculture.</p>
+                        <div class="project-meta">
+                            <span class="project-category">Agriculture</span>
+                            <span class="project-date">2024</span>
+                        </div>
+                    </div>
+                </a>
+                
+                <a href="#" class="project-item">
+                    <img src="{% static 'images/about3.png' %}" alt="Project 4" />
+                    <div class="project-content">
+                        <h3>Renewable Energy Systems</h3>
+                        <p>Exploring integration of renewable energy solutions with water resource management.</p>
+                        <div class="project-meta">
+                            <span class="project-category">Energy Research</span>
+                            <span class="project-date">2024</span>
+                        </div>
+                    </div>
+                </a>
+                
+                <a href="#" class="project-item">
+                    <img src="{% static 'images/about3.png' %}" alt="Project 5" />
+                    <div class="project-content">
+                        <h3>Drought Monitoring Network</h3>
+                        <p>Establishing advanced monitoring networks for early drought detection and mitigation.</p>
+                        <div class="project-meta">
+                            <span class="project-category">Drought Research</span>
+                            <span class="project-date">2025</span>
+                        </div>
+                    </div>
+                </a>
             </div>
-        </a>
-    </section>
+            
+            <!-- Duplicate for seamless scrolling -->
+            <div class="projects-wrapper">
+                <a href="#" class="project-item">
+                    <img src="{% static 'images/about1.png' %}" alt="Project 1" />
+                    <div class="project-content">
+                        <h3>Climate Change Impact Assessment</h3>
+                        <p>Analysis of climate change effects on regional water resources.</p>
+                        <div class="project-meta">
+                            <span class="project-category">Climate Research</span>
+                            <span class="project-date">2025</span>
+                        </div>
+                    </div>
+                </a>
+
+                <a href="#" class="project-item">
+                    <img src="{% static 'images/about4.png' %}" alt="Project 2" />
+                    <div class="project-content">
+                        <h3>Water Conservation Initiative</h3>
+                        <p>Developing innovative strategies for urban water management and conservation.</p>
+                        <div class="project-meta">
+                            <span class="project-category">Water Management</span>
+                            <span class="project-date">2024</span>
+                        </div>
+                    </div>
+                </a>
+
+                <a href="#" class="project-item">
+                    <img src="{% static 'images/about3.png' %}" alt="Project 3" />
+                    <div class="project-content">
+                        <h3>Sustainable Agriculture</h3>
+                        <p>Research on climate-resilient farming practices and water efficiency in agriculture.</p>
+                        <div class="project-meta">
+                            <span class="project-category">Agriculture</span>
+                            <span class="project-date">2024</span>
+                        </div>
+                    </div>
+                </a>
+                
+                <a href="#" class="project-item">
+                    <img src="{% static 'images/about3.png' %}" alt="Project 4" />
+                    <div class="project-content">
+                        <h3>Renewable Energy Systems</h3>
+                        <p>Exploring integration of renewable energy solutions with water resource management.</p>
+                        <div class="project-meta">
+                            <span class="project-category">Energy Research</span>
+                            <span class="project-date">2024</span>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
 
 <!--FOOTER SECTION-->
 
