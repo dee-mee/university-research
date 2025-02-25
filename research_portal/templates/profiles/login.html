@@ -30,7 +30,7 @@
 }
 
 .logo img {
-    width: 80px;  
+    width: 200px;  
     height: auto;
     margin-bottom: 1rem;
 }
@@ -66,49 +66,78 @@
     </style>
 </head>
 <body>
-    <!-- Navigation Bar -->
-    <nav class="navbar navbar-expand-lg custom-navbar">
-        <div class="container">
-            <a class="navbar-brand d-flex align-items-center" href="#">
-                <img src="{% static 'images/jooust_logo.png' %}" alt="Institution Logo" height="40">
-            </a>
+    <header>
+        <nav class="navbar navbar-expand-lg custom-navbar">
+            <div class="container">
+                <a class="navbar-brand" href="">
+                    <img src="{% static 'images/logo@2x.png' %}" alt="Institution Logo" height="40">
+                </a>
 
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
 
-            <div class="collapse navbar-collapse justify-content-center" id="navbarNav">
-                <ul class="navbar-nav">
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="researchDropdown" role="button" data-bs-toggle="dropdown">
-                            RESEARCH
-                        </a>
-                        <ul class="dropdown-menu" aria-labelledby="researchDropdown">
-                            <li><a class="dropdown-item" href="#">DRIE</a></li>
-                            <li><a class="dropdown-item" href="#">Vlir-OUS</a></li>
-                        </ul>
-                    </li>
-                    <li class="nav-item"><a class="nav-link" href="#">ABOUT US</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#">PROJECTS</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#">DEPARTMENT</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#">PEOPLE</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#">CONTACT</a></li>
-                    <li class="nav-item login-btn">
-                        <a href="{% url 'login' %}">LOGIN</a>
-                    </li>
-                </ul>
+                <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+                    <ul class="navbar-nav align-items-center">
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                RESEARCH
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#">Surface Water</a></li>
+                                <li><a class="dropdown-item" href="#">Groundwater</a></li>
+                                <li><a class="dropdown-item" href="#">bclimate</a></li>
+                                <li><a class="dropdown-item" href="#">bglacier</a></li>
+                                <li><a class="dropdown-item" href="#">Urban Water</a></li>
+                                <li><a class="dropdown-item" href="#">H2MS-dynamics</a></li>
+                            </ul>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                PROJECTS
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#">NATALIE</a></li>
+                                <li><a class="dropdown-item" href="#">UNESCO Chair</a></li>
+                                <li><a class="dropdown-item" href="#">AXA Chair</a></li>
+                                <li><a class="dropdown-item" href="#">ICE3</a></li>
+                                <li><a class="dropdown-item" href="#">GlaciersMD</a></li>
+                                <li><a class="dropdown-item" href="#">All Projects</a></li>
+                            </ul>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                DEPARTMENT
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#">Publications</a></li>
+                                <li><a class="dropdown-item" href="#">Education</a></li>
+                                <li><a class="dropdown-item" href="#">PhD</a></li>
+                                <li><a class="dropdown-item" href="#">Software & Data</a></li>
+                                <li><a class="dropdown-item" href="#">HYDR Github</a></li>
+                            </ul>
+                        </li>
+                        <li class="nav-item"><a class="nav-link" href="#">PEOPLE</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{% url 'contact' %}">CONTACT</a></li>
+                        <li class="nav-item login-btn">
+                            <a href="{% url 'login' %}">LOGIN</a>
+                        </li>
+                    </ul>
+                </div>
             </div>
-        </div>
-    </nav>
-
+        </nav>
+    </header>
     <!-- Login Form -->
     <div class="login-container">
         <div class="login-card">
             <div class="logo">
-                <img src="{% static 'images/JOOUST.png' %}" alt="JOOUST Logo">
+                <img src="{% static 'images/logo@2x.png' %}" alt="JOOUST Logo">
             </div>
             <h2 class="login-title">RESEARCH PORTAL</h2>
-            <form action="#" method="POST">
+          <form action="{% url 'login' %}" method="POST">
+                {% csrf_token %}
+
+
                 <div class="input-group">
                     <label for="reg-number">Username</label>
                     <input type="text" id="reg-number" name="reg-number" placeholder="username">

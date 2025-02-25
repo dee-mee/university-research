@@ -1,3 +1,4 @@
+from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from rest_framework import generics, status
 from rest_framework.response import Response
@@ -14,7 +15,7 @@ class RegisterView(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         user = serializer.save()
-        Profile.objects.create(user=user, reg_number=serializer.validated_data['reg_number'])
+        Profile.objects.create(user=user, username=serializer.validated_data['username'])
 
 class LoginView(generics.GenericAPIView):
     serializer_class = LoginSerializer
@@ -22,7 +23,7 @@ class LoginView(generics.GenericAPIView):
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = authenticate(username=serializer.validated_data['reg_number'], password=serializer.validated_data['password'])
+        user = authenticate(username=serializer.validated_data['username'], password=serializer.validated_data['password'])
         if user is not None:
             login(request, user)
             return Response({"message": "Login successful"}, status=status.HTTP_200_OK)
@@ -37,19 +38,28 @@ class PasswordResetView(generics.GenericAPIView):
         # Implement password reset logic here
         return Response({"message": "Password reset link sent"}, status=status.HTTP_200_OK)
 
+
 @csrf_protect
 def login_view(request):
     if request.method == 'POST':
         form = LoginForm(request.POST)
         if form.is_valid():
-            reg_number = form.cleaned_data.get('reg_number')
+            reg_number = form.cleaned_data.get('username')
             password = form.cleaned_data.get('password')
-            user = authenticate(request, username=reg_number, password=password)
+            user = authenticate(request, username=username, password=password)
             if user is not None:
                 login(request, user)
-                return redirect('home')
+                if user.is_superuser:
+                    return redirect('admin_dashboard')  # Redirect admin to admin dashboard
+                else:
+                    return redirect('user_dashboard')  # Redirect normal users to user dashboard
             else:
                 form.add_error(None, 'Invalid username or password')
     else:
         form = LoginForm()
     return render(request, 'profiles/login.html', {'form': form})
+
+
+@login_required
+def user_dashboard(request):
+    return render(request, 'dashboard/user_dashboard.html')

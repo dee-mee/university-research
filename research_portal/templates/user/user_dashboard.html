@@ -1,0 +1,74 @@
+{% extends "index.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-2 bg-dark text-white p-3 vh-100">
+            <div class="text-center my-3">
+                <img src="https://via.placeholder.com/50" class="rounded-circle" alt="User">
+                <h5 class="mt-2">{{ user.get_full_name }}</h5>
+            </div>
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a href="#" class="nav-link text-white"><i class="fas fa-home"></i> Dashboard</a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link text-white"><i class="fas fa-book"></i> Course Registration</a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link text-white"><i class="fas fa-calendar"></i> TimeTable</a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link text-white"><i class="fas fa-file-invoice"></i> Fee Statement</a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-md-10 p-4">
+            <h3 class="mb-4">Dashboard</h3>
+
+            <!-- Cards -->
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card p-3 text-center shadow">
+                        <h5>Registered Units</h5>
+                        <h2>8</h2>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card p-3 text-center shadow">
+                        <h5>Attempted Units</h5>
+                        <h2>56</h2>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card p-3 shadow">
+                        <h5>Fee Payment</h5>
+                        <p><strong>Total Billed:</strong> Ksh. 154,500.00</p>
+                        <p><strong>Total Paid:</strong> Ksh. 178,900.00</p>
+                        <p><strong>Fee Balance:</strong> Ksh. -24,400.00</p>
+                        <button class="btn btn-success w-100">Make Payment</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Basic Information -->
+            <div class="mt-4 p-3 bg-light shadow">
+                <h5 class="p-2 bg-success text-white">Basic Information</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Reg. No:</strong> <span class="badge bg-success">I231/G/1691/21</span></p>
+                        <p><strong>Name:</strong> <span class="badge bg-success">{{ user.get_full_name }}</span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Date of Birth:</strong> 2003-06-27</p>
+                        <p><strong>Phone Number:</strong> 0757678505</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
