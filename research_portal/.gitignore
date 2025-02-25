@@ -11,3 +11,5 @@ db.sqlite3
 **/*.pyz
 **/*.pyw
 
+.idea
+.idea/vcs.xml
