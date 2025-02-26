@@ -12,7 +12,6 @@ urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
     path('login/', login_view, name='login'),
     path('password-reset/', PasswordResetView.as_view(), name='password_reset'),
-]
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
