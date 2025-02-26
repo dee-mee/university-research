@@ -10,4 +10,13 @@ db.sqlite3
 **/*.pyd
 **/*.pyz
 **/*.pyw
+.idea
+/media
+/idea
+**.sqlite3
+**.idea
+**.idea/*
+**.idea/vcs.xml
 
+.idea
+.idea/vcs.xml

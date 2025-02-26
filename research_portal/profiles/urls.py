@@ -1,9 +1,11 @@
 from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import path
-from .views import RegisterView, LoginView, PasswordResetView, login_view, user_dashboard
+from .views import RegisterView, PasswordResetView, login_view, user_dashboard
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
+
+
 
 # Dashboard views
 urlpatterns = [
