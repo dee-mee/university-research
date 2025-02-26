@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% load static %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/styles.css' %}">
+<!-- Bootstrap CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+<style>
+    /* Register Form Styles */
+    .register-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 85vh;
+        background-color: #f5f5f5;
+    }
+
+    .register-card {
+        background-color: rgb(89, 108, 0);  
+        border-radius: 10px;
+        padding: 1rem;
+        width: 100%;
+        max-width: 430px;
+        text-align: center;
+    }
+
+    .logo img {
+        width: 80px;  
+        height: auto;
+        margin-bottom: 1rem;
+    }
+
+    .register-title {
+        color: white;
+        font-size: 20px;
+        margin-bottom: 1.5rem;
+        text-transform: uppercase;
+    }
+
+    .input-group {
+        margin-bottom: 1.5rem;
+        text-align: left;
+    }
+
+    .input-group label {
+        display: block;
+        color: white;
+        margin-bottom: 0.1rem;
+        font-weight: normal;
+    }
+
+    .input-group input {
+        width: 100%;
+        padding: 8px;
+        border: none;
+        border-radius: 4px;
+        background-color: white;
+    }
+
+    .input-group input:focus {
+        outline: none;
+        border: 2px solid #ffcc00;
+    }
+
+    .footer-text {
+        margin-top: 1rem;
+        color: white;
+        font-size: 14px;
+    }
+
+    .login-link {
+        margin-top: 15px;
+        color: #fff;
+        font-size: 15px;
+        font-weight: bold;
+        text-decoration: none;
+    }
+
+    .login-link:hover {
+        text-decoration: underline;
+    }
+
+    /* Mobile Responsiveness */
+    @media (max-width: 768px) {
+        .register-card {
+            padding: 20px;
+        }
+        
+        .register-title {
+            font-size: 18px;
+        }
+        
+        .btn-primary {
+            font-size: 14px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block title %}Register - Research Portal{% endblock %}
+
+{% block content %}
+<div class="register-container">
+    <div class="register-card">
+        <div class="logo">
+            <img src="{% static 'images/JOOUST.png' %}" alt="JOOUST Logo">
+        </div>
+        <h2 class="register-title">REGISTER</h2>
+        <form method="POST" id="registerForm">
+            {% csrf_token %}
+            <div class="input-group">
+                <label for="reg_number">Registration Number</label>
+                <input type="text" id="reg_number" name="reg_number" required>
+            </div>
+            <div class="input-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            <div class="input-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <div class="input-group">
+                <label for="password2">Confirm Password</label>
+                <input type="password" id="password2" name="password2" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Register</button>
+        </form>
+        <a href="{% url 'login' %}" class="login-link">Already have an account? Login here</a>
+        <div class="footer-text">
+            © 2025. Designed by HVAC systems
+        </div>
+    </div>
+</div>
+<script>
+    document.getElementById('registerForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+        const formData = new FormData(this);
+        fetch("{% url 'register' %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Registration Successful');
+                window.location.href = "{% url 'login' %}";
+            } else {
+                alert('Registration Failed: ' + data.message);
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    });
+</script>
+{% endblock %}
+</html>

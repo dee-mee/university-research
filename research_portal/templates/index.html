@@ -1,84 +1,8 @@
-<!--index.html-->
-{% load static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>University Research</title>
+{% extends "base.html" %}
+{% load static%}
+{% block title %}University Research{% endblock %}
 
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-
-    <!-- Custom Styles -->
-    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
-
-
-<!-- Bootstrap JS (Required for Carousel) -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-</head>
-
-<body>
-    <header>
-        <nav class="navbar navbar-expand-lg custom-navbar">
-            <div class="container">
-                <a class="navbar-brand" href="">
-                    <img src="{% static 'images/logo@2x.png' %}" alt="Institution Logo" height="40">
-                </a>
-
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-
-                <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
-                    <ul class="navbar-nav align-items-center">
-                        <li class="nav-item">
-                            <a class="nav-link dropdown-toggle" href="#">
-                                RESEARCH
-                            </a>
-                            <ul class="dropdown-menu">
-                                <li><a href="#">Surface Water</a></li>
-                                <li><a href="#">Groundwater</a></li>
-                                <li><a href="#">bclimate</a></li>
-                                <li><a href="#">bglacier</a></li>
-                                <li><a href="#">H2MS-dynamics</a></li>
-                            </ul>
-                        </li>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#">
-                                PROJECTS
-                            </a>
-                            <ul class="dropdown-menu">
-                                <li><a href="#">NATALIE</a></li>
-                                <li><a href="#">UNESCO Chair</a></li>
-                                <li><a href="#">AXA Chair</a></li>
-                                <li><a href="#">ICE3</a></li>
-                                <li><a href="#">GlaciersMD</a></li>
-                                <li><a href="#">All Projects</a></li>
-                            </ul>
-                        </li>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#">
-                                DEPARTMENT
-                            </a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="#">Publications</a></li>
-                                <li><a class="dropdown-item" href="#">Education</a></li>
-                                <li><a class="dropdown-item" href="#">PhD</a></li>
-                                <li><a class="dropdown-item" href="#">Software & Data</a></li>
-                                <li><a class="dropdown-item" href="#">HYDR Github</a></li>
-                            </ul>
-                        </li>
-                        <li class="nav-item"><a class="nav-link" href="#">PEOPLE</a></li>
-                        <li class="nav-item"><a class="nav-link" href="{% url 'contact' %}">CONTACT</a></li>
-                        <li class="nav-item login-btn">
-                            <a href="{% url 'login' %}">LOGIN</a>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </nav>
-    </header>
+{% block content %}
 <div id="carouselExampleIndicators" class="carousel slide carousel-fade" data-bs-ride="carousel">
     <!-- Indicators -->
     <div class="carousel-indicators">
@@ -86,7 +10,6 @@
         <button type="button" data-bs-target="#carouselExampleIndicators" data-bs-slide-to="1" aria-label="Slide 2"></button>
         <button type="button" data-bs-target="#carouselExampleIndicators" data-bs-slide-to="2" aria-label="Slide 3"></button>
     </div>
-
     <!-- Image Slides with Captions -->
     <div class="carousel-inner">
         <!-- Slide 1 -->
@@ -97,7 +20,6 @@
                 <p class="text-success">Oasis of Knowledge</p>
             </div>
         </div>
-
         <!-- Slide 2 -->
         <div class="carousel-item">
             <img src="{% static 'images/image2.jpg' %}" class="d-block w-100" alt="Slide 2">
@@ -106,7 +28,6 @@
                 <p>at the 4th Biennial Conference on the Status of Research and Innovation in Kenyan Universities.</p>
             </div>
         </div>
-
         <!-- Slide 3 -->
         <div class="carousel-item">
             <img src="{% static 'images/image3.png' %}" class="d-block w-100" alt="Slide 3">
@@ -116,7 +37,6 @@
             </div>
         </div>
     </div>
-
     <!-- Controls -->
     <button class="carousel-control-prev" type="button" data-bs-target="#carouselExampleIndicators" data-bs-slide="prev">
         <span class="carousel-control-prev-icon" aria-hidden="true"></span>
@@ -128,18 +48,16 @@
     </button>
 </div>
 
-
 <section class="about-section">
     <div class="container">
         <div class="row align-items-center">
             <!-- Image Section -->
             <div class="col-md-5">
                 <div class="about-image">
-                    <img src="{% static 'images/about.jpg' %}" class="img-fluid" alt="About Us">
+                    <img src="{% static 'images/about3.png' %}" class="img-fluid" alt="About Us">
                     <div class="overlay-text">Research Institute</div>
                 </div>
             </div>
-
             <!-- Vision and Mission Section -->
             <div class="col-md-7">
                 <div class="about-text">
@@ -147,7 +65,6 @@
                     <p>At <strong>Our Climate & Water Research Hub</strong>, we envision a sustainable future 
                         where data-driven insights empower global communities to combat climate change 
                         and ensure water security.</p>
-
                     <h2 class="mission-title">Our Mission</h2>
                     <p>Our mission is to leverage advanced data center technologies and 
                         scientific research to analyze climate patterns, optimize water resource management, 
@@ -158,239 +75,69 @@
     </div>
 </section>
 
-    <!-- Recent News Section -->
-    <section class="recent-news">
-        <h2 class="section-heading">RECENT NEWS</h2>
-        
-        <a href="#" class="news-item">
-            <img src="{% static 'images/about3.png' %}"  alt="Climate change report" />
+<section class="recent-news container mt-5">
+    <h2 class="section-title">RECENT NEWS</h2>
+    <div class="row">
+        {% for news in news_items %}
+        <div class="col-md-6 d-flex news-item">
+            <img src="{{ news.image.url }}" alt="News Image" class="news-img">
             <div class="news-content">
-                <h3>Contribution to groundbreaking report on climate change and wildfire risk</h3>
-                <p>Feb. 3, 2025, 5 P.M.</p>
+                <h5>{{ news.title }}</h5>
+                <p class="news-date">{{ news.date|date:"M. d, Y, P" }}</p>
+                <p>{{ news.description }}</p>
             </div>
-        </a>
+        </div>
+        {% endfor %}
+    </div>
+</section>
 
-        <a href="#" class="news-item">
-            <img src="{% static 'images/about3.png' %}" alt="Laureate prize" />
-            <div class="news-content">
-                <h3>Prof. Wim Thiery has received the "Laureate of the Academy" prize</h3>
-                <p>Dec. 16, 2024, 9 A.M.</p>
+<section class="latest-projects">
+    <div class="container">
+        <h2 class="section-title">LATEST PROJECTS</h2>
+        <div class="row">
+            <!-- Project 1 -->
+            <div class="col-md-2">
+                <img src="{% static 'images/project1.webp' %}" class="img-fluid" alt="Project 1">
+                <h4><a href="#">UNESCO-Hydroresilience: Addressing Hydro-climatic vulnerability through Citizen Science and Open Science</a></h4>
+                <p>2024</p>
             </div>
-        </a>
-
-        <a href="#" class="news-item">
-            <img src="{% static 'images/about3.png' %}"  alt="WATER Workshop" />
-            <div class="news-content">
-                <h3>W.A.T.E.R. Workshop</h3>
-                <p>March 28, 2024, 1 A.M.</p>
+            <!-- Project 2 -->
+            <div class="col-md-2">
+                <img src="{% static 'images/project2.webp' %}" class="img-fluid" alt="Project 2">
+                <h4><a href="#">Titicaca Aqua Watch: Indigenous Empowerment for Environmental Justice</a></h4>
+                <p>2024</p>
             </div>
-        </a>
-
-        <a href="#" class="news-item">
-            <img src="{% static 'images/about3.png' %}"  alt="Welcome Sofia" />
-            <div class="news-content">
-                <h3>Sofia! Welcome to the Department of Water and Climate!</h3>
-                <p>Feb. 2, 2024, 1 A.M.</p>
+            <!-- Project 3 -->
+            <div class="col-md-2">
+                <img src="{% static 'images/project3.webp' %}" class="img-fluid" alt="Project 3">
+                <h4><a href="#">G-STICK: Capitan Taki</a></h4>
+                <p>2024</p>
             </div>
-        </a>
-    </section>
-
-    <!-- Latest Projects Section -->
-<section class="latest-projects-container">
-    <h2 class="section-heading">LATEST PROJECTS</h2>
-    
-    <div class="projects-scroll-container">
-        <div class="projects-track">
-            <!-- First set of projects -->
-            <div class="projects-wrapper">
-                <a href="#" class="project-item">
-                    <img src="{% static 'images/about3.png' %}" alt="Project 1" />
-                    <div class="project-content">
-                        <h3>Climate Change Impact Assessment</h3>
-                        <p>Analysis of climate change effects on regional water resources and ecosystem stability.</p>
-                        <div class="project-meta">
-                            <span class="project-category">Climate Research</span>
-                            <span class="project-date">2025</span>
-                        </div>
-                    </div>
-                </a>
-
-                <a href="#" class="project-item">
-                    <img src="{% static 'images/about3.png' %}" alt="Project 2" />
-                    <div class="project-content">
-                        <h3>Water Conservation Initiative</h3>
-                        <p>Developing innovative strategies for urban water management and conservation.</p>
-                        <div class="project-meta">
-                            <span class="project-category">Water Management</span>
-                            <span class="project-date">2024</span>
-                        </div>
-                    </div>
-                </a>
-
-                <a href="#" class="project-item">
-                    <img src="{% static 'images/about3.png' %}" alt="Project 3" />
-                    <div class="project-content">
-                        <h3>Sustainable Agriculture</h3>
-                        <p>Research on climate-resilient farming practices and water efficiency in agriculture.</p>
-                        <div class="project-meta">
-                            <span class="project-category">Agriculture</span>
-                            <span class="project-date">2024</span>
-                        </div>
-                    </div>
-                </a>
-                
-                <a href="#" class="project-item">
-                    <img src="{% static 'images/about3.png' %}" alt="Project 4" />
-                    <div class="project-content">
-                        <h3>Renewable Energy Systems</h3>
-                        <p>Exploring integration of renewable energy solutions with water resource management.</p>
-                        <div class="project-meta">
-                            <span class="project-category">Energy Research</span>
-                            <span class="project-date">2024</span>
-                        </div>
-                    </div>
-                </a>
-                
-                <a href="#" class="project-item">
-                    <img src="{% static 'images/about3.png' %}" alt="Project 5" />
-                    <div class="project-content">
-                        <h3>Drought Monitoring Network</h3>
-                        <p>Establishing advanced monitoring networks for early drought detection and mitigation.</p>
-                        <div class="project-meta">
-                            <span class="project-category">Drought Research</span>
-                            <span class="project-date">2025</span>
-                        </div>
-                    </div>
-                </a>
+            <!-- Project 4 -->
+            <div class="col-md-2">
+                <img src="{% static 'images/project4.webp' %}" class="img-fluid" alt="Project 4">
+                <h4><a href="#">EUTOPIA connected communities: solutions for hydroclimatic risks</a></h4>
+                <p>2024</p>
             </div>
-            
-            <!-- Duplicate for seamless scrolling -->
-            <div class="projects-wrapper">
-                <a href="#" class="project-item">
-                    <img src="{% static 'images/about1.png' %}" alt="Project 1" />
-                    <div class="project-content">
-                        <h3>Climate Change Impact Assessment</h3>
-                        <p>Analysis of climate change effects on regional water resources.</p>
-                        <div class="project-meta">
-                            <span class="project-category">Climate Research</span>
-                            <span class="project-date">2025</span>
-                        </div>
-                    </div>
-                </a>
-
-                <a href="#" class="project-item">
-                    <img src="{% static 'images/about4.png' %}" alt="Project 2" />
-                    <div class="project-content">
-                        <h3>Water Conservation Initiative</h3>
-                        <p>Developing innovative strategies for urban water management and conservation.</p>
-                        <div class="project-meta">
-                            <span class="project-category">Water Management</span>
-                            <span class="project-date">2024</span>
-                        </div>
-                    </div>
-                </a>
-
-                <a href="#" class="project-item">
-                    <img src="{% static 'images/about3.png' %}" alt="Project 3" />
-                    <div class="project-content">
-                        <h3>Sustainable Agriculture</h3>
-                        <p>Research on climate-resilient farming practices and water efficiency in agriculture.</p>
-                        <div class="project-meta">
-                            <span class="project-category">Agriculture</span>
-                            <span class="project-date">2024</span>
-                        </div>
-                    </div>
-                </a>
-                
-                <a href="#" class="project-item">
-                    <img src="{% static 'images/about3.png' %}" alt="Project 4" />
-                    <div class="project-content">
-                        <h3>Renewable Energy Systems</h3>
-                        <p>Exploring integration of renewable energy solutions with water resource management.</p>
-                        <div class="project-meta">
-                            <span class="project-category">Energy Research</span>
-                            <span class="project-date">2024</span>
-                        </div>
-                    </div>
-                </a>
+            <!-- Project 5 -->
+            <div class="col-md-2">
+                <img src="{% static 'images/project5.webp' %}" class="img-fluid" alt="Project 5">
+                <h4><a href="#">CROPWAVES</a></h4>
+                <p>2024</p>
+            </div>
+            <!-- Project 6 -->
+            <div class="col-md-2">
+                <img src="{% static 'images/project6.webp' %}" class="img-fluid" alt="Project 6">
+                <h4><a href="#">ICE3</a></h4>
+                <p>2024</p>
+            </div>
+            <!-- Project 7 -->
+            <div class="col-md-2">
+                <img src="{% static 'images/project7.webp' %}" class="img-fluid" alt="Project 7">
+                <h4><a href="#">GlaciersMD</a></h4>
+                <p>2023</p>
             </div>
         </div>
     </div>
 </section>
-
-<!--FOOTER SECTION-->
-
-
-<footer style="background-color: #04114b; color: white; padding: 30px 0;">
-    <div class="container">
-        <div class="row">
-            <!-- Contact Info -->
-            <div class="col-md-4">
-                <h4>CONTACT US</h4>
-                <p><strong>Jaramogi Oginga Odinga University of Science and Technology (JOOUST)</strong></p>
-                <p>Bondo (Main) Campus</p>
-                <p>P.O. Box 210 - 40601 Bondo – Kenya.</p>
-                <p><strong>Telephones</strong><br>
-                    Phone: 057-2058000 / 057-2501804<br>
-                    Fax: 057 2523851
-                </p>
-                <p><strong>Emails</strong><br>
-                    <a href="mailto:information@jooust.ac.ke" style="color: #fdd835;">information@jooust.ac.ke</a><br>
-                    <a href="mailto:complaints@jooust.ac.ke" style="color: #fdd835;">complaints@jooust.ac.ke</a>
-                </p>
-            </div>
-
-            <!-- Corporate Communication -->
-            <div class="col-md-2">
-                <h4>Corporate Communication</h4>
-                <p><a href="#" style="color: #fdd835;">Corporate Communication Page</a></p>
-                <p><a href="#" style="color: #fdd835;">Customer Complaints/Compliment Form</a></p>
-                <h4>Service Charter</h4>
-                <p><a href="#" style="color: #fdd835;">Swahili</a></p>
-                <p><a href="#" style="color: #fdd835;">English</a></p>
-                <p><a href="#" style="color: #fdd835;">Audio and Visual Version</a></p>
-            </div>
-
-            <!-- Quality & Staff Resources -->
-            <div class="col-md-3">
-                <h4>Quality Statement</h4>
-                <p><a href="#" style="color: #fdd835;">JOOUST Quality Statement</a></p>
-                <h4>Staff Resources</h4>
-                <p><a href="#" style="color: #fdd835;">University Procedures</a></p>
-                <p><a href="#" style="color: #fdd835;">Appraisal Forms</a></p>
-                <p><a href="#" style="color: #fdd835;">Bunista SACCO</a></p>
-                <p><strong>Medical Cover - <a href="#" style="color: #fdd835;">AAR Provider Panel List</a></strong></p>
-            </div>
-
-            <!-- Useful Links -->
-            <div class="col-md-3">
-                <h4>Useful Links</h4>
-                <p><a href="#" style="color: #fdd835;">All Downloads</a></p>
-                <p><a href="#" style="color: #fdd835;">E-Citizen Service Delivery Charter</a></p>
-                <p><a href="#" style="color: #fdd835;">Advertisements</a></p>
-                <p><a href="#" style="color: #fdd835;">Job Vacancies</a></p>
-                <p><a href="#" style="color: #fdd835;">Access to Information Implementation</a></p>
-                <p><strong><a href="#" style="color: #fdd835;">Tenders and Quotations</a></strong></p>
-                <h4>Site Resources</h4>
-                <p><a href="#" style="color: #fdd835;">Sitemap</a></p>
-            </div>
-        </div>
-
-        <!-- Copyright -->
-        <div class="text-center mt-4">
-            <hr style="border-top: 1px solid white;">
-            <p>© Jaramogi Oginga Odinga University of Science and Technology (JOOUST), 2025.</p>
-        </div>
-    </div>
-</footer>
-
-    <!-- Scroll to Top Button -->
-    <button onclick="scrollToTop()" id="scrollToTopBtn" title="Go to top">^</button>
-
-<<<<<<< HEAD
-
-=======
->>>>>>> origin/master
-    <script src="{% static 'js/script.js' %}"></script>
-</body>
-</html>
+{% endblock %}
