@@ -5,6 +5,8 @@ from .views import RegisterView, LoginView, PasswordResetView, login_view, user_
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 
+
+
 # Dashboard views
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
