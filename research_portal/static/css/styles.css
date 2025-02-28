@@ -179,7 +179,7 @@ body {
     min-width: 200px;
     padding: 10px 0;
     border-radius: 0;
-    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.2);
+    border: none;
     z-index: 1000;
     opacity: 0;
     transform: translateY(10px);
