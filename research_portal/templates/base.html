@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+{% load static%}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Research Portal{% endblock %}</title>
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    {% block extra_css %}{% endblock %}
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg custom-navbar">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center" href="#">
+                <img src="{% static 'images/jooust_logo.png' %}" alt="Institution Logo" height="40">
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse justify-content-center" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="researchDropdown" role="button" data-bs-toggle="dropdown">
+                            RESEARCH
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="researchDropdown">
+                            <li><a class="dropdown-item" href="#">DRIE</a></li>
+                            <li><a class="dropdown-item" href="#">Vlir-OUS</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item"><a class="nav-link" href="#">ABOUT US</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">PROJECTS</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">DEPARTMENT</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">PEOPLE</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">CONTACT</a></li>
+                    <li class="nav-item login-btn">
+                        <a href="{% url 'login' %}">LOGIN</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Footer -->
+    <footer style="background-color: #04114b; color: white; padding: 30px 0;">
+        <div class="container">
+            <div class="row">
+                <!-- Contact Info -->
+                <div class="col-md-4">
+                    <h4>CONTACT US</h4>
+                    <p><strong>Jaramogi Oginga Odinga University of Science and Technology (JOOUST)</strong></p>
+                    <p>Bondo (Main) Campus</p>
+                    <p>P.O. Box 210 - 40601 Bondo – Kenya.</p>
+                    <p><strong>Telephones</strong><br>
+                        Phone: 057-2058000 / 057-2501804<br>
+                        Fax: 057 2523851
+                    </p>
+                    <p><strong>Emails</strong><br>
+                        <a href="mailto:information@jooust.ac.ke" style="color: #fdd835;">information@jooust.ac.ke</a><br>
+                        <a href="mailto:complaints@jooust.ac.ke" style="color: #fdd835;">complaints@jooust.ac.ke</a>
+                    </p>
+                </div>
+                <!-- Corporate Communication -->
+                <div class="col-md-2">
+                    <h4>Corporate Communication</h4>
+                    <p><a href="#" style="color: #fdd835;">Corporate Communication Page</a></p>
+                    <p><a href="#" style="color: #fdd835;">Customer Complaints/Compliment Form</a></p>
+                    <h4>Service Charter</h4>
+                    <p><a href="#" style="color: #fdd835;">Swahili</a></p>
+                    <p><a href="#" style="color: #fdd835;">English</a></p>
+                    <p><a href="#" style="color: #fdd835;">Audio and Visual Version</a></p>
+                </div>
+                <!-- Quality & Staff Resources -->
+                <div class="col-md-3">
+                    <h4>Quality Statement</h4>
+                    <p><a href="#" style="color: #fdd835;">JOOUST Quality Statement</a></p>
+                    <h4>Staff Resources</h4>
+                    <p><a href="#" style="color: #fdd835;">University Procedures</a></p>
+                    <p><a href="#" style="color: #fdd835;">Appraisal Forms</a></p>
+                    <p><a href="#" style="color: #fdd835;">Bunista SACCO</a></p>
+                    <p><strong>Medical Cover - <a href="#" style="color: #fdd835;">AAR Provider Panel List</a></strong></p>
+                </div>
+                <!-- Useful Links -->
+                <div class="col-md-3">
+                    <h4>Useful Links</h4>
+                    <p><a href="#" style="color: #fdd835;">All Downloads</a></p>
+                    <p><a href="#" style="color: #fdd835;">E-Citizen Service Delivery Charter</a></p>
+                    <p><a href="#" style="color: #fdd835;">Advertisements</a></p>
+                    <p><a href="#" style="color: #fdd835;">Job Vacancies</a></p>
+                    <p><a href="#" style="color: #fdd835;">Access to Information Implementation</a></p>
+                    <p><strong><a href="#" style="color: #fdd835;">Tenders and Quotations</a></strong></p>
+                    <h4>Site Resources</h4>
+                    <p><a href="#" style="color: #fdd835;">Sitemap</a></p>
+                </div>
+            </div>
+            <!-- Copyright -->
+            <div class="text-center mt-4">
+                <hr style="border-top: 1px solid white;">
+                <p>© Jaramogi Oginga Odinga University of Science and Technology (JOOUST), 2025.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scroll to Top Button -->
+    <button onclick="scrollToTop()" id="scrollToTopBtn" title="Go to top">^</button>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{% static 'js/script.js' %}"></script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>
