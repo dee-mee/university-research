@@ -12,7 +12,7 @@ db.sqlite3
 **/*.pyw
 .idea
 /media
-/idea
+/.idea
 **.sqlite3
 **.idea
 **.idea/*
