@@ -13,5 +13,6 @@ urlpatterns = [
     path('dashboard/', login_required(dashboard_view), name='dashboard'),
 ]
 
+
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
