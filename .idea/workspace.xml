@@ -4,22 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="5616868c-0e04-4780-b508-932d49d2fbb8" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/research_portal/static/images/logo-removebg-preview.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/university_research.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/university_research.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/research_portal/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/research_portal/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/research_portal/db.sqlite3" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/research_portal/profiles/urls.py" beforeDir="false" afterPath="$PROJECT_DIR$/research_portal/profiles/urls.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/research_portal/profiles/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/research_portal/profiles/views.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/research_portal/research/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/research_portal/research/views.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/research_portal/templates/base.html" beforeDir="false" afterPath="$PROJECT_DIR$/research_portal/templates/base.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/research_portal/templates/contact/contact.html" beforeDir="false" afterPath="$PROJECT_DIR$/research_portal/templates/contact/contact.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/research_portal/templates/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/research_portal/templates/index.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/research_portal/templates/profiles/login.html" beforeDir="false" afterPath="$PROJECT_DIR$/research_portal/templates/profiles/login.html" afterDir="false" />
-    </list>
+    <list default="true" id="5616868c-0e04-4780-b508-932d49d2fbb8" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -40,7 +25,7 @@
   &quot;keyToString&quot;: {
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;Merging master&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
     &quot;last_opened_file_path&quot;: &quot;/home/ncognto/PycharmProjects/university-research&quot;
   }
 }</component>
