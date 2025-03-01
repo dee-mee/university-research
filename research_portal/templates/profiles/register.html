@@ -134,26 +134,23 @@
 </div>
 <script>
     document.getElementById('registerForm').addEventListener('submit', function(event) {
-        event.preventDefault();
-        const formData = new FormData(this);
-        fetch("{% url 'register' %}", {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': formData.get('csrfmiddlewaretoken')
-            },
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Registration Successful');
-                window.location.href = "{% url 'login' %}";
-            } else {
-                alert('Registration Failed: ' + data.message);
-            }
-        })
-        .catch(error => console.error('Error:', error));
+        const regNumber = document.getElementById('reg_number').value;
+        const email = document.getElementById('email').value;
+        const regNumberPattern = /^[A-Z]\d{3}\/G\/\d{4}\/\d{2}$/;
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        if (!regNumberPattern.test(regNumber)) {
+            alert('Invalid Registration Number. Format should be like I132/G/4480/22.');
+            event.preventDefault(); // Prevent form submission if validation fails
+            return;
+        }
+
+        if (!emailPattern.test(email)) {
+            alert('Invalid Email Address.');
+            event.preventDefault(); // Prevent form submission if validation fails
+            return;
+        }
     });
 </script>
 {% endblock %}
-</html>
+
