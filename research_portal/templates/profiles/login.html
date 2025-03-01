@@ -11,7 +11,7 @@
         justify-content: center;
         align-items: center;
         height: 88vh;
-        background-color: #f5f5f5;
+        background-color: #ffffff; /* White background */
     }
 
     .login-card {
@@ -97,6 +97,14 @@
         text-decoration: underline;
     }
 
+    /* Error Messages */
+    .error-message {
+        color: #ff9900;
+        font-size: 14px;
+        margin-top: 5px;
+        text-align: left;
+    }
+
     /* Footer */
     .footer-text {
         text-align: center;
@@ -129,18 +137,39 @@
             <img src="{% static 'images/JOOUST.png' %}" alt="JOOUST Logo">
         </div>
         <h2 class="login-title">RESEARCH PORTAL</h2>
+        
+        {% if form.non_field_errors %}
+        <div class="error-message">
+            {% for error in form.non_field_errors %}
+                {{ error }}
+            {% endfor %}
+        </div>
+        {% endif %}
+        
         <form method="POST" id="loginForm">
             {% csrf_token %}
             <div class="input-group">
-                <label for="reg_number">Registration Number</label>
-                <input type="text" id="reg_number" name="reg_number" placeholder="Registration Number" required>
+                <input type="text" id="reg_number" name="reg_number" placeholder="Registration Number or Email" required>
+                {% if form.reg_number.errors %}
+                <div class="error-message">
+                    {% for error in form.reg_number.errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+                {% endif %}
             </div>
             <div class="input-group">
-                <label for="password">Password</label>
                 <input type="password" id="password" name="password" placeholder="Password" required>
+                {% if form.password.errors %}
+                <div class="error-message">
+                    {% for error in form.password.errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+                {% endif %}
             </div>
             <div class="forgot-password">
-                <a style="color: blue;" href="#">Forgot Password?</a>
+                <a href="{% url 'password_reset' %}">Forgot Password?</a>
             </div>
             <button type="submit" class="login-button">LOGIN</button>
         </form>
@@ -150,27 +179,40 @@
         </div>
     </div>
 </div>
+
 <script>
     document.getElementById('loginForm').addEventListener('submit', function(event) {
-        event.preventDefault();
-        const formData = new FormData(this);
-        fetch("{% url 'login' %}", {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': formData.get('csrfmiddlewaretoken')
-            },
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Login Successful');
-                window.location.href = "{% url 'research:index' %}";
-            } else {
-                alert('Login Failed: ' + data.message);
-            }
-        })
-        .catch(error => console.error('Error:', error));
+        // Only prevent default for AJAX submissions
+        if (window.fetch) {
+            event.preventDefault();
+            const formData = new FormData(this);
+            
+            fetch("{% url 'login' %}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Response Data:', data);
+                if (data.success) {
+                    window.location.href = "{% url 'dashboard' %}";
+                } else {
+                    // Display error message
+                    let errorMessage = data.message;
+                    if (typeof errorMessage === 'object') {
+                        errorMessage = Object.values(errorMessage).flat().join('. ');
+                    }
+                    alert('Login Failed: ' + errorMessage);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred during login. Please try again.');
+            });
+        }
     });
 </script>
 {% endblock %}
