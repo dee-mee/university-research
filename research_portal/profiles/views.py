@@ -3,12 +3,15 @@ from django.http import JsonResponse
 from rest_framework import generics, status
 from rest_framework.response import Response
 from django.contrib.auth.models import User
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.csrf import csrf_protect
 from .serializers import RegisterSerializer, LoginSerializer, PasswordResetSerializer
 from .forms import LoginForm, UserRegistrationForm
 from .models import Profile
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import PasswordResetForm
+from django.core.mail import send_mail
+from django.conf import settings
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -36,13 +39,23 @@ class PasswordResetView(generics.GenericAPIView):
     serializer_class = PasswordResetSerializer
     
     def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        # Implement password reset logic here
-        return Response({"message": "Password reset link sent"}, status=status.HTTP_200_OK)
+        form = PasswordResetForm(request.POST)
+        if form.is_valid():
+            email = form.cleaned_data['email']
+            if User.objects.filter(email=email).exists():
+                form.save(
+                    request=request,
+                    use_https=request.is_secure(),
+                    email_template_name='profiles/password_reset_email.html'
+                )
+                return JsonResponse({"message": "Password reset link sent"}, status=status.HTTP_200_OK)
+            else:
+                return JsonResponse({"message": "This email is not registered"}, status=status.HTTP_400_BAD_REQUEST)
+        return JsonResponse({"message": form.errors}, status=status.HTTP_400_BAD_REQUEST)
     
     def get(self, request):
-        return render(request, 'profiles/password_reset.html')
+        form = PasswordResetForm()
+        return render(request, 'profiles/password_reset.html', {'form': form})
 
 @csrf_protect
 def login_view(request):
@@ -66,6 +79,10 @@ def login_view(request):
         form = LoginForm()
     
     return render(request, 'profiles/login.html', {'form': form})
+
+def logout_view(request):
+    logout(request)
+    return redirect('login')
 
 @login_required
 def dashboard_view(request):
