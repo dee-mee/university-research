@@ -1,2 +1,6 @@
-Django==5.1.6
+Django>=5.1.6
 djangorestframework
+gunicorn
+whitenoise
+python-dotenv
+# ...other dependencies...
