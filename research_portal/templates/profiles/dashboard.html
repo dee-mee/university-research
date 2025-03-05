@@ -1,7 +1,4 @@
-{% extends "base.html" %}
 {% load static %}
-
-{% block title %}Student Dashboard - JOOUST Research Portal{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
@@ -19,8 +16,61 @@
         --info: #17a2b8;
     }
 
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 200px; 
+        background-color: var(--secondary);
+        color: white;
+        padding: 20px;
+        z-index: 1000;
+        list-style-type: none;
+    }
+.sidebar .nav-link {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    text-decoration: none;
+    color: white;
+    transition: background-color 0.3s, color 0.3s;
+    list-style-type: none;
+}
+
+.sidebar .nav-link:hover {
+    background-color: var(--primary);
+    color: var(--accent);
+    border-radius: 5px;
+}
+
+.sidebar .nav-link i {
+    margin-right: 10px;
+    font-size: 18px;
+    list-style-type: none;
+}
+
+.sidebar .nav-link.active {
+    background-color: var(--primary);
+    color: var(--accent);
+    border-radius: 5px;
+}
+
+/* Optional: Add a bottom border to separate links */
+.sidebar .nav-item:not(:last-child) {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+    .main-content {
+        top: 0; 
+        margin-left: 0px; 
+        padding: 20px;
+        transition: margin-left 0.3s; /* Smooth transition for responsiveness */
+    }
+
     /* Dashboard Layout */
     .dashboard-container {
+        margin-left: 200px; /* Match this to the sidebar width */
         background-color: #f0f2f5;
         min-height: 100vh;
         padding: 20px;
@@ -32,7 +82,7 @@
         color: white;
         border-radius: 10px;
         padding: 20px;
-        margin-bottom: 20px;
+        margin-bottom: 10px;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         display: flex;
         justify-content: space-between;
@@ -497,6 +547,20 @@
 
     /* Responsive adjustments */
     @media (max-width: 768px) {
+        .sidebar {
+            width: 100%;
+            height: auto;
+            position: static;
+        }
+
+        .main-content {
+            margin-left: 0;
+        }
+
+        .dashboard-container {
+            margin-left: 0;
+        }
+
         .dashboard-header {
             flex-direction: column;
             text-align: center;
@@ -528,281 +592,314 @@
 {% endblock %}
 
 {% block content %}
-<div class="dashboard-container">
-    <!-- Dashboard Header -->
-    <div class="dashboard-header animate__animated animate__fadeInDown">
-        <h1><i class="fas fa-graduation-cap"></i> JOOUST Research Portal</h1>
-        <div class="user-info">
-            <div class="user-avatar">
-                {{ user.username|slice:":1"|upper }}
-            </div>
-            <div class="user-details">
-                <div class="user-name">{{ user.first_name }} {{ user.last_name|default:user.username }}</div>
-                <div class="user-reg">{{ user.profile.reg_number }}</div>
-            </div>
+
+<div class="container-fluid">
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="text-center my-3">
+            <img src="https://via.placeholder.com/50" class="rounded-circle" alt="User">
+            <h5 class="mt-2">{{ user.get_full_name }}</h5>
         </div>
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a href="#" class="nav-link"><i class="fas fa-home"></i> Dashboard</a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link"><i class="fas fa-book"></i> Course Registration</a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link"><i class="fas fa-calendar"></i> TimeTable</a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link"><i class="fas fa-file-invoice"></i> Fee Statement</a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link"><i class="fas fa-cog"></i> Settings</a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            </li>
+        </ul>
     </div>
 
-    <!-- Research Profile Overview -->
-    <div class="dashboard-grid">
-        <div class="dashboard-card full-width-card animate__animated animate__fadeIn">
-            <div class="card-header">
-                <h2 class="card-title">Research Profile Overview</h2>
-                <div class="card-icon"><i class="fas fa-user-graduate"></i></div>
-            </div>
-            <div class="research-profile">
-                <div style="flex: 2; min-width: 300px;">
-                    <p><strong>Department:</strong> Computer Science & Information Technology</p>
-                    <p><strong>Research Area:</strong> Artificial Intelligence & Machine Learning</p>
-                    <p><strong>Supervisor:</strong> Dr. Jane Mwangi</p>
-                    <p><strong>Program:</strong> MSc. Computer Science</p>
-                    <p><strong>Status:</strong> <span style="color: var(--success);">Active</span></p>
-                </div>
-                <div style="flex: 3; min-width: 300px;">
-                    <h3 style="color: var(--primary); font-size: 16px; margin-top: 0;">Research Progress</h3>
-                    <div class="progress-container">
-                        <div class="progress-label">
-                            <span>Proposal Development</span>
-                            <span>65%</span>
-                        </div>
-                        <div class="progress-bar-outer">
-                            <div class="progress-bar-inner"></div>
-                        </div>
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="dashboard-container">
+            <!-- Dashboard Header -->
+            <div class="dashboard-header animate__animated animate__fadeInDown">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        {{ user.username|slice:":1"|upper }}
                     </div>
-                    <div class="stats-container">
-                        <div class="stat-box animate__animated animate__fadeIn" style="animation-delay: 0.2s;">
-                            <p class="stat-value">3</p>
-                            <p class="stat-label">Meetings</p>
-                        </div>
-                        <div class="stat-box animate__animated animate__fadeIn" style="animation-delay: 0.4s;">
-                            <p class="stat-value">2</p>
-                            <p class="stat-label">Submissions</p>
-                        </div>
-                        <div class="stat-box animate__animated animate__fadeIn" style="animation-delay: 0.6s;">
-                            <p class="stat-value">5</p>
-                            <p class="stat-label">To-Do Items</p>
-                        </div>
-                        <div class="stat-box animate__animated animate__fadeIn" style="animation-delay: 0.8s;">
-                            <p class="stat-value">1</p>
-                            <p class="stat-label">Publications</p>
-                        </div>
+                    <div class="user-details">
+                        <div class="user-name">{{ user.first_name }} {{ user.last_name|default:user.username }}</div>
+                        <div class="user-reg">{{ user.profile.reg_number }}</div>
                     </div>
                 </div>
             </div>
-            <div class="quick-actions">
-                <a href="#" class="action-button animate__animated animate__bounceIn" style="animation-delay: 0.1s;">
-                    <i class="fas fa-upload action-icon"></i>
-                    <span class="action-label">Submit Document</span>
-                </a>
-                <a href="#" class="action-button animate__animated animate__bounceIn" style="animation-delay: 0.2s;">
-                    <i class="fas fa-calendar-alt action-icon"></i>
-                    <span class="action-label">Schedule Meeting</span>
-                </a>
-                <a href="#" class="action-button animate__animated animate__bounceIn" style="animation-delay: 0.3s;">
-                    <i class="fas fa-comment-alt action-icon notification-badge"></i>
-                    <span class="badge">3</span>
-                    <span class="action-label">Messages</span>
-                </a>
-                <a href="#" class="action-button animate__animated animate__bounceIn" style="animation-delay: 0.4s;">
-                    <i class="fas fa-book action-icon"></i>
-                    <span class="action-label">Research Library</span>
-                </a>
-            </div>
-        </div>
-    </div>
 
-    <!-- Main Dashboard Content -->
-    <div class="dashboard-grid">
-        <!-- Upcoming Deadlines -->
-        <div class="dashboard-card animate__animated animate__fadeInLeft">
-            <div class="card-header">
-                <h2 class="card-title">Academic Calendar</h2>
-                <div class="card-icon"><i class="fas fa-calendar-alt"></i></div>
+            <!-- Research Profile Overview -->
+            <div class="dashboard-grid">
+                <div class="dashboard-card full-width-card animate__animated animate__fadeIn">
+                    <div class="card-header">
+                        <h2 class="card-title">Research Profile Overview</h2>
+                        <div class="card-icon"><i class="fas fa-user-graduate"></i></div>
+                    </div>
+                    <div class="research-profile">
+                        <div style="flex: 2; min-width: 300px;">
+                            <p><strong>Department:</strong> Computer Science & Information Technology</p>
+                            <p><strong>Research Area:</strong> Artificial Intelligence & Machine Learning</p>
+                            <p><strong>Supervisor:</strong> Dr. Jane Mwangi</p>
+                            <p><strong>Program:</strong> MSc. Computer Science</p>
+                            <p><strong>Status:</strong> <span style="color: var(--success);">Active</span></p>
+                        </div>
+                        <div style="flex: 3; min-width: 300px;">
+                            <h3 style="color: var(--primary); font-size: 16px; margin-top: 0;">Research Progress</h3>
+                            <div class="progress-container">
+                                <div class="progress-label">
+                                    <span>Proposal Development</span>
+                                    <span>65%</span>
+                                </div>
+                                <div class="progress-bar-outer">
+                                    <div class="progress-bar-inner"></div>
+                                </div>
+                            </div>
+                            <div class="stats-container">
+                                <div class="stat-box animate__animated animate__fadeIn" style="animation-delay: 0.2s;">
+                                    <p class="stat-value">3</p>
+                                    <p class="stat-label">Meetings</p>
+                                </div>
+                                <div class="stat-box animate__animated animate__fadeIn" style="animation-delay: 0.4s;">
+                                    <p class="stat-value">2</p>
+                                    <p class="stat-label">Submissions</p>
+                                </div>
+                                <div class="stat-box animate__animated animate__fadeIn" style="animation-delay: 0.6s;">
+                                    <p class="stat-value">5</p>
+                                    <p class="stat-label">To-Do Items</p>
+                                </div>
+                                <div class="stat-box animate__animated animate__fadeIn" style="animation-delay: 0.8s;">
+                                    <p class="stat-value">1</p>
+                                    <p class="stat-label">Publications</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="quick-actions">
+                        <a href="#" class="action-button animate__animated animate__bounceIn" style="animation-delay: 0.1s;">
+                            <i class="fas fa-upload action-icon"></i>
+                            <span class="action-label">Submit Document</span>
+                        </a>
+                        <a href="#" class="action-button animate__animated animate__bounceIn" style="animation-delay: 0.2s;">
+                            <i class="fas fa-calendar-alt action-icon"></i>
+                            <span class="action-label">Schedule Meeting</span>
+                        </a>
+                        <a href="#" class="action-button animate__animated animate__bounceIn" style="animation-delay: 0.3s;">
+                            <i class="fas fa-comment-alt action-icon notification-badge"></i>
+                            <span class="badge">3</span>
+                            <span class="action-label">Messages</span>
+                        </a>
+                        <a href="#" class="action-button animate__animated animate__bounceIn" style="animation-delay: 0.4s;">
+                            <i class="fas fa-book action-icon"></i>
+                            <span class="action-label">Research Library</span>
+                        </a>
+                    </div>
+                </div>
             </div>
-            <ul class="calendar-list">
-                <li class="calendar-item">
-                    <div class="calendar-date">
-                        <span class="calendar-day">15</span>
-                        <span class="calendar-month">MAR</span>
-                    </div>
-                    <div class="calendar-info">
-                        <h3 class="calendar-title">Proposal Submission Deadline</h3>
-                        <p class="calendar-details">Final date to submit research proposals</p>
-                    </div>
-                </li>
-                <li class="calendar-item">
-                    <div class="calendar-date">
-                        <span class="calendar-day">22</span>
-                        <span class="calendar-month">MAR</span>
-                    </div>
-                    <div class="calendar-info">
-                        <h3 class="calendar-title">Research Methodology Workshop</h3>
-                        <p class="calendar-details">10:00 AM - Main Auditorium</p>
-                    </div>
-                </li>
-                <li class="calendar-item">
-                    <div class="calendar-date">
-                        <span class="calendar-day">10</span>
-                        <span class="calendar-month">APR</span>
-                    </div>
-                    <div class="calendar-info">
-                        <h3 class="calendar-title">Supervisor Meeting</h3>
-                        <p class="calendar-details">2:30 PM - Online (Zoom)</p>
-                    </div>
-                </li>
-                <li class="calendar-item">
-                    <div class="calendar-date">
-                        <span class="calendar-day">25</span>
-                        <span class="calendar-month">APR</span>
-                    </div>
-                    <div class="calendar-info">
-                        <h3 class="calendar-title">End of Semester</h3>
-                        <p class="calendar-details">Last day of academic activities</p>
-                    </div>
-                </li>
-            </ul>
-        </div>
 
-        <!-- Course Units -->
-        <div class="dashboard-card animate__animated animate__fadeInRight">
-            <div class="card-header">
-                <h2 class="card-title">Current Course Units</h2>
-                <div class="card-icon"><i class="fas fa-book"></i></div>
-            </div>
-            <ul class="course-list">
-                <li class="course-item">
-                    <div class="course-icon">
-                        <i class="fas fa-laptop-code"></i>
+            <!-- Main Dashboard Content -->
+            <div class="dashboard-grid">
+                <!-- Upcoming Deadlines -->
+                <div class="dashboard-card animate__animated animate__fadeInLeft">
+                    <div class="card-header">
+                        <h2 class="card-title">Academic Calendar</h2>
+                        <div class="card-icon"><i class="fas fa-calendar-alt"></i></div>
                     </div>
-                    <div class="course-info">
-                        <h3 class="course-title">Advanced Research Methods</h3>
-                        <p class="course-instructor">Dr. James Kamau</p>
-                    </div>
-                    <span class="course-grade">A</span>
-                </li>
-                <li class="course-item">
-                    <div class="course-icon">
-                        <i class="fas fa-brain"></i>
-                    </div>
-                    <div class="course-info">
-                        <h3 class="course-title">Machine Learning Algorithms</h3>
-                        <p class="course-instructor">Prof. Sarah Mburu</p>
-                    </div>
-                    <span class="course-grade">B+</span>
-                </li>
-                <li class="course-item">
-                    <div class="course-icon">
-                        <i class="fas fa-database"></i>
-                    </div>
-                    <div class="course-info">
-                        <h3 class="course-title">Big Data Analytics</h3>
-                        <p class="course-instructor">Dr. Peter Ochieng</p>
-                    </div>
-                    <span class="course-grade">A-</span>
-                </li>
-                <li class="course-item">
-                    <div class="course-icon">
-                        <i class="fas fa-project-diagram"></i>
-                    </div>
-                    <div class="course-info">
-                        <h3 class="course-title">Thesis Seminar</h3>
-                        <p class="course-instructor">Dr. Jane Mwangi</p>
-                    </div>
-                    <span class="course-grade">IP</span>
-                </li>
-            </ul>
-        </div>
+                    <ul class="calendar-list">
+                        <li class="calendar-item">
+                            <div class="calendar-date">
+                                <span class="calendar-day">15</span>
+                                <span class="calendar-month">MAR</span>
+                            </div>
+                            <div class="calendar-info">
+                                <h3 class="calendar-title">Proposal Submission Deadline</h3>
+                                <p class="calendar-details">Final date to submit research proposals</p>
+                            </div>
+                        </li>
+                        <li class="calendar-item">
+                            <div class="calendar-date">
+                                <span class="calendar-day">22</span>
+                                <span class="calendar-month">MAR</span>
+                            </div>
+                            <div class="calendar-info">
+                                <h3 class="calendar-title">Research Methodology Workshop</h3>
+                                <p class="calendar-details">10:00 AM - Main Auditorium</p>
+                            </div>
+                        </li>
+                        <li class="calendar-item">
+                            <div class="calendar-date">
+                                <span class="calendar-day">10</span>
+                                <span class="calendar-month">APR</span>
+                            </div>
+                            <div class="calendar-info">
+                                <h3 class="calendar-title">Supervisor Meeting</h3>
+                                <p class="calendar-details">2:30 PM - Online (Zoom)</p>
+                            </div>
+                        </li>
+                        <li class="calendar-item">
+                            <div class="calendar-date">
+                                <span class="calendar-day">25</span>
+                                <span class="calendar-month">APR</span>
+                            </div>
+                            <div class="calendar-info">
+                                <h3 class="calendar-title">End of Semester</h3>
+                                <p class="calendar-details">Last day of academic activities</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
 
-        <!-- Announcements -->
-        <div class="dashboard-card animate__animated animate__fadeInUp">
-            <div class="card-header">
-                <h2 class="card-title">Announcements</h2>
-                <div class="card-icon"><i class="fas fa-bullhorn"></i></div>
-            </div>
-            <ul class="announcement-list">
-                <li class="announcement-item">
-                    <div class="announcement-meta">
-                        <span class="announcement-date">Mar 1, 2025</span>
-                        <span class="announcement-author">Department of Graduate Studies</span>
+                <!-- Course Units -->
+                <div class="dashboard-card animate__animated animate__fadeInRight">
+                    <div class="card-header">
+                        <h2 class="card-title">Current Course Units</h2>
+                        <div class="card-icon"><i class="fas fa-book"></i></div>
                     </div>
-                    <h3 class="announcement-title">Research Grant Applications Open</h3>
-                    <p class="announcement-excerpt">Applications for the 2025/2026 research grants are now open. All eligible students are encouraged to apply before March 30th, 2025.</p>
-                </li>
-                <li class="announcement-item">
-                    <div class="announcement-meta">
-                        <span class="announcement-date">Feb 28, 2025</span>
-                        <span class="announcement-author">IT Department</span>
-                    </div>
-                    <h3 class="announcement-title">System Maintenance Notice</h3>
-                    <p class="announcement-excerpt">The research portal will undergo maintenance on March 5th from 2 AM to 5 AM. Services will be unavailable during this period.</p>
-                </li>
-                <li class="announcement-item">
-                    <div class="announcement-meta">
-                        <span class="announcement-date">Feb 25, 2025</span>
-                        <span class="announcement-author">Academic Registrar</span>
-                    </div>
-                    <h3 class="announcement-title">Thesis Submission Guidelines Updated</h3>
-                    <p class="announcement-excerpt">New guidelines for thesis submission have been published. Please review the updated format requirements.</p>
-                </li>
-            </ul>
-        </div>
+                    <ul class="course-list">
+                        <li class="course-item">
+                            <div class="course-icon">
+                                <i class="fas fa-laptop-code"></i>
+                            </div>
+                            <div class="course-info">
+                                <h3 class="course-title">Advanced Research Methods</h3>
+                                <p class="course-instructor">Dr. James Kamau</p>
+                            </div>
+                            <span class="course-grade">A</span>
+                        </li>
+                        <li class="course-item">
+                            <div class="course-icon">
+                                <i class="fas fa-brain"></i>
+                            </div>
+                            <div class="course-info">
+                                <h3 class="course-title">Machine Learning Algorithms</h3>
+                                <p class="course-instructor">Prof. Sarah Mburu</p>
+                            </div>
+                            <span class="course-grade">B+</span>
+                        </li>
+                        <li class="course-item">
+                            <div class="course-icon">
+                                <i class="fas fa-database"></i>
+                            </div>
+                            <div class="course-info">
+                                <h3 class="course-title">Big Data Analytics</h3>
+                                <p class="course-instructor">Dr. Peter Ochieng</p>
+                            </div>
+                            <span class="course-grade">A-</span>
+                        </li>
+                        <li class="course-item">
+                            <div class="course-icon">
+                                <i class="fas fa-project-diagram"></i>
+                            </div>
+                            <div class="course-info">
+                                <h3 class="course-title">Thesis Seminar</h3>
+                                <p class="course-instructor">Dr. Jane Mwangi</p>
+                            </div>
+                            <span class="course-grade">IP</span>
+                        </li>
+                    </ul>
+                </div>
 
-        <!-- Research Resources -->
-        <div class="dashboard-card animate__animated animate__fadeInUp" style="animation-delay: 0.2s;">
-            <div class="card-header">
-                <h2 class="card-title">Research Resources</h2>
-                <div class="card-icon"><i class="fas fa-file-alt"></i></div>
+                <!-- Announcements -->
+                <div class="dashboard-card animate__animated animate__fadeInUp">
+                    <div class="card-header">
+                        <h2 class="card-title">Announcements</h2>
+                        <div class="card-icon"><i class="fas fa-bullhorn"></i></div>
+                    </div>
+                    <ul class="announcement-list">
+                        <li class="announcement-item">
+                            <div class="announcement-meta">
+                                <span class="announcement-date">Mar 1, 2025</span>
+                                <span class="announcement-author">Department of Graduate Studies</span>
+                            </div>
+                            <h3 class="announcement-title">Research Grant Applications Open</h3>
+                            <p class="announcement-excerpt">Applications for the 2025/2026 research grants are now open. All eligible students are encouraged to apply before March 30th, 2025.</p>
+                        </li>
+                        <li class="announcement-item">
+                            <div class="announcement-meta">
+                                <span class="announcement-date">Feb 28, 2025</span>
+                                <span class="announcement-author">IT Department</span>
+                            </div>
+                            <h3 class="announcement-title">System Maintenance Notice</h3>
+                            <p class="announcement-excerpt">The research portal will undergo maintenance on March 5th from 2 AM to 5 AM. Services will be unavailable during this period.</p>
+                        </li>
+                        <li class="announcement-item">
+                            <div class="announcement-meta">
+                                <span class="announcement-date">Feb 25, 2025</span>
+                                <span class="announcement-author">Academic Registrar</span>
+                            </div>
+                            <h3 class="announcement-title">Thesis Submission Guidelines Updated</h3>
+                            <p class="announcement-excerpt">New guidelines for thesis submission have been published. Please review the updated format requirements.</p>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Research Resources -->
+                <div class="dashboard-card animate__animated animate__fadeInUp" style="animation-delay: 0.2s;">
+                    <div class="card-header">
+                        <h2 class="card-title">Research Resources</h2>
+                        <div class="card-icon"><i class="fas fa-file-alt"></i></div>
+                    </div>
+                    <ul class="resource-list">
+                        <li class="resource-item">
+                            <div class="resource-icon">
+                                <i class="fas fa-file-pdf"></i>
+                            </div>
+                            <div class="resource-info">
+                                <h3 class="resource-title">Thesis Formatting Guide</h3>
+                                <p class="resource-size">PDF • 2.4MB</p>
+                            </div>
+                            <div class="resource-download">
+                                <i class="fas fa-download"></i>
+                            </div>
+                        </li>
+                        <li class="resource-item">
+                            <div class="resource-icon">
+                                <i class="fas fa-file-word"></i>
+                            </div>
+                            <div class="resource-info">
+                                <h3 class="resource-title">Research Proposal Template</h3>
+                                <p class="resource-size">DOCX • 856KB</p>
+                            </div>
+                            <div class="resource-download">
+                                <i class="fas fa-download"></i>
+                            </div>
+                        </li>
+                        <li class="resource-item">
+                            <div class="resource-icon">
+                                <i class="fas fa-file-powerpoint"></i>
+                            </div>
+                            <div class="resource-info">
+                                <h3 class="resource-title">Presentation Template</h3>
+                                <p class="resource-size">PPTX • 4.2MB</p>
+                            </div>
+                            <div class="resource-download">
+                                <i class="fas fa-download"></i>
+                            </div>
+                        </li>
+                        <li class="resource-item">
+                            <div class="resource-icon">
+                                <i class="fas fa-link"></i>
+                            </div>
+                            <div class="resource-info">
+                                <h3 class="resource-title">Academic Journal Access</h3>
+                                <p class="resource-size">External Link</p>
+                            </div>
+                            <div class="resource-download">
+                                <i class="fas fa-external-link-alt"></i>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
             </div>
-            <ul class="resource-list">
-                <li class="resource-item">
-                    <div class="resource-icon">
-                        <i class="fas fa-file-pdf"></i>
-                    </div>
-                    <div class="resource-info">
-                        <h3 class="resource-title">Thesis Formatting Guide</h3>
-                        <p class="resource-size">PDF • 2.4MB</p>
-                    </div>
-                    <div class="resource-download">
-                        <i class="fas fa-download"></i>
-                    </div>
-                </li>
-                <li class="resource-item">
-                    <div class="resource-icon">
-                        <i class="fas fa-file-word"></i>
-                    </div>
-                    <div class="resource-info">
-                        <h3 class="resource-title">Research Proposal Template</h3>
-                        <p class="resource-size">DOCX • 856KB</p>
-                    </div>
-                    <div class="resource-download">
-                        <i class="fas fa-download"></i>
-                    </div>
-                </li>
-                <li class="resource-item">
-                    <div class="resource-icon">
-                        <i class="fas fa-file-powerpoint"></i>
-                    </div>
-                    <div class="resource-info">
-                        <h3 class="resource-title">Presentation Template</h3>
-                        <p class="resource-size">PPTX • 4.2MB</p>
-                    </div>
-                    <div class="resource-download">
-                        <i class="fas fa-download"></i>
-                    </div>
-                </li>
-                <li class="resource-item">
-                    <div class="resource-icon">
-                        <i class="fas fa-link"></i>
-                    </div>
-                    <div class="resource-info">
-                        <h3 class="resource-title">Academic Journal Access</h3>
-                        <p class="resource-size">External Link</p>
-                    </div>
-                    <div class="resource-download">
-                        <i class="fas fa-external-link-alt"></i>
-                    </div>
-                </li>
-            </ul>
         </div>
     </div>
 </div>
