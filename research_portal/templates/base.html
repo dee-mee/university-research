@@ -37,6 +37,9 @@
                     <li class="nav-item"><a class="nav-link" href="#">PROJECTS</a></li>
                     <li class="nav-item"><a class="nav-link" href="#">DEPARTMENT</a></li>
                     <li class="nav-item"><a class="nav-link" href="#">PEOPLE</a></li>
+                    {% if request.user.is_authenticated %}
+                    <li class="nav-item"><a class="nav-link" href="{% url 'profile' %}">PROFILE</a></li>
+                    {% endif %}
                     <li class="nav-item"><a class="nav-link" href="{% url 'research:contact' %}">CONTACT</a></li>
                     <li class="nav-item login-btn">
                         <a href="{% url 'login' %}" id="auth-btn">LOGIN</a>
