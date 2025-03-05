@@ -3,10 +3,9 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import PasswordResetForm
 from .models import Profile
-
-# forms.py
-from django import forms
-from django.contrib.auth.models import User
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect
+from django.contrib import messages
 
 class UserRegistrationForm(forms.ModelForm):
     first_name = forms.CharField()
@@ -93,12 +92,6 @@ class LoginForm(forms.Form):
         return cleaned_data
 
 
-from django import forms
-from django.contrib.auth.models import User
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import render, redirect
-from django.contrib import messages
-from .models import Profile
 
 class ProfileEditForm(forms.ModelForm):
     """
@@ -122,6 +115,8 @@ class ProfileEditForm(forms.ModelForm):
     class Meta:
         model = Profile
         fields = [
+            'first_name',
+            'last_name',
             'middle_name', 
             'phone_number', 
             'id_number', 
