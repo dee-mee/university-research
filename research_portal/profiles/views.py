@@ -1,7 +1,6 @@
 import logging
 from pyexpat.errors import messages
 from django.shortcuts import render, redirect
-from django.http import JsonResponse
 from rest_framework import generics, status
 from rest_framework.response import Response
 from django.contrib.auth.models import User
@@ -14,6 +13,12 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordResetForm
 from django.core.mail import send_mail
 from django.conf import settings
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse, HttpResponse
+from django.core.serializers import serialize
+import csv
+import json
+
 
 logger = logging.getLogger(__name__)
 
@@ -101,12 +106,6 @@ def dashboard_view(request):
     return render(request, 'profiles/dashboard.html')
 
 
-from django.shortcuts import render, redirect
-from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse, HttpResponse
-from django.core.serializers import serialize
-import csv
-import json
 
 @login_required
 def profile_view(request):
@@ -133,8 +132,8 @@ def export_profile(request, export_format):
         
         # Prepare profile data
         profile_data = {
-            'first_name': request.user.first_name,
-            'last_name': request.user.last_name,
+            'first_name': profile.first_name,
+            'last_name': profile.last_name,
             'email': request.user.email,
             'middle_name': profile.middle_name,
             'phone_number': profile.phone_number,
@@ -225,6 +224,6 @@ def edit_profile(request):
             'bio': profile.bio
         })
 
-    return render(request, 'edit_profile.html', {
+    return render(request, 'profiles/edit_profile.html', {
         'form': form,
     })
