@@ -1,33 +1,40 @@
-{% extends "index.html" %}
+{% extends "base.html" %}
 
 {% block content %}
+
+<p style="color: red;">Testing if this page is loading...</p>
+
 <div class="container-fluid">
     <div class="row">
         <!-- Sidebar -->
-        <div class="col-md-2 bg-dark text-white p-3 vh-100">
+        <div class="col-md-2 sidebar">
             <div class="text-center my-3">
                 <img src="https://via.placeholder.com/50" class="rounded-circle" alt="User">
                 <h5 class="mt-2">{{ user.get_full_name }}</h5>
             </div>
             <ul class="nav flex-column">
                 <li class="nav-item">
-                    <a href="#" class="nav-link text-white"><i class="fas fa-home"></i> Dashboard</a>
+                    <a href="#" class="nav-link"><i class="fas fa-home"></i> Dashboard</a>
                 </li>
                 <li class="nav-item">
-                    <a href="#" class="nav-link text-white"><i class="fas fa-book"></i> Course Registration</a>
+                    <a href="#" class="nav-link"><i class="fas fa-book"></i> Course Registration</a>
                 </li>
                 <li class="nav-item">
-                    <a href="#" class="nav-link text-white"><i class="fas fa-calendar"></i> TimeTable</a>
+                    <a href="#" class="nav-link"><i class="fas fa-calendar"></i> TimeTable</a>
                 </li>
                 <li class="nav-item">
-                    <a href="#" class="nav-link text-white"><i class="fas fa-file-invoice"></i> Fee Statement</a>
+                    <a href="#" class="nav-link"><i class="fas fa-file-invoice"></i> Fee Statement</a>
                 </li>
             </ul>
         </div>
 
         <!-- Main Content -->
-        <div class="col-md-10 p-4">
+        <div class="col-md-10 main-content">
             <h3 class="mb-4">Dashboard</h3>
+        </div>
+    </div>
+</div>
+
 
             <!-- Cards -->
             <div class="row">
