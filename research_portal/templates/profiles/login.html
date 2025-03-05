@@ -149,10 +149,10 @@
         <form method="POST" id="loginForm">
             {% csrf_token %}
             <div class="input-group">
-                <input type="text" id="reg_number" name="reg_number" placeholder="Registration Number or Email" required>
-                {% if form.reg_number.errors %}
+                <input type="text" id="id_number" name="id_number" placeholder="ID Number" required>
+                {% if form.id_number.errors %}
                 <div class="error-message">
-                    {% for error in form.reg_number.errors %}
+                    {% for error in form.id_number.errors %}
                         {{ error }}
                     {% endfor %}
                 </div>
