@@ -7,6 +7,8 @@ class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     
     # Additional profile-specific fields
+    first_name = models.CharField(max_length=30, help_text="First name")
+    last_name = models.CharField(max_length=30, help_text="Last name")
     middle_name = models.CharField(
         max_length=30, 
         blank=True, 
