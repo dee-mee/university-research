@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/profile.css' %}">
+<style>
+    .profile-container {
+        max-width: 800px;
+        margin: 2rem auto;
+        padding: 2rem;
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .profile-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+
+    .profile-avatar {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid #596c00;
+    }
+
+    .profile-details {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+
+    .detail-item {
+        background-color: white;
+        padding: 1rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .detail-item label {
+        font-weight: bold;
+        color: #596c00;
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+
+    .export-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin-top: 2rem;
+    }
+
+    .export-btn {
+        padding: 0.75rem 1.5rem;
+        background-color: #596c00;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+
+    .export-btn:hover {
+        background-color: #475600;
+    }
+
+    @media (max-width: 768px) {
+        .profile-details {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+    <div class="profile-header">
+        <h1>My Profile</h1>
+        <a href="{% url 'edit_profile' %}" class="btn btn-primary">Edit Profile</a>
+    </div>
+
+    <div class="profile-details">
+        <div class="detail-item">
+            <label>First Name</label>
+            <p>{{ profile.first_name }}</p>
+        </div>
+        <div class="detail-item">
+            <label>Middle Name</label>
+            <p>{{ profile.middle_name }}</p>
+        </div>
+        <div class="detail-item">
+            <label>Last Name</label>
+            <p>{{ profile.last_name }}</p>
+        </div>
+        <div class="detail-item">
+            <label>Email</label>
+            <p>{{ profile.user.email }}</p>
+        </div>
+        <div class="detail-item">
+            <label>Phone Number</label>
+            <p>{{ profile.phone_number }}</p>
+        </div>
+        <div class="detail-item">
+            <label>ID Number</label>
+            <p>{{ profile.id_number }}</p>
+        </div>
+        <div class="detail-item">
+            <label>Date of Birth</label>
+            <p>{{ profile.dob|date:"F d, Y" }}</p>
+        </div>
+        <div class="detail-item">
+            <label>Gender</label>
+            <p>{{ profile.get_gender_display }}</p>
+        </div>
+        <div class="detail-item">
+            <label>Location</label>
+            <p>{{ profile.location|default:"Not specified" }}</p>
+        </div>
+        <div class="detail-item">
+            <label>Bio</label>
+            <p>{{ profile.bio|default:"No bio provided" }}</p>
+        </div>
+    </div>
+
+    <div class="export-buttons">
+        <button class="export-btn" onclick="exportProfile('json')">
+            Export as JSON
+        </button>
+        <button class="export-btn" onclick="exportProfile('csv')">
+            Export as CSV
+        </button>
+    </div>
+</div>
+
+<script>
+function exportProfile(format) {
+    // Send an AJAX request to the export endpoint
+    fetch(`/profile/export/${format}/`, {
+        method: 'GET',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.blob())
+    .then(blob => {
+        // Create a link to download the file
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `profile_export.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+    })
+    .catch(error => {
+        console.error('Export failed:', error);
+        alert('Failed to export profile. Please try again.');
+    });
+}
+</script>
+{% endblock %}
