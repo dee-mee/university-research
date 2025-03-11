@@ -8,7 +8,8 @@ def index(request):
 def contact(request):
     return render(request, 'contact/contact.html')
 
-
+def map_view(request):
+    return render(request, 'contact/map.html')
 
     
 
