@@ -105,7 +105,8 @@ def logout_view(request):
 def dashboard_view(request):
     return render(request, 'profiles/dashboard.html')
 
-
+def homepage_view(request):
+    return render(request, 'index.html')
 
 @login_required
 def profile_view(request):
