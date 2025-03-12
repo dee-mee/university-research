@@ -24,12 +24,12 @@ from .serializers import (
 
 # View for rendering the main map page
 def map_view(request):
-    return render(request, 'map_app/index.html')
+    return render(request, 'maps/map.html')
 
 # View for marker details
 def marker_detail_view(request, marker_id):
     marker = get_object_or_404(LocationMarker, id=marker_id)
-    return render(request, 'map_app/marker_detail.html', {'marker': marker})
+    return render(request, 'maps/marker_detail.html', {'marker': marker})
 
 # API ViewSets
 class LocationMarkerViewSet(viewsets.ModelViewSet):
