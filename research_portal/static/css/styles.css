@@ -16,7 +16,10 @@ body {
 .custom-navbar .navbar-brand img {
     height: 50px;
 }
-
+.custom-navbar .navbar-brand2 img {
+    height: 60px;
+    margin-left: 40px;
+}
 .custom-navbar .navbar-nav .nav-link {
     font-weight: bold;
     font-size: 15px;
