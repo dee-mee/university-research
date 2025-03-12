@@ -1,11 +1,74 @@
 /* Global Styles */
-body {
-    font-family: Arial, sans-serif;
+body, html {
     margin: 0;
     padding: 0;
-    background-color: #f8f9fa;
+    overflow-x: hidden; /* Prevent horizontal scroll */
+    width: 100%;
+}
+.container-fluid {
+    padding-left: 0;
+    padding-right: 0;
 }
 
+/* Add this to your CSS file to ensure full-width carousel */
+.carousel {
+    margin-top: -20px;
+    margin-left: -130px;
+    margin-right: -130px;
+    width: calc(100% + 250px);
+    overflow: hidden;
+    position: relative;
+}
+/* Ensure the carousel container doesn't have any padding */
+#carouselExampleIndicators {
+    padding: 0;
+}
+
+/* Fix for Bootstrap container padding */
+.container-fluid {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+.carousel-inner {
+    width: 100%;
+}
+
+.carousel-item img {
+    width: 100%;
+    height: 500px; /* Set a fixed height or use aspect ratio */
+    object-fit: cover; /* This ensures the image covers the area without distortion */
+}
+
+/* Make carousel captions more visible */
+.carousel-caption {
+    background-color: rgba(0, 0, 0, 0.5);
+    border-radius: 10px;
+    padding: 20px;
+    bottom: 30px;
+}
+
+.carousel-caption h2 {
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+/* Container reset for full width sections */
+.container-fluid.no-padding {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .carousel-item img {
+        height: 350px;
+    }
+    
+    .carousel-caption h2 {
+        font-size: 1.5rem;
+    }
+}
 /* Navbar Improvements */
 .custom-navbar {
     background-color: white;
