@@ -1,0 +1,236 @@
+{% extends 'map_app/base.html' %}
+
+{% block title %}{{ marker.name }} Details{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <h1>{{ marker.name }}</h1>
+        <p class="mb-1">
+            <strong>Coordinates:</strong> {{ marker.latitude }}, {{ marker.longitude }}
+        </p>
+        <p class="mb-1">
+            <strong>Elevation:</strong> {% if marker.elevation %}{{ marker.elevation }} m{% else %}N/A{% endif %}
+        </p>
+    </div>
+    <div class="col-md-4 text-end">
+        <div class="btn-group">
+            <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                Download Data
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="{% url 'marker-download' marker.id %}?format=csv">CSV Format</a></li>
+                <li><a class="dropdown-item" href="{% url 'marker-download' marker.id %}?format=json">JSON Format</a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                Current Conditions
+            </div>
+            <div class="card-body" id="currentConditions">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <!-- Will be populated by JavaScript -->
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                Location Information
+            </div>
+            <div class="card-body">
+                <p><strong>Land Use:</strong> {% if marker.land_use_classification %}{{ marker.land_use_classification }}{% else %}N/A{% endif %}</p>
+                <p><strong>Ecological Zone:</strong> {% if marker.ecological_zone %}{{ marker.ecological_zone }}{% else %}N/A{% endif %}</p>
+                <p><strong>Conservation Status:</strong> {% if marker.conservation_status %}{{ marker.conservation_status }}{% else %}N/A{% endif %}</p>
+                <p><strong>Population Density:</strong> {% if marker.population_density %}{{ marker.population_density }} people/km²{% else %}N/A{% endif %}</p>
+            </div>
+        </div>
+        
+        {% if user.is_authenticated %}
+        <div class="card mt-3">
+            <div class="card-header">
+                Alerts
+            </div>
+            <div class="card-body">
+                <button class="btn btn-primary btn-sm" id="createAlert">Create New Alert</button>
+                <div id="alertsList" class="mt-2">
+                    <!-- Will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <ul class="nav nav-tabs card-header-tabs" id="dataTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link active" id="historical-tab" data-bs-toggle="tab" href="#historical" role="tab" aria-controls="historical" aria-selected="true">Historical Data</a>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link" id="trends-tab" data-bs-toggle="tab" href="#trends" role="tab" aria-controls="trends" aria-selected="false">Trends</a>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link" id="map-tab" data-bs-toggle="tab" href="#map-view" role="tab" aria-controls="map-view" aria-selected="false">Map</a>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content" id="dataTabContent">
+                    <div class="tab-pane fade show active" id="historical" role="tabpanel" aria-labelledby="historical-tab">
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label for="startDate" class="form-label">Start Date</label>
+                                <input type="date" class="form-control" id="startDate">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="endDate" class="form-label">End Date</label>
+                                <input type="date" class="form-control" id="endDate">
+                            </div>
+                            <div class="col-md-4 d-flex align-items-end">
+                                <button class="btn btn-primary" id="filterData">Apply Filter</button>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped" id="historicalDataTable">
+                                <thead>
+                                    <tr>
+                                        <th>Date/Time</th>
+                                        <th>Temp</th>
+                                        <th>Humidity</th>
+                                        <th>Precip</th>
+                                        <th>AQI</th>
+                                        <th>Wind</th>
+                                        <th>Pressure</th>
+                                        <th>UV</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Will be populated by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="trends" role="tabpanel" aria-labelledby="trends-tab">
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label for="trendMetric" class="form-label">Metric</label>
+                                <select class="form-select" id="trendMetric">
+                                    <option value="temperature">Temperature</option>
+                                    <option value="humidity">Humidity</option>
+                                    <option value="precipitation">Precipitation</option>
+                                    <option value="air_quality_index">Air Quality</option>
+                                    <option value="wind_speed">Wind Speed</option>
+                                    <option value="barometric_pressure">Barometric Pressure</option>
+                                    <option value="uv_index">UV Index</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="timeRange" class="form-label">Time Range</label>
+                                <select class="form-select" id="timeRange">
+                                    <option value="7">Last 7 days</option>
+                                    <option value="30" selected>Last 30 days</option>
+                                    <option value="90">Last 90 days</option>
+                                    <option value="365">Last year</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 d-flex align-items-end">
+                                <button class="btn btn-primary" id="updateTrend">Update</button>
+                            </div>
+                        </div>
+                        <canvas id="trendCanvas" height="300"></canvas>
+                    </div>
+                    <div class="tab-pane fade" id="map-view" role="tabpanel" aria-labelledby="map-tab">
+                        <div id="detailMap" style="height: 400px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        {% if user.is_authenticated %}
+        <div class="card mt-3">
+            <div class="card-header">
+                Annotations
+            </div>
+            <div class="card-body">
+                <form id="annotationForm">
+                    <div class="mb-3">
+                        <textarea class="form-control" id="annotationText" rows="2" placeholder="Add a note about this location..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm">Save Note</button>
+                </form>
+                <hr>
+                <div id="annotationsList">
+                    <!-- Will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Alert Creation Modal -->
+<div class="modal fade" id="alertModal" tabindex="-1" aria-labelledby="alertModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="alertModalLabel">Create Alert</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="alertForm">
+                    <div class="mb-3">
+                        <label for="alertMetric" class="form-label">Metric</label>
+                        <select class="form-select" id="alertMetric" required>
+                            <option value="">Select a metric</option>
+                            <option value="temperature">Temperature</option>
+                            <option value="humidity">Humidity</option>
+                            <option value="precipitation">Precipitation</option>
+                            <option value="air_quality_index">Air Quality Index</option>
+                            <option value="wind_speed">Wind Speed</option>
+                            <option value="barometric_pressure">Barometric Pressure</option>
+                            <option value="uv_index">UV Index</option>
+                            <option value="soil_moisture">Soil Moisture</option>
+                            <option value="water_level">Water Level</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="alertCondition" class="form-label">Condition</label>
+                        <select class="form-select" id="alertCondition" required>
+                            <option value="">Select a condition</option>
+                            <option value="gt">Greater Than</option>
+                            <option value="lt">Less Than</option>
+                            <option value="eq">Equal To</option>
+                            <option value="gte">Greater Than or Equal To</option>
+                            <option value="lte">Less Than or Equal To</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="alertValue" class="form-label">Value</label>
+                        <input type="number" class="form-control" id="alertValue" step="0.01" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveAlert">Save Alert</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'map_app/js/marker_detail.js' %}"></script>
+<script>
+    // Pass marker ID to JavaScript
+    const markerId = {{ marker.id }};
+</script>
+{% endblock %}
