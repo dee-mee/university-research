@@ -1,0 +1,140 @@
+{% extends 'map_app/base.html' %}
+
+{% block title %}Environmental Map{% endblock %}
+
+{% block extra_head %}
+<style>
+    #map {
+        height: 75vh;
+        width: 100%;
+        border-radius: 5px;
+    }
+    
+    .map-controls {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 1000;
+        background: white;
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    
+    .legend {
+        position: absolute;
+        bottom: 30px;
+        right: 10px;
+        z-index: 1000;
+        background: white;
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col-md-9">
+        <h1>Environmental Data Map</h1>
+        <p>Explore environmental and geospatial data across various locations.</p>
+    </div>
+    <div class="col-md-3 text-end">
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-primary" id="toggleHeatmap">Heatmap</button>
+            <button type="button" class="btn btn-outline-primary active" id="toggleMarkers">Markers</button>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12 position-relative">
+        <!-- Map container -->
+        <div id="map"></div>
+        
+        <!-- Map controls -->
+        <div class="map-controls">
+            <div class="form-group mb-2">
+                <label for="metricSelect">Data Metric</label>
+                <select class="form-select form-select-sm" id="metricSelect">
+                    <option value="temperature">Temperature</option>
+                    <option value="humidity">Humidity</option>
+                    <option value="precipitation">Precipitation</option>
+                    <option value="air_quality_index">Air Quality</option>
+                    <option value="wind_speed">Wind Speed</option>
+                    <option value="barometric_pressure">Pressure</option>
+                    <option value="uv_index">UV Index</option>
+                    <option value="visibility">Visibility</option>
+                    <option value="cloud_cover">Cloud Cover</option>
+                    <option value="soil_moisture">Soil Moisture</option>
+                    <option value="water_level">Water Level</option>
+                    <option value="vegetation_index">Vegetation</option>
+                </select>
+            </div>
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="realTimeUpdates">
+                <label class="form-check-label" for="realTimeUpdates">Real-time updates</label>
+            </div>
+        </div>
+        
+        <!-- Map legend -->
+        <div class="legend" id="mapLegend">
+            <h6>Legend</h6>
+            <div id="legendContent">
+                <!-- Legend will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                Latest Readings
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped" id="latestReadingsTable">
+                        <thead>
+                            <tr>
+                                <th>Location</th>
+                                <th>Temperature</th>
+                                <th>Humidity</th>
+                                <th>AQI</th>
+                                <th>Updated</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- This will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>Data Trends</span>
+                    <select class="form-select form-select-sm" style="width: auto;" id="trendMetricSelect">
+                        <option value="temperature">Temperature</option>
+                        <option value="humidity">Humidity</option>
+                        <option value="precipitation">Precipitation</option>
+                        <option value="air_quality_index">Air Quality</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card-body">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'map_app/js/map.js' %}"></script>
+{% endblock %}
