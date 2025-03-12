@@ -54,6 +54,7 @@
                                 <li><a class="dropdown-item" href="#">SMART AGRICULTURE</a></li>
                             </ul>
                         </li>
+                        <li class="nav-item"><a class="nav-link" href="{% url 'research:people' %}"">PEOPLE</a></li>
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'maps:map_view' %}">Map</a>
                         </li>
@@ -77,6 +78,9 @@
                         {% endif %}
                     </ul>
                 </div>
+                <a class="navbar-brand2" href="#">
+                    <img src="{% static 'images/vub-hydr-logo.png' %}" alt="vun-hydr-logo" height="40">
+                </a>
             </div>
         </nav>
     </header>

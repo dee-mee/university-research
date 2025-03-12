@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Contact Us{% endblock %}
+
+
+{% block content %}
+<div class="container py-5">
+    <h2 class="text-center mb-4">Meet Our Team</h2>
+    
+    <div class="row">
+        <!-- PhD Students -->
+        <div class="col-md-6">
+            <h3 class="category-title">PhD Students</h3>
+            <div class="list-group">
+                {% for student in phd_students %}
+                    <div class="list-group-item">
+                        <h5>{{ student.name }}</h5>
+                        <p>{{ student.research_area }}</p>
+                    </div>
+                {% empty %}
+                    <p>No PhD students listed.</p>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Local Coordinators -->
+        <div class="col-md-6">
+            <h3 class="category-title">Local Coordinators</h3>
+            <div class="list-group">
+                {% for coordinator in local_coordinators %}
+                    <div class="list-group-item">
+                        <h5>{{ coordinator.name }}</h5>
+                        <p>{{ coordinator.department }}</p>
+                    </div>
+                {% empty %}
+                    <p>No local coordinators listed.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <!-- Project Leaders -->
+        <div class="col-md-6">
+            <h3 class="category-title">Project Leaders</h3>
+            <div class="list-group">
+                {% for leader in project_leaders %}
+                    <div class="list-group-item">
+                        <h5>{{ leader.name }}</h5>
+                        <p>{{ leader.project }}</p>
+                    </div>
+                {% empty %}
+                    <p>No project leaders listed.</p>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Project Members -->
+        <div class="col-md-6">
+            <h3 class="category-title">Project Members</h3>
+            <div class="list-group">
+                {% for member in project_members %}
+                    <div class="list-group-item">
+                        <h5>{{ member.name }}</h5>
+                        <p>{{ member.role }}</p>
+                    </div>
+                {% empty %}
+                    <p>No project members listed.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
