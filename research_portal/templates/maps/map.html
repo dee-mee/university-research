@@ -1,5 +1,6 @@
-{% extends 'map_app/base.html' %}
+{% extends 'base.html' %}
 
+{% load static %}
 {% block title %}Environmental Map{% endblock %}
 
 {% block extra_head %}
@@ -136,5 +137,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'map_app/js/map.js' %}"></script>
+<script src="{% static '/js/maps/map.js' %}"></script>
 {% endblock %}
