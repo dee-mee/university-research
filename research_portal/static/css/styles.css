@@ -232,3 +232,106 @@ footer a:hover {
 #scrollToTopBtn:hover {
     background-color: #555;
 }
+.contact-header {
+    background: linear-gradient(90deg, #000033 0%, #003366 50%, #0066CC 100%);
+    color: white;
+    padding: 20px 50px;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.contact-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+}
+
+.contact-section h2 {
+    font-size: 24px;
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.contact-info {
+    margin-bottom: 40px;
+}
+
+.contact-info p {
+    margin-bottom: 5px;
+}
+
+.divider {
+    border-top: 1px dashed #ccc;
+    margin: 15px 0;
+    width: 100%;
+}
+
+.feedback-section input,
+.feedback-section textarea {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.feedback-section textarea {
+    height: 120px;
+}
+
+.char-count {
+    text-align: right;
+    color: #777;
+    font-size: 12px;
+    margin-bottom: 15px;
+}
+
+.consent-checkbox {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.consent-checkbox input {
+    margin-right: 10px;
+    width: auto;
+}
+
+.submit-button {
+    background-color: #FFD700;
+    color: #000;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.accessibility-button {
+    position: fixed;
+    left: 20px;
+    bottom: 20px;
+    background-color: #0066CC;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+@media (max-width: 768px) {
+    .container {
+        grid-template-columns: 1fr;
+    }
+    
+    .nav-links {
+        display: none;
+    }
+}
