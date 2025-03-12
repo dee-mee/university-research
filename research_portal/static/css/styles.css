@@ -249,3 +249,15 @@ footer a:hover {
 .data-card {
     margin-bottom: 15px;
 }
+
+header {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+
+main.container {
+    margin: 0 auto;
+    padding: 0;
+    max-width: 1200px; /* Adjust as needed */
+}
