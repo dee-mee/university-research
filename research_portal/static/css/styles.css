@@ -235,3 +235,29 @@ footer a:hover {
 #scrollToTopBtn:hover {
     background-color: #555;
 }
+
+#map {
+    height: 600px;
+    width: 100%;
+}
+.marker-popup {
+    max-width: 400px;
+}
+.environmental-data {
+    margin-top: 15px;
+}
+.data-card {
+    margin-bottom: 15px;
+}
+
+header {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+
+main.container {
+    margin: 0 auto;
+    padding: 0;
+    max-width: 1200px; /* Adjust as needed */
+}
