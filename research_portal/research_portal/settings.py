@@ -55,6 +55,9 @@ INSTALLED_APPS = [
     'profiles',
     'maps',
     'rest_framework',
+    'django.contrib.gis',
+    'rest_framework_gis',
+    'django_filters'
 ]
 
 MIDDLEWARE = [
@@ -92,12 +95,24 @@ WSGI_APPLICATION = 'research_portal.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
+        'NAME': 'geomap_db',
+        'USER': 'geomap_user',
+        'PASSWORD': 'securepassword',  
+        'HOST': 'localhost',
+        'PORT': '5432',  
     }
 }
+
 
 
 # Password validation
@@ -191,3 +206,16 @@ WEATHER_API_KEY = ''  # Add your own API key here
 # Email settings for alerts
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # For development
 DEFAULT_FROM_EMAIL = 'alerts@environmentalmap.example.com'
+
+REST_FRAMEWORK = {
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 50,
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.SearchFilter',
+        'rest_framework.filters.OrderingFilter',
+    ],
+}
