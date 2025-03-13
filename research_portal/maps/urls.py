@@ -1,21 +1,17 @@
+# urls.py
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
+from .views import MapView
+
+router = DefaultRouter()
+router.register(r'stations', views.WeatherStationViewSet)
+router.register(r'climate-data', views.ClimateDataViewSet)
 
 app_name = 'maps'
 
-# Create a router for our API viewsets
-router = DefaultRouter()
-router.register(r'markers', views.LocationMarkerViewSet)
-router.register(r'environmental-data', views.EnvironmentalDataViewSet)
-router.register(r'annotations', views.UserMarkerAnnotationViewSet)
-router.register(r'alerts', views.AlertThresholdViewSet)
-
 urlpatterns = [
-    # Web UI URLs
-    path('maping/', views.map_view, name='map_view'),
-    path('markers/<int:marker_id>/', views.marker_detail_view, name='marker_detail'),
+    path('maping/', views.MapView.as_view(), name='map'),  # Main map page at the root URL
+    path('api/', include((router.urls, 'api'))),    # API endpoints under /api/
     
-    # API URLs
-    path('api/', include(router.urls)),
 ]
