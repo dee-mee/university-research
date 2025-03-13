@@ -71,7 +71,7 @@ body, html {
 }
 /* Navbar Improvements */
 .custom-navbar {
-    background-color: white;
+    background-color: rgb(13, 93, 197);
     padding: 10px 0;
     box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
 }
@@ -86,7 +86,7 @@ body, html {
 .custom-navbar .navbar-nav .nav-link {
     font-weight: bold;
     font-size: 15px;
-    color: #0d7a00;
+    color: #ffffff;
     transition: color 0.3s ease;
 }
 
