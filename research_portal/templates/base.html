@@ -56,10 +56,9 @@
                         </li>
                         <li class="nav-item"><a class="nav-link" href="{% url 'research:people' %}"">PEOPLE</a></li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'maps:map_view' %}">Map</a>
+                            <a class="nav-link" href="{% url 'maps:map' %}">Map</a>
                         </li>
                         <li class="nav-item"><a class="nav-link" href="#">PEOPLE</a></li>
-                        <li class="nav-item"><a class="nav-link" href="{% url 'research:map' %}">MAP</a></li>
                         <li class="nav-item"><a class="nav-link" href="{% url 'research:contact' %}">CONTACT</a></li>
                         {% if request.user.is_authenticated %}
                         <li class="nav-item dropdown">
