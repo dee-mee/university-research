@@ -47,27 +47,27 @@
                 </button>
                 <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
                     <ul class="navbar-nav align-items-center">
-                        <li class="nav-item"><a class="nav-link" href="{% url 'research:index' %}">HOME</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{% url 'research:index' %}">Home</a></li>
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">RESEARCH</a>
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Research</a>
                             <ul class="dropdown-menu">
                                 <li><a class="dropdown-item" href="#">DRIE</a></li>
                                 <li><a class="dropdown-item" href="{% url 'research:vlirous' %}">VLIR-OUS</a></li>
                             </ul>
                         </li>
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">CLIMATE</a>
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Climate</a>
                             <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="#">DROUGHT AND FLOODS</a></li>
-                                <li><a class="dropdown-item" href="#">SMART AGRICULTURE</a></li>
+                                <li><a class="dropdown-item" href="#">Drought and Floods</a></li>
+                                <li><a class="dropdown-item" href="#">Smart Agriculture</a></li>
                             </ul>
                         </li>
-                        <li class="nav-item"><a class="nav-link" href="{% url 'research:people' %}"">PEOPLE</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{% url 'research:people' %}">People</a></li>
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'maps:map' %}">Map</a>
                         </li>
-                        <li class="nav-item"><a class="nav-link" href="#">PEOPLE</a></li>
-                        <li class="nav-item"><a class="nav-link" href="{% url 'research:contact' %}">CONTACT</a></li>
+                        
+                        <li class="nav-item"><a class="nav-link" href="{% url 'research:contact' %}">Contact</a></li>
                         {% if request.user.is_authenticated %}
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -81,7 +81,7 @@
                             </ul>
 
                         {% else %}
-                        <li class="nav-item"> <a href="{% url 'login' %}" class="btn btn-primary">LOGIN</a></li>
+                        <li class="nav-item"> <a href="{% url 'login' %}" class="btn btn-primary">Login</a></li>
                         {% endif %}
                     </ul>
                 </div>
