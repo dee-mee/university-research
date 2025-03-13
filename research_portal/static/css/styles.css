@@ -69,29 +69,158 @@ body, html {
         font-size: 1.5rem;
     }
 }
-/* Navbar Improvements */
+/* Custom Navbar Styling with Gradient */
 .custom-navbar {
-    background-color: rgb(13, 93, 197);
-    padding: 10px 0;
-    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+    background: linear-gradient(to right, rgba(13, 93, 197, 0.95), rgba(4, 17, 75, 0.95));
+    padding: 15px 0;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    transition: all 0.5s ease;
 }
 
-.custom-navbar .navbar-brand img {
-    height: 50px;
+.custom-navbar.scrolled {
+    background: rgba(13, 93, 197, 0.98);
+    padding: 10px 0;
 }
+
+.custom-navbar .navbar-brand img,
 .custom-navbar .navbar-brand2 img {
-    height: 60px;
-    margin-left: 40px;
+    height: 40px;
+    transition: all 0.3s ease;
 }
+
 .custom-navbar .navbar-nav .nav-link {
     font-weight: bold;
-    font-size: 15px;
+    font-size: 16px;
     color: #ffffff;
-    transition: color 0.3s ease;
+    padding: 8px 16px;
+    margin: 0 4px;
+    border-radius: 4px;
+    transition: all 0.3s ease;
 }
 
 .custom-navbar .navbar-nav .nav-link:hover {
-    color: #0345BF;
+    background-color: rgba(255, 255, 255, 0.15);
+    color: #ffd700;
+}
+
+.custom-navbar .navbar-nav .nav-item.active .nav-link {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: #ffd700;
+}
+
+/* Custom Dropdown Styling */
+.custom-navbar .dropdown-menu {
+    background: linear-gradient(to right, rgba(13, 93, 197, 0.95), rgba(4, 17, 75, 0.95));
+    border: none;
+    border-radius: 0 0 8px 8px;
+    margin-top: 0;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+    padding: 0;
+    min-width: 200px;
+}
+
+.custom-navbar .dropdown-item {
+    color: #ffffff;
+    font-weight: 500;
+    padding: 12px 20px;
+    transition: all 0.3s ease;
+    font-size: 14px;
+}
+
+.custom-navbar .dropdown-item:hover, 
+.custom-navbar .dropdown-item:focus {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: #ffd700;
+}
+
+.custom-navbar .dropdown-item.active {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: #ffd700;
+}
+
+/* Dropdown divider styling */
+.custom-navbar .dropdown-divider {
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    margin: 0.5rem 0;
+}
+
+/* Bootstrap override to remove default dropdown styles */
+.dropdown-menu {
+    --bs-dropdown-bg: transparent;
+    --bs-dropdown-border-color: transparent;
+    --bs-dropdown-border-radius: 0;
+    --bs-dropdown-inner-border-radius: 0;
+    --bs-dropdown-divider-bg: rgba(255, 255, 255, 0.15);
+    --bs-dropdown-box-shadow: none;
+    --bs-dropdown-link-color: #fff;
+    --bs-dropdown-link-hover-color: #ffd700;
+    --bs-dropdown-link-hover-bg: rgba(255, 255, 255, 0.15);
+    --bs-dropdown-link-active-color: #ffd700;
+    --bs-dropdown-link-active-bg: rgba(255, 255, 255, 0.2);
+    --bs-dropdown-link-disabled-color: #adb5bd;
+    --bs-dropdown-header-color: #f8f9fa;
+}
+
+/* Custom styling for dropdown toggle indicators */
+.custom-navbar .dropdown-toggle::after {
+    margin-left: 6px;
+    vertical-align: middle;
+    transition: transform 0.3s ease;
+}
+
+.custom-navbar .dropdown:hover .dropdown-toggle::after {
+    transform: rotate(180deg);
+}
+
+/* Login button styling */
+.custom-navbar .btn-primary {
+    background-color: #ffd700;
+    border-color: #ffd700;
+    color: #04114b;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.custom-navbar .btn-primary:hover {
+    background-color: #ffeb3b;
+    border-color: #ffeb3b;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* User dropdown styling */
+.custom-navbar .bi-person-circle {
+    font-size: 1.5rem;
+}
+
+/* Navbar scroll effect */
+@media (min-width: 992px) {
+    .custom-navbar {
+        padding: 15px 0;
+    }
+    
+    .custom-navbar.scrolled {
+        padding: 8px 0;
+    }
+}
+
+/* Mobile styling */
+@media (max-width: 991px) {
+    .custom-navbar .navbar-collapse {
+        background: linear-gradient(to bottom, rgba(13, 93, 197, 0.95), rgba(4, 17, 75, 0.95));
+        margin-top: 10px;
+        padding: 10px;
+        border-radius: 8px;
+    }
+    
+    .custom-navbar .navbar-nav .nav-link {
+        padding: 12px 16px;
+    }
+    
+    .custom-navbar .dropdown-menu {
+        background: rgba(4, 17, 75, 0.8);
+        margin-left: 16px;
+    }
 }
 
 /* Sidebar Fixes */
@@ -124,6 +253,59 @@ body, html {
     padding: 20px;
     transition: margin-left 0.3s ease;
 }
+/* About Section Enhancements */
+.about-section {
+    padding: 60px 0;
+    background-color: #f8f9fa;
+}
+
+.about-section h2.section-title {
+    font-size: 2.5rem;
+    color: #04114b;
+    margin-bottom: 1.5rem;
+    text-align: center;
+    position: relative;
+    padding-bottom: 15px;
+}
+
+.about-section h2.section-title:after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80px;
+    height: 3px;
+    background-color: #0d5dc5;
+}
+
+.about-section img {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+}
+
+.about-section img:hover {
+    transform: scale(1.03);
+}
+
+.about-section h2 {
+    color: #0d5dc5;
+    font-weight: bold;
+    margin-top: 1rem;
+}
+
+.about-section p {
+    font-size: 1.1rem;
+    line-height: 1.7;
+    color: #343a40;
+}
+
+.about-section strong {
+    color: #04114b;
+}
 
 /* Mobile Sidebar */
 @media (max-width: 768px) {
@@ -135,6 +317,73 @@ body, html {
     .main-content {
         margin-left: 0;
     }
+}
+/* Latest Projects Enhancements */
+.latest-projects {
+    padding: 70px 0;
+    background: linear-gradient(to bottom, #f8f9fa 0%, #e9ecef 100%);
+}
+
+.latest-projects .section-title {
+    font-size: 2.5rem;
+    color: #04114b;
+    margin-bottom: 2rem;
+    text-align: center;
+    position: relative;
+    padding-bottom: 15px;
+}
+
+.latest-projects .section-title:after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80px;
+    height: 3px;
+    background-color: #0d5dc5;
+}
+
+.latest-projects .card {
+    border: none;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.latest-projects .card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+}
+
+.latest-projects .card-img-top {
+    height: 200px;
+    object-fit: cover;
+    transition: all 0.5s ease;
+}
+
+.latest-projects .card:hover .card-img-top {
+    transform: scale(1.1);
+}
+
+.latest-projects .card-title {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.latest-projects .card-title a {
+    color: #04114b;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.latest-projects .card-title a:hover {
+    color: #0d5dc5;
+}
+
+.latest-projects .text-muted {
+    font-size: 0.9rem;
+    color: #6c757d !important;
 }
 
 /* Login Page Improvements */
