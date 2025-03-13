@@ -2,28 +2,39 @@
 
 {% block content %}
 
-<p style="color: red;">Testing if this page is loading...</p>
-
 <div class="container-fluid">
     <div class="row">
         <!-- Sidebar -->
         <div class="col-md-2 sidebar">
             <div class="text-center my-3">
-                <img src="https://via.placeholder.com/50" class="rounded-circle" alt="User">
+                <img src="{{ user.profile.profile_picture.url }}" class="rounded-circle" alt="User" width="50">
                 <h5 class="mt-2">{{ user.get_full_name }}</h5>
+                <p class="text-muted">{{ user.email }}</p>
             </div>
             <ul class="nav flex-column">
                 <li class="nav-item">
-                    <a href="#" class="nav-link"><i class="fas fa-home"></i> Dashboard</a>
+                    <a href="{% url 'dashboard' %}" class="nav-link {% if request.path == '/dashboard/' %}active{% endif %}">
+                        <i class="fas fa-home"></i> Dashboard
+                    </a>
                 </li>
                 <li class="nav-item">
-                    <a href="#" class="nav-link"><i class="fas fa-book"></i> Course Registration</a>
+                    <a href="{% url 'profile' %}" class="nav-link {% if request.path == '/profile/' %}active{% endif %}">
+                        <i class="fas fa-user"></i> View Profile
+                    </a>
                 </li>
                 <li class="nav-item">
-                    <a href="#" class="nav-link"><i class="fas fa-calendar"></i> TimeTable</a>
+                    <a href="{% url 'edit_profile' %}" class="nav-link {% if request.path == '/edit-profile/' %}active{% endif %}">
+                        <i class="fas fa-edit"></i> Edit Profile
+                    </a>
                 </li>
+
                 <li class="nav-item">
-                    <a href="#" class="nav-link"><i class="fas fa-file-invoice"></i> Fee Statement</a>
+                    <form method="post" action="{% url 'logout' %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="nav-link text-danger" style="border: none; background: none; padding: 0; cursor: pointer;">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </button>
+                    </form>
                 </li>
             </ul>
         </div>
@@ -34,6 +45,7 @@
         </div>
     </div>
 </div>
+
 
 
             <!-- Cards -->

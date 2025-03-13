@@ -27,7 +27,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-xxby!#cz*!f*cv@8zs6t_x=(50)7^3aspay#d+5rr!ma)csnhg'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['university-research.onrender.com', 'localhost', '127.0.0.1']
 CORS_ALLOWED_ORIGINS = [
@@ -53,7 +53,11 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'research',
     'profiles',
+    'maps',
     'rest_framework',
+    'django.contrib.gis',
+    'rest_framework_gis',
+    'django_filters'
 ]
 
 MIDDLEWARE = [
@@ -91,12 +95,24 @@ WSGI_APPLICATION = 'research_portal.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
+        'NAME': 'geomap_db',
+        'USER': 'geomap_user',
+        'PASSWORD': 'securepassword',  
+        'HOST': 'localhost',
+        'PORT': '5432',  
     }
 }
+
 
 
 # Password validation
@@ -173,3 +189,26 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Google Maps API Key
 GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY')
+
+
+# API Keys (for environmental data providers)
+WEATHER_API_KEY = ''  # Add your own API key here
+# BASE_URL = 'http://localhost:8000'  # Update this in production
+
+# Email settings for alerts
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # For development
+DEFAULT_FROM_EMAIL = 'alerts@environmentalmap.example.com'
+
+REST_FRAMEWORK = {
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 50,
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.SearchFilter',
+        'rest_framework.filters.OrderingFilter',
+    ],
+}
+
