@@ -1,101 +1,116 @@
-from django.db import models
+# models.py
+from django.contrib.gis.db import models
+from django.contrib.gis.geos import Point
+from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator, MaxValueValidator
 
-class DataSource(models.Model):
-    """Model to track different data sources for attribution"""
-    name = models.CharField(max_length=100)
-    url = models.URLField(blank=True, null=True)
+class WeatherStation(models.Model):
+    """Weather station or climate data collection point"""
+    name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    attribution_text = models.CharField(max_length=255)
+    location = models.PointField(srid=4326, geography=True)
+    altitude = models.FloatField(help_text="Altitude in meters above sea level", null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    date_installed = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = _("Weather Station")
+        verbose_name_plural = _("Weather Stations")
+        ordering = ["name"]
     
     def __str__(self):
         return self.name
-
-class LocationMarker(models.Model):
-    """Model for map markers with location information"""
-    name = models.CharField(max_length=100)
-    latitude = models.FloatField()
-    longitude = models.FloatField()
-    elevation = models.FloatField(blank=True, null=True)
-    land_use_classification = models.CharField(max_length=50, blank=True, null=True)
-    ecological_zone = models.CharField(max_length=50, blank=True, null=True)
-    conservation_status = models.CharField(max_length=50, blank=True, null=True)
-    population_density = models.FloatField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
     
-    def __str__(self):
-        return f"{self.name} ({self.latitude}, {self.longitude})"
+    @property
+    def latitude(self):
+        return self.location.y
     
-    class Meta:
-        unique_together = ('latitude', 'longitude')
+    @property
+    def longitude(self):
+        return self.location.x
 
-class EnvironmentalData(models.Model):
-    """Model for environmental data readings associated with markers"""
-    location = models.ForeignKey(LocationMarker, on_delete=models.CASCADE, related_name='environmental_data')
+
+class ClimateData(models.Model):
+    """Climate data measurements collected from weather stations"""
+    QUALITY_CHOICES = [
+        ('high', _('High')),
+        ('medium', _('Medium')),
+        ('low', _('Low')),
+        ('uncertain', _('Uncertain')),
+    ]
+    
+    station = models.ForeignKey(WeatherStation, on_delete=models.CASCADE, related_name='climate_data')
     timestamp = models.DateTimeField()
-    temperature = models.FloatField(blank=True, null=True)
-    humidity = models.FloatField(blank=True, null=True)
-    precipitation = models.FloatField(blank=True, null=True)
-    air_quality_index = models.FloatField(blank=True, null=True)
-    wind_speed = models.FloatField(blank=True, null=True)
-    wind_direction = models.CharField(max_length=10, blank=True, null=True)
-    barometric_pressure = models.FloatField(blank=True, null=True)
-    uv_index = models.FloatField(blank=True, null=True)
-    visibility = models.FloatField(blank=True, null=True)
-    cloud_cover = models.FloatField(blank=True, null=True)
-    soil_moisture = models.FloatField(blank=True, null=True)
-    water_level = models.FloatField(blank=True, null=True)
-    vegetation_index = models.FloatField(blank=True, null=True)
-    data_quality = models.FloatField(default=1.0, help_text="Score between 0-1 indicating data quality")
-    data_source = models.ForeignKey(DataSource, on_delete=models.SET_NULL, null=True, blank=True)
-    
-    def __str__(self):
-        return f"Data for {self.location.name} at {self.timestamp}"
-    
-    class Meta:
-        ordering = ['-timestamp']
-        get_latest_by = 'timestamp'
-
-class UserMarkerAnnotation(models.Model):
-    """Model for user annotations on markers"""
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    marker = models.ForeignKey(LocationMarker, on_delete=models.CASCADE, related_name='annotations')
-    text = models.TextField()
+    temperature = models.FloatField(help_text="Temperature in Celsius", null=True, blank=True)
+    humidity = models.FloatField(
+        help_text="Relative humidity (%)", 
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        null=True, blank=True
+    )
+    precipitation = models.FloatField(help_text="Precipitation in mm", null=True, blank=True)
+    air_quality_index = models.IntegerField(null=True, blank=True)
+    wind_speed = models.FloatField(help_text="Wind speed in m/s", null=True, blank=True)
+    wind_direction = models.FloatField(
+        help_text="Wind direction in degrees (0-360)",
+        validators=[MinValueValidator(0), MaxValueValidator(360)],
+        null=True, blank=True
+    )
+    barometric_pressure = models.FloatField(help_text="Pressure in hPa", null=True, blank=True)
+    cloud_cover = models.FloatField(
+        help_text="Cloud cover (%)",
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        null=True, blank=True
+    )
+    soil_moisture = models.FloatField(
+        help_text="Soil moisture (%)",
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        null=True, blank=True
+    )
+    water_level = models.FloatField(help_text="Water level in meters", null=True, blank=True)
+    data_quality = models.CharField(max_length=10, choices=QUALITY_CHOICES, default='medium')
+    uv_index = models.FloatField(
+        help_text="UV index",
+        validators=[MinValueValidator(0), MaxValueValidator(12)],
+        null=True, blank=True
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
+    class Meta:
+        verbose_name = _("Climate Data")
+        verbose_name_plural = _("Climate Data")
+        ordering = ["-timestamp"]
+        indexes = [
+            models.Index(fields=['timestamp']),
+            models.Index(fields=['station', 'timestamp']),
+        ]
+    
     def __str__(self):
-        return f"Annotation by {self.user.username} on {self.marker.name}"
+        return f"{self.station.name} - {self.timestamp}"
 
-class AlertThreshold(models.Model):
-    """Model for user-defined alert thresholds on environmental metrics"""
-    METRIC_CHOICES = [
-        ('temperature', 'Temperature'),
-        ('humidity', 'Humidity'),
-        ('precipitation', 'Precipitation'),
-        ('air_quality_index', 'Air Quality Index'),
-        ('wind_speed', 'Wind Speed'),
-        ('barometric_pressure', 'Barometric Pressure'),
-        ('uv_index', 'UV Index'),
-        ('soil_moisture', 'Soil Moisture'),
-        ('water_level', 'Water Level'),
+
+class DataExport(models.Model):
+    """Tracks data exports by users"""
+    FORMAT_CHOICES = [
+        ('csv', 'CSV'),
+        ('json', 'JSON'),
+        ('geojson', 'GeoJSON'),
     ]
     
-    CONDITION_CHOICES = [
-        ('gt', 'Greater Than'),
-        ('lt', 'Less Than'),
-        ('eq', 'Equal To'),
-        ('gte', 'Greater Than or Equal To'),
-        ('lte', 'Less Than or Equal To'),
-    ]
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    station = models.ForeignKey(WeatherStation, on_delete=models.SET_NULL, null=True, blank=True)
+    export_format = models.CharField(max_length=10, choices=FORMAT_CHOICES)
+    date_from = models.DateTimeField()
+    date_to = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
     
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    marker = models.ForeignKey(LocationMarker, on_delete=models.CASCADE, related_name='alert_thresholds')
-    metric = models.CharField(max_length=30, choices=METRIC_CHOICES)
-    condition = models.CharField(max_length=3, choices=CONDITION_CHOICES)
-    value = models.FloatField()
-    active = models.BooleanField(default=True)
+    class Meta:
+        verbose_name = _("Data Export")
+        verbose_name_plural = _("Data Exports")
+        ordering = ["-created_at"]
     
     def __str__(self):
-        return f"Alert for {self.marker.name} when {self.metric} is {self.condition} {self.value}"
+        return f"Export {self.export_format} - {self.created_at}"
