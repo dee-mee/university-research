@@ -32,6 +32,14 @@ class WeatherStation(models.Model):
     def longitude(self):
         return self.location.x
 
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation['geometry'] = {
+            'type': 'Point',
+            'coordinates': [self.longitude, self.latitude]
+        }
+        return representation
+
 
 class ClimateData(models.Model):
     """Climate data measurements collected from weather stations"""

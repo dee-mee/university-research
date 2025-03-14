@@ -4,7 +4,7 @@ from django.contrib.gis.measure import D
 from django.contrib.gis.db.models.functions import Distance
 from django.http import HttpResponse
 from django.utils import timezone
-from django.db.models import Avg, Max, Min
+from django.db.models import Avg, Max, Min, Sum
 from rest_framework import viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -36,7 +36,13 @@ from .serializers import (
 )
 from .permissions import IsAdminOrReadOnly
 from django.views.generic import TemplateView
+from django.http import JsonResponse
 
+def debug_stations(request):
+    """Debug view to check GeoJSON output"""
+    stations = WeatherStation.objects.all()
+    serializer = WeatherStationSerializer(stations, many=True)
+    return JsonResponse(serializer.data)
 
 class MapView(TemplateView):
     template_name = 'maps/map.html'
@@ -65,6 +71,14 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
     filterset_fields = ['is_active']
     search_fields = ['name', 'description']
     ordering_fields = ['name', 'date_installed']
+    
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            'type': 'FeatureCollection',
+            'features': serializer.data
+        })
     
     @action(detail=False, methods=['get'])
     def nearby(self, request):
@@ -209,6 +223,36 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
             'period': f"Last {days} days",
             'stats': stats
         })
+    
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        # Manually create the GeoJSON feature collection
+        features = []
+        for station in queryset:
+            feature = {
+                'type': 'Feature',
+                'geometry': {
+                    'type': 'Point',
+                    'coordinates': [station.longitude, station.latitude]
+                },
+                'properties': {
+                    'id': station.id,
+                    'name': station.name,
+                    'description': station.description,
+                    'is_active': station.is_active,
+                    'altitude': station.altitude,
+                    'date_installed': station.date_installed.isoformat() if station.date_installed else None
+                }
+            }
+            features.append(feature)
+        
+        feature_collection = {
+            'type': 'FeatureCollection',
+            'features': features
+        }
+        
+        return Response(feature_collection)
 
 
 class ClimateDataViewSet(viewsets.ModelViewSet):
