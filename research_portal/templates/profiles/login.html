@@ -22,59 +22,159 @@
         width: 100%;
         box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
     }
-    /* Navbar Styles */
-    .navbar {
-        padding: 5px 0;
-        box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
-    }
-    
-    .navbar-brand img {
-        margin-left: 0;
-        height: 50px;
-    }
+    /* Custom Navbar Styling with Gradient */
+.custom-navbar {
+    background: linear-gradient(to right, rgba(13, 93, 197, 0.95), rgba(4, 17, 75, 0.95));
+    padding: 15px 0;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    transition: all 0.5s ease;
+}
 
-    .navbar-brand2 img {
-        height: 60px;
-        margin-left: 40px;
-    }
+.custom-navbar.scrolled {
+    background: rgba(13, 93, 197, 0.98);
+    padding: 10px 0;
+}
 
-    .navbar-nav .nav-link {
-        font-size: 14px;
-        padding: 0.5rem 1rem;
-        font-weight: bold;
-        color: #0d7a00;
-        transition: color 0.3s ease;
+.custom-navbar .navbar-brand img,
+.custom-navbar .navbar-brand2 img {
+    height: 40px;
+    transition: all 0.3s ease;
+}
+
+.custom-navbar .navbar-nav .nav-link {
+    font-weight: bold;
+    font-size: 16px;
+    color: #ffffff;
+    padding: 8px 16px;
+    margin: 0 4px;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.custom-navbar .navbar-nav .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: #ffd700;
+}
+
+.custom-navbar .navbar-nav .nav-item.active .nav-link {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: #ffd700;
+}
+
+/* Custom Dropdown Styling */
+.custom-navbar .dropdown-menu {
+    background: linear-gradient(to right, rgba(13, 93, 197, 0.95), rgba(4, 17, 75, 0.95));
+    border: none;
+    border-radius: 0 0 8px 8px;
+    margin-top: 0;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+    padding: 0;
+    min-width: 200px;
+}
+
+.custom-navbar .dropdown-item {
+    color: #ffffff;
+    font-weight: 500;
+    padding: 12px 20px;
+    transition: all 0.3s ease;
+    font-size: 14px;
+}
+
+.custom-navbar .dropdown-item:hover, 
+.custom-navbar .dropdown-item:focus {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: #ffd700;
+}
+
+.custom-navbar .dropdown-item.active {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: #ffd700;
+}
+
+/* Dropdown divider styling */
+.custom-navbar .dropdown-divider {
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    margin: 0.5rem 0;
+}
+
+/* Bootstrap override to remove default dropdown styles */
+.dropdown-menu {
+    --bs-dropdown-bg: transparent;
+    --bs-dropdown-border-color: transparent;
+    --bs-dropdown-border-radius: 0;
+    --bs-dropdown-inner-border-radius: 0;
+    --bs-dropdown-divider-bg: rgba(255, 255, 255, 0.15);
+    --bs-dropdown-box-shadow: none;
+    --bs-dropdown-link-color: #fff;
+    --bs-dropdown-link-hover-color: #ffd700;
+    --bs-dropdown-link-hover-bg: rgba(255, 255, 255, 0.15);
+    --bs-dropdown-link-active-color: #ffd700;
+    --bs-dropdown-link-active-bg: rgba(255, 255, 255, 0.2);
+    --bs-dropdown-link-disabled-color: #adb5bd;
+    --bs-dropdown-header-color: #f8f9fa;
+}
+
+/* Custom styling for dropdown toggle indicators */
+.custom-navbar .dropdown-toggle::after {
+    margin-left: 6px;
+    vertical-align: middle;
+    transition: transform 0.3s ease;
+}
+
+.custom-navbar .dropdown:hover .dropdown-toggle::after {
+    transform: rotate(180deg);
+}
+
+/* Login button styling */
+.custom-navbar .btn-primary {
+    background-color: #ffd700;
+    border-color: #ffd700;
+    color: #04114b;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.custom-navbar .btn-primary:hover {
+    background-color: #ffeb3b;
+    border-color: #ffeb3b;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* User dropdown styling */
+.custom-navbar .bi-person-circle {
+    font-size: 1.5rem;
+}
+
+/* Navbar scroll effect */
+@media (min-width: 992px) {
+    .custom-navbar {
+        padding: 15px 0;
     }
     
-    .navbar-nav .nav-link:hover {
-        color: #007bff;
+    .custom-navbar.scrolled {
+        padding: 8px 0;
+    }
+}
+
+/* Mobile styling */
+@media (max-width: 991px) {
+    .custom-navbar .navbar-collapse {
+        background: linear-gradient(to bottom, rgba(13, 93, 197, 0.95), rgba(4, 17, 75, 0.95));
+        margin-top: 10px;
+        padding: 10px;
+        border-radius: 8px;
     }
     
-    .dropdown-menu {
-        border: none;
-        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-        border-radius: 4px;
+    .custom-navbar .navbar-nav .nav-link {
+        padding: 12px 16px;
     }
     
-    .dropdown-item {
-        font-size: 14px;
-        color: #0d7a00;
-        padding: 0.5rem 1.5rem;
-        transition: background-color 0.2s ease, color 0.2s ease;
+    .custom-navbar .dropdown-menu {
+        background: rgba(4, 17, 75, 0.8);
+        margin-left: 16px;
     }
-    
-    .dropdown-item:hover {
-        background-color: #f8f9fa;
-        color: #007bff;
-    }
-    
-    .navbar-toggler {
-        border: none;
-    }
-    
-    .navbar-toggler-icon {
-        background-image: url("data:image/svg+xml;charset=utf8,%3Csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath stroke='rgba(0, 0, 0, 0.5)' stroke-width='2' stroke-linecap='round' stroke-miterlimit='10' d='M4 7h22M4 15h22M4 23h22'/%3E%3C/svg%3E");
-    }
+}
     .login-container {
         text-align: center;
         max-width: 400px;
@@ -149,53 +249,56 @@
 
 {% block content %}
 <header>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <nav class="navbar navbar-expand-lg custom-navbar">
         <div class="container">
-            <a class="navbar-brand" href="#">
-                <img src="{% static 'images/logo@2x.png' %}" alt="JOOUST Logo" height="40">
+            <a class="navbar-brand" href="">
+                <img src="{% static 'images/logo@2x.png' %}" alt="JOUST Logo" height="40">
             </a>
-            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
-                <ul class="navbar-nav">
-                    <li class="nav-item"><a class="nav-link" href="{% url 'research:index' %}">HOME</a></li>
+                <ul class="navbar-nav align-items-center">
+                    <li class="nav-item"><a class="nav-link" href="{% url 'research:index' %}">Home</a></li>
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownResearch" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">RESEARCH</a>
-                        <div class="dropdown-menu" aria-labelledby="navbarDropdownResearch">
-                            <a class="dropdown-item" href="#">DRIE</a>
-                            <a class="dropdown-item" href="{% url 'research:vlirous' %}">VLIR-OUS</a>
-                        </div>
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Research</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#">DRIE</a></li>
+                            <li><a class="dropdown-item" href="{% url 'research:vlirous' %}">VLIR-OUS</a></li>
+                        </ul>
                     </li>
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownClimate" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">CLIMATE</a>
-                        <div class="dropdown-menu" aria-labelledby="navbarDropdownClimate">
-                            <a class="dropdown-item" href="#">DROUGHT AND FLOODS</a>
-                            <a class="dropdown-item" href="#">SMART AGRICULTURE</a>
-                        </div>
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Climate</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#">Drought and Floods</a></li>
+                            <li><a class="dropdown-item" href="#">Smart Agriculture</a></li>
+                        </ul>
                     </li>
-                    <li class="nav-item"><a class="nav-link" href="#">PEOPLE</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{% url 'research:map' %}">MAP</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{% url 'research:contact' %}">CONTACT</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{% url 'research:people' %}">People</a></li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'maps:map' %}">Map</a>
+                    </li>
+                    
+                    <li class="nav-item"><a class="nav-link" href="{% url 'research:contact' %}">Contact</a></li>
                     {% if request.user.is_authenticated %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownUser" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="bi bi-person-circle"></i>
                         </a>
-                        <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarDropdownUser">
-                            <a class="dropdown-item" href="{% url 'dashboard' %}">Dashboard</a>
-                            <a class="dropdown-item" href="{% url 'profile' %}">User Profile</a>
-                            <div class="dropdown-divider"></div>
-                            <a class="dropdown-item" href="{% url 'logout' %}" id="logout-link">Logout</a>
-                        </div>
-                    </li>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{% url 'dashboard' %}">Dashboard</a></li>
+                            <li><a class="dropdown-item" href="{% url 'profile' %}">User Profile</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'logout' %}" id="logout-link">Logout</a></li>
+                        </ul>
+
                     {% else %}
-                    <li class="nav-item"><a href="{% url 'login' %}" class="btn btn-primary">LOGIN</a></li>
+                   
                     {% endif %}
                 </ul>
             </div>
             <a class="navbar-brand2" href="#">
-                <img src="{% static 'images/vub-hydr-logo.png' %}" alt="vub-hydr-logo" height="40">
+                <img src="{% static 'images/vub-hydr-logo.png' %}" style=" margin-left: 35px;"alt="vun-hydr-logo" height="40">
             </a>
         </div>
     </nav>
@@ -274,5 +377,144 @@
             });
         }
     });
+    // Combine duplicate scroll-to-top functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Navbar scroll effect
+    const navbar = document.querySelector('.custom-navbar');
+    const scrollToTopBtn = document.getElementById('scrollToTopBtn');
+    
+    // Scroll event handler - handles both navbar and scroll button
+    window.onscroll = function() {
+        // Navbar effect
+        if (window.scrollY > 50) {
+            navbar.classList.add('scrolled');
+        } else {
+            navbar.classList.remove('scrolled');
+        }
+        
+        // Scroll to top button visibility
+        if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+            scrollToTopBtn.style.display = 'block';
+        } else {
+            scrollToTopBtn.style.display = 'none';
+        }
+    };
+    
+    // Enhanced dropdown behavior for both hover and click
+    const dropdowns = document.querySelectorAll('.dropdown');
+    
+    // For desktop: hover behavior
+    if (window.innerWidth >= 992) {
+        dropdowns.forEach(dropdown => {
+            dropdown.addEventListener('mouseenter', function() {
+                if (window.innerWidth >= 992) {
+                    this.querySelector('.dropdown-menu').classList.add('show');
+                    this.querySelector('.dropdown-toggle').setAttribute('aria-expanded', 'true');
+                }
+            });
+            
+            dropdown.addEventListener('mouseleave', function() {
+                if (window.innerWidth >= 992) {
+                    this.querySelector('.dropdown-menu').classList.remove('show');
+                    this.querySelector('.dropdown-toggle').setAttribute('aria-expanded', 'false');
+                }
+            });
+        });
+    }
+    
+    // For mobile: ensure proper behavior
+    const dropdownToggles = document.querySelectorAll('.dropdown-toggle');
+    
+    dropdownToggles.forEach(toggle => {
+        toggle.addEventListener('click', function(e) {
+            if (window.innerWidth < 992) {
+                e.preventDefault();
+                const dropdown = this.parentElement;
+                const dropdownMenu = dropdown.querySelector('.dropdown-menu');
+                
+                // Toggle current dropdown
+                dropdownMenu.classList.toggle('show');
+                this.setAttribute('aria-expanded', 
+                    this.getAttribute('aria-expanded') === 'true' ? 'false' : 'true');
+            }
+        });
+    });
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (window.innerWidth < 992 && !e.target.closest('.dropdown')) {
+            dropdownToggles.forEach(toggle => {
+                toggle.setAttribute('aria-expanded', 'false');
+                toggle.nextElementSibling.classList.remove('show');
+            });
+        }
+    });
+    
+    // Get the projects wrapper element
+    const projectsWrapper = document.querySelector('.projects-wrapper');
+    
+    // Clone the project items for a seamless continuous scroll effect
+    if (projectsWrapper) {
+        const projectItems = document.querySelectorAll('.project-item');
+        
+        // Only clone if there are items to clone
+        if (projectItems.length > 0) {
+            // Clone each project item and append to wrapper for continuous scrolling
+            projectItems.forEach(item => {
+                const clone = item.cloneNode(true);
+                projectsWrapper.appendChild(clone);
+            });
+        }
+        
+        // Add pause/play functionality when hovering
+        const scrollContainer = document.querySelector('.projects-scroll-container');
+        if (scrollContainer) {
+            scrollContainer.addEventListener('mouseenter', function() {
+                projectsWrapper.style.animationPlayState = 'paused';
+            });
+            
+            scrollContainer.addEventListener('mouseleave', function() {
+                projectsWrapper.style.animationPlayState = 'running';
+            });
+        }
+        
+        // Adjust animation speed based on screen size
+        function adjustScrollSpeed() {
+            if (window.innerWidth < 768) {
+                projectsWrapper.style.animationDuration = '20s'; // Slower on mobile
+            } else {
+                projectsWrapper.style.animationDuration = '25s'; // Default speed
+            }
+        }
+        
+        // Call initially and on window resize
+        adjustScrollSpeed();
+        window.addEventListener('resize', adjustScrollSpeed);
+    }
+    
+    // Image slideshow functionality
+    const slides = document.querySelectorAll(".slides img");
+    if (slides.length > 0) {
+        let index = 0;
+        
+        function showSlides() {
+            slides.forEach((slide, i) => {
+                slide.style.display = (i === index) ? "block" : "none";
+            });
+            index = (index + 1) % slides.length;
+            setTimeout(showSlides, 2000); // Changed from 500ms to 2000ms for better viewing
+        }
+        
+        showSlides();
+    }
+});
+
+// Scroll to top function
+function scrollToTop() {
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    });
+}
 </script>
 {% endblock %}

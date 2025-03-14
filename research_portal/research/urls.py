@@ -20,3 +20,5 @@ urlpatterns = [
     path('latest-activities/', views.latest_activities, name='latest_activities'),
 ]
 
+
+

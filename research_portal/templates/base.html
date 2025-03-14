@@ -24,6 +24,14 @@
     <!-- Custom Styles -->
     <link rel="stylesheet" href="{% static 'css/styles.css' %}">
     
+
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+     <!-- Bootstrap CSS -->
+     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+     <!-- Bootstrap Icons -->
+     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
     {% block extra_css %}{% endblock %}
     {% block extra_head %}{% endblock %}
 </head>
@@ -39,27 +47,27 @@
                 </button>
                 <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
                     <ul class="navbar-nav align-items-center">
-                        <li class="nav-item"><a class="nav-link" href="{% url 'research:index' %}">HOME</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{% url 'research:index' %}">Home</a></li>
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">RESEARCH</a>
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Research</a>
                             <ul class="dropdown-menu">
                                 <li><a class="dropdown-item" href="#">DRIE</a></li>
                                 <li><a class="dropdown-item" href="{% url 'research:vlirous' %}">VLIR-OUS</a></li>
                             </ul>
                         </li>
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">CLIMATE</a>
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Climate</a>
                             <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="#">DROUGHT AND FLOODS</a></li>
-                                <li><a class="dropdown-item" href="#">SMART AGRICULTURE</a></li>
+                                <li><a class="dropdown-item" href="#">Drought and Floods</a></li>
+                                <li><a class="dropdown-item" href="#">Smart Agriculture</a></li>
                             </ul>
                         </li>
-                        <li class="nav-item"><a class="nav-link" href="{% url 'research:people' %}"">PEOPLE</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{% url 'research:people' %}">People</a></li>
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'maps:map' %}">Map</a>
                         </li>
-                        <li class="nav-item"><a class="nav-link" href="#">PEOPLE</a></li>
-                        <li class="nav-item"><a class="nav-link" href="{% url 'research:contact' %}">CONTACT</a></li>
+                        
+                        <li class="nav-item"><a class="nav-link" href="{% url 'research:contact' %}">Contact</a></li>
                         {% if request.user.is_authenticated %}
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -71,14 +79,14 @@
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="{% url 'logout' %}" id="logout-link">Logout</a></li>
                             </ul>
-                        </li>
+
                         {% else %}
-                        <li class="nav-item"> <a href="{% url 'login' %}" class="btn btn-primary">LOGIN</a></li>
+                        <li class="nav-item"> <a href="{% url 'login' %}" class="btn btn-primary">Login</a></li>
                         {% endif %}
                     </ul>
                 </div>
                 <a class="navbar-brand2" href="#">
-                    <img src="{% static 'images/vub-hydr-logo.png' %}" alt="vun-hydr-logo" height="40">
+                    <img src="{% static 'images/vub-hydr-logo.png' %}" style=" margin-left: 35px;"alt="vun-hydr-logo" height="40">
                 </a>
             </div>
         </nav>
@@ -127,10 +135,6 @@
                     <h4>Corporate Communication</h4>
                     <p><a href="#" style="color: #fdd835;">Corporate Communication Page</a></p>
                     <p><a href="#" style="color: #fdd835;">Customer Complaints/Compliment Form</a></p>
-                    <h4>Service Charter</h4>
-                    <p><a href="#" style="color: #fdd835;">Swahili</a></p>
-                    <p><a href="#" style="color: #fdd835;">English</a></p>
-                    <p><a href="#" style="color: #fdd835;">Audio and Visual Version</a></p>
                 </div>
                 <!-- Quality & Staff Resources -->
                 <div class="col-md-3">
@@ -142,19 +146,7 @@
                     <p><a href="#" style="color: #fdd835;">Bunista SACCO</a></p>
                     <p><strong>Medical Cover - <a href="#" style="color: #fdd835;">AAR Provider Panel List</a></strong></p>
                 </div>
-                <!-- Useful Links -->
-                <div class="col-md-3">
-                    <h4>Useful Links</h4>
-                    <p><a href="#" style="color: #fdd835;">All Downloads</a></p>
-                    <p><a href="#" style="color: #fdd835;">E-Citizen Service Delivery Charter</a></p>
-                    <p><a href="#" style="color: #fdd835;">Advertisements</a></p>
-                    <p><a href="#" style="color: #fdd835;">Job Vacancies</a></p>
-                    <p><a href="#" style="color: #fdd835;">Access to Information Implementation</a></p>
-                    <p><strong><a href="#" style="color: #fdd835;">Tenders and Quotations</a></strong></p>
-                    <h4>Site Resources</h4>
-                    <p><a href="#" style="color: #fdd835;">Sitemap</a></p>
-                </div>
-            </div>
+                
             <!-- Copyright -->
             <div class="text-center mt-4">
                 <hr style="border-top: 1px solid white;">
