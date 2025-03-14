@@ -1,215 +1,60 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Climate Data Map - Nyanza, Kenya</title>
-    
-    <!-- Leaflet CSS -->
+    <title>Weather Stations Map</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
     <style>
-        body {
+        body, html {
             margin: 0;
             padding: 0;
-            font-family: Arial, sans-serif;
+            height: 100%;
         }
         #map {
             width: 100%;
             height: 100vh;
         }
-        .map-container {
-            position: relative;
-            width: 100%;
-            height: 100vh;
-        }
-        .control-panel {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            z-index: 1000;
+        .info-container {
+            padding: 6px 8px;
             background: white;
-            padding: 10px;
+            background: rgba(255,255,255,0.8);
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
             border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.2);
-        }
-        .marker-info {
             max-width: 300px;
         }
-        .data-buttons {
-            margin-top: 10px;
+        .info-container h4 {
+            margin: 0 0 5px;
+            color: #777;
         }
-        .data-buttons a {
-            background: #4a8af4;
-            color: white;
-            padding: 5px 10px;
-            text-decoration: none;
-            border-radius: 3px;
-            margin-right: 5px;
-            font-size: 12px;
+        .station-inactive {
+            opacity: 0.5;
+        }
+        .legend {
+            line-height: 18px;
+            color: #555;
+        }
+        .legend i {
+            width: 18px;
+            height: 18px;
+            float: left;
+            margin-right: 8px;
+            opacity: 0.7;
         }
     </style>
+    <script src="{% static 'js/maps/map.js' %}"></script>
 </head>
 <body>
-    <div class="map-container">
-        <div id="map"></div>
-        <div class="control-panel">
-            <h3>Climate Data Explorer</h3>
-            <div>
-                <label for="days-filter">Data from last:</label>
-                <select id="days-filter">
-                    <option value="1">24 hours</option>
-                    <option value="7" selected>7 days</option>
-                    <option value="30">30 days</option>
-                    <option value="90">90 days</option>
-                </select>
-                <button id="refresh-data">Refresh</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <div id="map"></div>
     
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // Initialize the map centered on Nyanza region of Kenya
-        const map = L.map('map').setView([-0.0917, 34.7680], 8);
-        
-        // Add OpenStreetMap tile layer
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(map);
-        
-        // Store markers to manage them later
-        const markers = {};
-        
-        // Fetch weather stations from the API
-        async function fetchStations() {
-            try {
-                const response = await fetch('/api/stations/');
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                const data = await response.json();
-                
-                // Add stations to the map
-                data.features.forEach(station => {
-                    addStationMarker(station);
-                });
-            } catch (error) {
-                console.error('Error fetching stations:', error);
-            }
-        }
-        
-        // Add a marker for each station
-        function addStationMarker(station) {
-            const props = station.properties;
-            const coords = station.geometry.coordinates;
-            
-            // Create a marker with custom icon based on station status
-            const markerIcon = L.divIcon({
-                className: 'station-marker',
-                html: `<div style="background-color: ${props.is_active ? '#4CAF50' : '#F44336'}; 
-                      width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>`,
-                iconSize: [16, 16],
-                iconAnchor: [8, 8]
-            });
-            
-            const marker = L.marker([coords[1], coords[0]], { icon: markerIcon }).addTo(map);
-            
-            // Store marker reference for later updates
-            markers[props.id] = {
-                marker: marker,
-                data: props
-            };
-            
-            // Attach a click listener to show climate data when marker is clicked
-            marker.on('click', () => {
-                showStationData(props.id);
-            });
-        }
-        
-        // Fetch and show climate data for a specific station
-        async function showStationData(stationId) {
-            const days = document.getElementById('days-filter').value;
-            
-            try {
-                const response = await fetch(`/api/stations/${stationId}/data/?days=${days}`);
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                const data = await response.json();
-                
-                if (data.results && data.results.length > 0) {
-                    // Get the latest reading
-                    const latestData = data.results[0];
-                    
-                    // Format date for display
-                    const date = new Date(latestData.timestamp);
-                    const formattedDate = date.toLocaleString();
-                    
-                    // Create popup content
-                    const popupContent = `
-                        <div class="marker-info">
-                            <h3>${markers[stationId].data.name}</h3>
-                            <p><strong>Last updated:</strong> ${formattedDate}</p>
-                            <table style="width:100%">
-                                <tr>
-                                    <td><strong>Temperature:</strong></td>
-                                    <td>${latestData.temperature !== null ? latestData.temperature + '°C' : 'N/A'}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Humidity:</strong></td>
-                                    <td>${latestData.humidity !== null ? latestData.humidity + '%' : 'N/A'}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Precipitation:</strong></td>
-                                    <td>${latestData.precipitation !== null ? latestData.precipitation + ' mm' : 'N/A'}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Wind:</strong></td>
-                                    <td>${latestData.wind_speed !== null ? latestData.wind_speed + ' m/s' : 'N/A'}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Air Quality:</strong></td>
-                                    <td>${latestData.air_quality_index !== null ? latestData.air_quality_index : 'N/A'}</td>
-                                </tr>
-                            </table>
-                            <div class="data-buttons">
-                                <a href="/api/stations/${stationId}/export/?format=csv&days=${days}" target="_blank">CSV</a>
-                                <a href="/api/stations/${stationId}/export/?format=json&days=${days}" target="_blank">JSON</a>
-                                <a href="/api/stations/${stationId}/export/?format=geojson&days=${days}" target="_blank">GeoJSON</a>
-                            </div>
-                        </div>
-                    `;
-                    
-                    // Show popup
-                    markers[stationId].marker.bindPopup(popupContent).openPopup();
-                } else {
-                    markers[stationId].marker.bindPopup(`<div class="marker-info"><h3>${markers[stationId].data.name}</h3><p>No climate data available for the selected period.</p></div>`).openPopup();
-                }
-            } catch (error) {
-                console.error('Error fetching station data:', error);
-                markers[stationId].marker.bindPopup(`<div class="marker-info"><h3>${markers[stationId].data.name}</h3><p>Error loading climate data.</p></div>`).openPopup();
-            }
-        }
-        
-        // Initialize the map
         document.addEventListener('DOMContentLoaded', function() {
-            fetchStations();
-            
-            // Add refresh button functionality
-            document.getElementById('refresh-data').addEventListener('click', function() {
-                // If a popup is currently open, refresh its data
-                for (const id in markers) {
-                    if (markers[id].marker.isPopupOpen()) {
-                        showStationData(id);
-                        break;
-                    }
-                }
-            });
+            const mapElement = 'map';
+            const apiBaseUrl = '/api';
+            new WeatherStationMap(mapElement, apiBaseUrl);
         });
     </script>
 </body>
 </html>
-

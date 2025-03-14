@@ -2,7 +2,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
-from .views import MapView
+from .views import MapView, CSVUploadView, ImportSuccessView, flash_drive_import_view
 
 router = DefaultRouter()
 router.register(r'stations', views.WeatherStationViewSet)
@@ -13,5 +13,7 @@ app_name = 'maps'
 urlpatterns = [
     path('maping/', views.MapView.as_view(), name='map'),  # Main map page at the root URL
     path('api/', include((router.urls, 'api'))),    # API endpoints under /api/
-    
+    path('csv-upload/', CSVUploadView.as_view(), name='csv_upload'),
+    path('upload/success/', ImportSuccessView.as_view(), name='import_success'),
+    path('flash-drive-import/', flash_drive_import_view, name='flash_drive_import'),
 ]
