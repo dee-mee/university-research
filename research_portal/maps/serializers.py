@@ -11,16 +11,24 @@ class WeatherStationSerializer(GeoFeatureModelSerializer):
         geo_field = 'location'
         fields = (
             'id', 'name', 'description', 'location', 'latitude', 'longitude',
-            'altitude', 'is_active', 'date_installed', 'created_at', 'updated_at'
+            'altitude', 'is_active', 'date_installed'
         )
-    
+        
     def get_latitude(self, obj):
-        return obj.latitude
+        return obj.location.y
     
     def get_longitude(self, obj):
-        return obj.longitude
-
-
+        return obj.location.x
+        
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation['geometry'] = {
+            'type': 'Point',
+            'coordinates': [instance.longitude, instance.latitude]
+        }
+        print(f"Serialized station: {instance.name}, GeoJSON: {representation}")
+        return representation
+    
 class ClimateDataSerializer(serializers.ModelSerializer):
     station_name = serializers.CharField(source='station.name', read_only=True)
     station_location = serializers.SerializerMethodField()
