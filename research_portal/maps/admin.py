@@ -14,7 +14,7 @@ class WeatherStationAdmin(GISModelAdmin):
             'fields': ('name', 'description', 'is_active')
         }),
         ('Location Information', {
-            'fields': ('location', 'altitude', 'date_installed')
+            'fields': ('location', 'latitude', 'longitude', 'altitude', 'date_installed')
         }),
         ('Metadata', {
             'fields': ('created_at', 'updated_at'),
