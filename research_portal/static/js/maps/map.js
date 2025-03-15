@@ -1,6 +1,7 @@
 /**
  * Weather Station Map JavaScript
  * Handles fetching and displaying weather station data on a Leaflet map
+ * Focused on Kenya with ability to zoom to specific stations
  */
 class WeatherStationMap {
     constructor(mapElementId, apiBaseUrl) {
@@ -20,16 +21,32 @@ class WeatherStationMap {
         
         // Load the stations
         this.loadStations();
+        
+        // Bind event listeners
+        this.bindEvents();
+    }
+    
+    /**
+     * Bind event listeners for map interactions
+     */
+    bindEvents() {
+        document.addEventListener('click', (e) => {
+            if (e.target && e.target.classList.contains('station-data-btn')) {
+                const stationId = e.target.getAttribute('data-station-id');
+                console.log("Loading data for station:", stationId);
+                this.loadStationData(stationId);
+            }
+        });
     }
     
     /**
      * Initialize the Leaflet map
      */
     initMap() {
-        // Create the map
+        // Create the map centered on Kenya
         this.map = L.map(this.mapElementId, {
-            center: [20, 0], // Default center
-            zoom: 2,         // Default zoom
+            center: [0.0236, 37.9062], // Kenya's coordinates
+            zoom: 6,                   // Zoom level for Kenya
             minZoom: 2,
             maxZoom: 18
         });
@@ -112,17 +129,11 @@ class WeatherStationMap {
             }
         });
         
-        // Set map view to include all stations
-        if (this.stations.length > 0) {
-            const bounds = L.featureGroup([
-                this.stationLayers.active, 
-                this.stationLayers.inactive
-            ]).getBounds();
-            
-            if (bounds.isValid()) {
-                this.map.fitBounds(bounds);
-            }
-        }
+        // Populate station dropdown
+        this.populateStationDropdown();
+        
+        // Set map view to Kenya by default
+        this.map.setView([0.0236, 37.9062], 6);
     }
     
     /**
@@ -148,7 +159,7 @@ class WeatherStationMap {
                 <p><strong>Status:</strong> ${props.is_active ? 'Active' : 'Inactive'}</p>
                 <p><strong>Altitude:</strong> ${props.altitude ? props.altitude + ' m' : 'N/A'}</p>
                 <p><strong>Installed:</strong> ${props.date_installed || 'N/A'}</p>
-                <button class="btn btn-sm btn-primary" onclick="window.location.href='${this.apiBaseUrl}/weather-stations/${props.id}/data/'">View Data</button>
+                <button class="btn btn-sm btn-primary station-data-btn" data-station-id="${props.id}">View Data</button>
             </div>
         `;
         
@@ -162,8 +173,6 @@ class WeatherStationMap {
         
         return marker;
     }
-    
-
     
     /**
      * Load data for a specific station
@@ -414,52 +423,115 @@ class WeatherStationMap {
         // Reload heatmap if visible
         if (this.heatmapLayer && this.map.hasLayer(this.heatmapLayer)) {
             this.loadHeatmapData();
-        }
-        
-        this.updateInfo();
-    }
-    
-    /**
-     * Show error message
-     */
-    showError(message) {
-        console.error(message);
-        
-        // Create error alert
-        const alertDiv = document.createElement('div');
-        alertDiv.className = 'alert alert-danger';
-        alertDiv.role = 'alert';
-        alertDiv.style.position = 'fixed';
-        alertDiv.style.top = '10px';
-        alertDiv.style.left = '50%';
-        alertDiv.style.transform = 'translateX(-50%)';
-        alertDiv.style.zIndex = '1000';
-        alertDiv.textContent = message;
-        
-        // Add close button
-        const closeButton = document.createElement('button');
-        closeButton.type = 'button';
-        closeButton.className = 'btn-close';
-        closeButton.setAttribute('aria-label', 'Close');
-        closeButton.addEventListener('click', () => {
-            alertDiv.remove();
-        });
-        
-        alertDiv.appendChild(closeButton);
-        document.body.appendChild(alertDiv);
-        
-        // Remove alert after 5 seconds
-        setTimeout(() => {
-            alertDiv.remove();
-        }, 5000);
-    }
+       }
+       
+       this.updateInfo();
+   }
+   
+   /**
+    * Show error message
+    */
+   showError(message) {
+       console.error(message);
+       
+       // Create error alert
+       const alertDiv = document.createElement('div');
+       alertDiv.className = 'alert alert-danger';
+       alertDiv.role = 'alert';
+       alertDiv.style.position = 'fixed';
+       alertDiv.style.top = '10px';
+       alertDiv.style.left = '50%';
+       alertDiv.style.transform = 'translateX(-50%)';
+       alertDiv.style.zIndex = '1000';
+       alertDiv.textContent = message;
+       
+       // Add close button
+       const closeButton = document.createElement('button');
+       closeButton.type = 'button';
+       closeButton.className = 'btn-close';
+       closeButton.setAttribute('aria-label', 'Close');
+       closeButton.addEventListener('click', () => {
+           alertDiv.remove();
+       });
+       
+       alertDiv.appendChild(closeButton);
+       document.body.appendChild(alertDiv);
+       
+       // Remove alert after 5 seconds
+       setTimeout(() => {
+           alertDiv.remove();
+       }, 5000);
+   }
+   
+   /**
+    * Populate the station dropdown with available stations
+    */
+   populateStationDropdown() {
+       const stationSelect = document.getElementById('stationSelect');
+       
+       // Clear existing options except the first one
+       while (stationSelect.options.length > 1) {
+           stationSelect.remove(1);
+       }
+       
+       // Add stations to dropdown
+       this.stations.forEach(station => {
+           const option = document.createElement('option');
+           option.value = station.properties.id;
+           option.textContent = station.properties.name;
+           // Add an indicator for inactive stations
+           if (!station.properties.is_active) {
+               option.textContent += ' (Inactive)';
+           }
+           stationSelect.appendChild(option);
+       });
+       
+       // Add event listener for station selection
+       stationSelect.addEventListener('change', (e) => {
+           this.zoomToStation(e.target.value);
+       });
+   }
+
+   /**
+    * Zoom to a specific station when selected from dropdown
+    */
+   zoomToStation(stationId) {
+       if (!stationId) {
+           // If "All Stations" is selected, zoom to include all stations
+           const bounds = L.featureGroup([
+               this.stationLayers.active, 
+               this.stationLayers.inactive
+           ]).getBounds();
+           
+           if (bounds.isValid()) {
+               this.map.fitBounds(bounds);
+           } else {
+               // Default to Kenya view if no stations
+               this.map.setView([0.0236, 37.9062], 6);
+           }
+           return;
+       }
+       
+       // Find the selected station
+       const station = this.stations.find(s => s.properties.id == stationId);
+       
+       if (station) {
+           const coords = station.geometry.coordinates;
+           // Zoom to the station
+           this.map.setView([coords[1], coords[0]], 14);
+           
+           // Find and open the station marker popup
+           this.stationLayers.active.eachLayer(layer => {
+               if (layer.options.title === station.properties.name) {
+                   layer.openPopup();
+               }
+           });
+           
+           this.stationLayers.inactive.eachLayer(layer => {
+               if (layer.options.title === station.properties.name) {
+                   layer.openPopup();
+               }
+           });
+       }
+   }
 }
-// In your displayStations or somewhere after creating markers
-document.addEventListener('click', function(e) {
-    if (e.target && e.target.classList.contains('station-data-btn')) {
-        const stationId = e.target.getAttribute('data-station-id');
-        console.log("Loading data for station:", stationId);
-        // Call your method to load station data
-        this.loadStationData(stationId);
-    }
-}.bind(this));
