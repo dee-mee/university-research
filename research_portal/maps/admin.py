@@ -5,16 +5,25 @@ from .models import WeatherStation, ClimateData, DataExport
 
 @admin.register(WeatherStation)
 class WeatherStationAdmin(GISModelAdmin):
-    list_display = ('name', 'latitude', 'longitude', 'is_active', 'date_installed')
+    list_display = ('name', 'get_latitude', 'get_longitude', 'is_active', 'date_installed')
     list_filter = ('is_active', 'date_installed')
     search_fields = ('name', 'description')
     readonly_fields = ('created_at', 'updated_at')
+    
+    def get_latitude(self, obj):
+        return obj.latitude if obj.location else None
+    get_latitude.short_description = 'Latitude'
+    
+    def get_longitude(self, obj):
+        return obj.longitude if obj.location else None
+    get_longitude.short_description = 'Longitude'
+    
     fieldsets = (
         (None, {
             'fields': ('name', 'description', 'is_active')
         }),
         ('Location Information', {
-            'fields': ('location', 'latitude', 'longitude', 'altitude', 'date_installed')
+            'fields': ('location', 'altitude', 'date_installed')
         }),
         ('Metadata', {
             'fields': ('created_at', 'updated_at'),
