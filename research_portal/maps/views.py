@@ -1,42 +1,42 @@
-# views.py
-from django.contrib.gis.geos import Point
-from django.contrib.gis.measure import D
-from django.contrib.gis.db.models.functions import Distance
-from django.http import HttpResponse
-from django.utils import timezone
-from django.db.models import Avg, Max, Min, Sum
-from rest_framework import viewsets, filters
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from django_filters.rest_framework import DjangoFilterBackend
+import os
 import csv
 import json
-from datetime import datetime, timedelta
+import pytz
+import logging
 import io
+from datetime import datetime, timedelta
+from pathlib import Path
+from dateutil import parser
 from django.shortcuts import render, redirect
+from django.http import HttpResponse, JsonResponse
 from django.contrib import messages
+from django.utils import timezone
+from django.core.files.storage import FileSystemStorage
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.views import View
-from django.views.generic import FormView
+from django.views.generic import FormView, TemplateView
+from django.db.models import Avg, Max, Min, Sum
 from django.contrib.gis.geos import Point
-from django.core.files.storage import FileSystemStorage
-from rest_framework.decorators import api_view, permission_classes
+from django.contrib.gis.measure import D
+from django.contrib.gis.db.models.functions import Distance
+from rest_framework import viewsets, filters
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
-import os
-import pytz
-from dateutil import parser
-from .models import WeatherStation, ClimateData
+from django_filters.rest_framework import DjangoFilterBackend
+
+from .models import WeatherAlert, WeatherStation, ClimateData
 from .forms import CSVUploadForm, FlashDriveImportForm
 from .serializers import (
+    WeatherAlertSerializer,
     WeatherStationSerializer,
     ClimateDataSerializer,
     GeoJSONClimateDataSerializer
 )
 from .permissions import IsAdminOrReadOnly
-from django.views.generic import TemplateView
-from django.http import JsonResponse
+
+
 
 def debug_stations(request):
     """Debug view to check GeoJSON output"""
@@ -288,7 +288,19 @@ class ClimateDataViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(recent_data, many=True)
         return Response(serializer.data)
 
-
+    def perform_create(self, serializer):
+        """Override create to check for alerts when new data is added"""
+        climate_data = serializer.save()
+        
+        # Check for potential alerts
+        alerts = check_for_alerts(climate_data)
+        
+        # Create alerts and send notifications
+        for alert_data in alerts:
+            alert = create_alert_from_detection(climate_data.station, alert_data)
+            send_alert_notifications(alert)
+        
+        return climate_data
 
 
 class CSVUploadView(FormView):
@@ -501,72 +513,6 @@ class ImportSuccessView(View):
         return render(request, self.template_name, {'results': results})
 
 
-@login_required
-def flash_drive_import_view(request):
-    """View to import data from a flash drive"""
-    if request.method == 'POST':
-        form = FlashDriveImportForm(request.POST)
-        if form.is_valid():
-            import_type = form.cleaned_data['import_type']
-            drive_path = form.cleaned_data['drive_path']
-            
-            # Verify the path exists
-            if not os.path.exists(drive_path):
-                messages.error(request, f"The specified path does not exist: {drive_path}")
-                return render(request, 'maps/flash_drive_import.html', {'form': form})
-            
-            # Look for CSV files in the directory
-            csv_files = [f for f in os.listdir(drive_path) if f.endswith('.csv')]
-            
-            if not csv_files:
-                messages.error(request, "No CSV files found in the specified directory.")
-                return render(request, 'maps/flash_drive_import.html', {'form': form})
-            
-            # Process all CSV files
-            results = {
-                'success_total': 0,
-                'error_total': 0,
-                'file_results': []
-            }
-            
-            for csv_file_name in csv_files:
-                file_path = os.path.join(drive_path, csv_file_name)
-                
-                # Process the file
-                with open(file_path, 'r', encoding='utf-8') as file:
-                    # Choose the appropriate processor based on import type
-                    if import_type == 'stations':
-                        processor = CSVUploadView().process_stations_file
-                    else:  # climate_data
-                        processor = CSVUploadView().process_climate_data_file
-                    
-                    # Create a file-like object
-                    file_object = io.StringIO(file.read())
-                    file_object.name = csv_file_name
-                    
-                    # Process the file
-                    result = processor(file_object)
-                    
-                    # Add file name to the result
-                    result['file_name'] = csv_file_name
-                    
-                    # Update totals
-                    results['success_total'] += result['success']
-                    results['error_total'] += result['error']
-                    
-                    # Add to file results
-                    results['file_results'].append(result)
-            
-            # Store results in session for display
-            request.session['import_results'] = results
-            
-            return redirect('maps:import_success')
-    else:
-        form = FlashDriveImportForm()
-    
-    return render(request, 'maps/flash_drive_import.html', {'form': form})
-
-
 @api_view(['POST'])
 @permission_classes([IsAdminUser])
 def api_import_csv(request):
@@ -586,72 +532,236 @@ def api_import_csv(request):
     return Response(result)
 
 
-# Scheduler for automatic imports
-def setup_automated_imports(flash_drive_path='/media/usb', import_interval=3600):
+def is_safe_path(base_dir, path):
     """
-    Set up scheduled imports from a flash drive
+    Validate that the provided path is within an acceptable base directory
+    to prevent directory traversal attacks
+    """
+    # Convert to absolute paths
+    base_dir_abs = os.path.abspath(base_dir)
+    path_abs = os.path.abspath(path)
     
-    This function would typically be called from your app's AppConfig.ready() method
+    # Check if path is within base directory
+    return os.path.commonpath([base_dir_abs]) == os.path.commonpath([base_dir_abs, path_abs])
+
+
+@login_required
+def flash_drive_import_view(request):
+    """View to import data from a flash drive with improved security and error handling"""
+    if request.method == 'POST':
+        form = FlashDriveImportForm(request.POST)
+        if form.is_valid():
+            import_type = form.cleaned_data['import_type']
+            drive_path = form.cleaned_data['drive_path']
+            
+            # Security check: Validate the path is within acceptable boundaries
+            if not is_safe_path('/media', drive_path):
+                messages.error(request, "Invalid drive path. Path must be within the media directory.")
+                return render(request, 'maps/flash_drive_import.html', {'form': form})
+            
+            # Verify the path exists
+            if not os.path.exists(drive_path):
+                messages.error(request, f"The specified path does not exist: {drive_path}")
+                return render(request, 'maps/flash_drive_import.html', {'form': form})
+            
+            # Look for CSV files in the directory
+            try:
+                csv_files = [f for f in os.listdir(drive_path) if f.endswith('.csv')]
+            except PermissionError:
+                messages.error(request, f"Permission denied when trying to access: {drive_path}")
+                return render(request, 'maps/flash_drive_import.html', {'form': form})
+            except Exception as e:
+                messages.error(request, f"Error accessing directory: {str(e)}")
+                return render(request, 'maps/flash_drive_import.html', {'form': form})
+            
+            if not csv_files:
+                messages.error(request, "No CSV files found in the specified directory.")
+                return render(request, 'maps/flash_drive_import.html', {'form': form})
+            
+            # Process all CSV files
+            results = {
+                'success_total': 0,
+                'error_total': 0,
+                'file_results': []
+            }
+            
+            for csv_file_name in csv_files:
+                file_path = os.path.join(drive_path, csv_file_name)
+                
+                # Process the file with multiple encoding attempts
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as file:
+                        file_content = file.read()
+                except UnicodeDecodeError:
+                    try:
+                        # Try another common encoding
+                        with open(file_path, 'r', encoding='latin-1') as file:
+                            file_content = file.read()
+                    except UnicodeDecodeError:
+                        # If both fail, report error and skip file
+                        result = {
+                            'file_name': csv_file_name,
+                            'success': 0,
+                            'error': 1,
+                            'errors': ["Could not decode file encoding. Please ensure it's properly encoded (UTF-8 or Latin-1)."]
+                        }
+                        results['error_total'] += 1
+                        results['file_results'].append(result)
+                        continue
+                except Exception as e:
+                    # Handle other file access errors
+                    result = {
+                        'file_name': csv_file_name,
+                        'success': 0,
+                        'error': 1,
+                        'errors': [f"Error reading file: {str(e)}"]
+                    }
+                    results['error_total'] += 1
+                    results['file_results'].append(result)
+                    continue
+                
+                # Create a file-like object
+                file_object = io.StringIO(file_content)
+                file_object.name = csv_file_name
+                
+                # Choose the appropriate processor based on import type
+                from .views import CSVUploadView
+                if import_type == 'stations':
+                    processor = CSVUploadView().process_stations_file
+                else:  # climate_data
+                    processor = CSVUploadView().process_climate_data_file
+                
+                # Process the file
+                result = processor(file_object)
+                
+                # Add file name to the result
+                result['file_name'] = csv_file_name
+                
+                # Update totals
+                results['success_total'] += result['success']
+                results['error_total'] += result['error']
+                
+                # Add to file results
+                results['file_results'].append(result)
+                
+                # Option to move or rename processed files to avoid reimporting
+                try:
+                    if result['success'] > 0:
+                        processed_path = file_path + '.processed'
+                        # Only move if we don't already have a processed file
+                        if not os.path.exists(processed_path):
+                            os.rename(file_path, processed_path)
+                except Exception as e:
+                    # Log but don't fail if we can't move the file
+                    logging.warning(f"Could not mark file as processed: {str(e)}")
+            
+            # Store results in session for display
+            request.session['import_results'] = results
+            
+            return redirect('maps:import_success')
+    else:
+        form = FlashDriveImportForm()
+    
+    return render(request, 'maps/flash_drive_import.html', {'form': form})
+
+
+def setup_automated_imports(flash_drive_path=None, import_interval=3600):
+    """
+    Set up scheduled imports from a flash drive with improved configuration and error handling
+    
+    This function should be called from your app's AppConfig.ready() method
     to set up scheduled tasks when the application starts.
     
     Parameters:
-    - flash_drive_path: Path to monitor for CSV files
-    - import_interval: How often to check for new files (in seconds)
+    - flash_drive_path: Path to monitor for CSV files, defaults to environment variable or '/media/usb'
+    - import_interval: How often to check for new files (in seconds), defaults to environment variable or 3600
     """
     try:
         from apscheduler.schedulers.background import BackgroundScheduler
         from apscheduler.triggers.interval import IntervalTrigger
         import logging
         
+        # Use environment variables if path not provided
+        if flash_drive_path is None:
+            flash_drive_path = os.environ.get('FLASH_DRIVE_PATH', '/media/usb')
+        
+        # Use environment variable for interval if not provided
+        if import_interval is None:
+            import_interval = int(os.environ.get('IMPORT_INTERVAL', '3600'))
+        
         def import_task():
+            """Task to import CSV files from the flash drive path"""
+            logging.info(f"Running scheduled import from {flash_drive_path}")
             try:
+                # Security check for the path
+                if not is_safe_path('/media', flash_drive_path):
+                    logging.error(f"Unsafe path detected: {flash_drive_path}")
+                    return
+                
                 if os.path.exists(flash_drive_path):
                     # Look for CSV files
-                    csv_files = [f for f in os.listdir(flash_drive_path) if f.endswith('.csv')]
+                    try:
+                        csv_files = [f for f in os.listdir(flash_drive_path) if f.endswith('.csv')]
+                    except PermissionError:
+                        logging.error(f"Permission denied when accessing {flash_drive_path}")
+                        return
+                    except Exception as e:
+                        logging.error(f"Error accessing directory {flash_drive_path}: {str(e)}")
+                        return
                     
-                    # Import stations first
-                    station_files = [f for f in csv_files if f.startswith('station_')]
-                    for file_name in station_files:
-                        try:
-                            file_path = os.path.join(flash_drive_path, file_name)
-                            with open(file_path, 'r', encoding='utf-8') as file:
-                                # Create a file-like object
-                                file_object = io.StringIO(file.read())
-                                file_object.name = file_name
-                                
-                                # Process the file
-                                result = CSVUploadView().process_stations_file(file_object)
-                                
-                                # Log the result
-                                logging.info(f"Imported {file_name}: {result['success']} success, {result['error']} errors")
-                                
-                                # Move processed file to avoid reimporting
-                                os.rename(file_path, file_path + '.processed')
-                        except Exception as e:
-                            logging.error(f"Error processing {file_name}: {str(e)}")
-                    
-                    # Then import climate data
-                    climate_files = [f for f in csv_files if f.startswith('climate_')]
-                    for file_name in climate_files:
-                        try:
-                            file_path = os.path.join(flash_drive_path, file_name)
-                            with open(file_path, 'r', encoding='utf-8') as file:
-                                # Create a file-like object
-                                file_object = io.StringIO(file.read())
-                                file_object.name = file_name
-                                
-                                # Process the file
-                                result = CSVUploadView().process_climate_data_file(file_object)
-                                
-                                # Log the result
-                                logging.info(f"Imported {file_name}: {result['success']} success, {result['error']} errors")
-                                
-                                # Move processed file to avoid reimporting
-                                os.rename(file_path, file_path + '.processed')
-                        except Exception as e:
-                            logging.error(f"Error processing {file_name}: {str(e)}")
+                    # Process files in appropriate order
+                    process_files(flash_drive_path, 'station_', 'stations', csv_files)
+                    process_files(flash_drive_path, 'climate_', 'climate_data', csv_files)
+                else:
+                    logging.warning(f"Flash drive path {flash_drive_path} does not exist")
             except Exception as e:
                 logging.error(f"Error in import task: {str(e)}")
+        
+        def process_files(path, prefix, import_type, all_files):
+            """Process specific types of CSV files"""
+            from .views import CSVUploadView
+            
+            # Filter files by prefix
+            filtered_files = [f for f in all_files if f.startswith(prefix)]
+            
+            for file_name in filtered_files:
+                try:
+                    file_path = os.path.join(path, file_name)
+                    
+                    # Try different encodings
+                    try:
+                        with open(file_path, 'r', encoding='utf-8') as file:
+                            file_content = file.read()
+                    except UnicodeDecodeError:
+                        try:
+                            with open(file_path, 'r', encoding='latin-1') as file:
+                                file_content = file.read()
+                        except UnicodeDecodeError:
+                            logging.error(f"Cannot decode file {file_name}: Encoding issues")
+                            continue
+                    
+                    # Create a file-like object
+                    file_object = io.StringIO(file_content)
+                    file_object.name = file_name
+                    
+                    # Choose processor based on import type
+                    if import_type == 'stations':
+                        processor = CSVUploadView().process_stations_file
+                    else:  # climate_data
+                        processor = CSVUploadView().process_climate_data_file
+                    
+                    # Process the file
+                    result = processor(file_object)
+                    
+                    # Log the result
+                    logging.info(f"Imported {file_name}: {result['success']} success, {result['error']} errors")
+                    
+                    # Move processed file to avoid reimporting
+                    processed_path = file_path + '.processed'
+                    if result['success'] > 0 and not os.path.exists(processed_path):
+                        os.rename(file_path, processed_path)
+                except Exception as e:
+                    logging.error(f"Error processing {file_name}: {str(e)}")
         
         # Create and start the scheduler
         scheduler = BackgroundScheduler()
@@ -662,7 +772,36 @@ def setup_automated_imports(flash_drive_path='/media/usb', import_interval=3600)
             replace_existing=True
         )
         scheduler.start()
-        logging.info(f"Scheduled automated CSV imports from {flash_drive_path}")
+        logging.info(f"Scheduled automated CSV imports from {flash_drive_path} every {import_interval} seconds")
         
     except ImportError:
         logging.warning("APScheduler not installed. Automated imports will not run.")
+    except Exception as e:
+        logging.error(f"Error setting up automated imports: {str(e)}")
+
+
+class WeatherAlertViewSet(viewsets.ModelViewSet):
+    queryset = WeatherAlert.objects.all()
+    serializer_class = WeatherAlertSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['station', 'severity', 'status']
+    search_fields = ['title', 'description']
+    ordering_fields = ['created_at', 'updated_at']
+    
+    @action(detail=True, methods=['post'])
+    def resolve(self, request, pk=None):
+        """Mark an alert as resolved"""
+        alert = self.get_object()
+        alert.status = 'resolved'
+        alert.resolved_at = timezone.now()
+        alert.save()
+        
+        serializer = self.get_serializer(alert)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def active(self, request):
+        """Get all active alerts"""
+        alerts = WeatherAlert.objects.filter(status='active')
+        serializer = self.get_serializer(alerts, many=True)
+        return Response(serializer.data)

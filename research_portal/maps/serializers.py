@@ -1,6 +1,12 @@
+from datetime import timezone
+from rest_framework import filters
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework import viewsets
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import serializers
 from rest_framework_gis.serializers import GeoFeatureModelSerializer
-from .models import WeatherStation, ClimateData, DataExport
+from .models import WeatherAlert, WeatherStation, ClimateData, DataExport
 
 class WeatherStationSerializer(GeoFeatureModelSerializer):
     latitude = serializers.SerializerMethodField()
@@ -80,3 +86,15 @@ class DataExportSerializer(serializers.ModelSerializer):
             'id', 'user', 'user_email', 'station', 'station_name', 
             'export_format', 'date_from', 'date_to', 'created_at'
         )
+
+class WeatherAlertSerializer(serializers.ModelSerializer):
+    station_name = serializers.CharField(source='station.name', read_only=True)
+
+    class Meta:
+        model = WeatherAlert
+        fields = (
+            'id', 'station', 'station_name', 'title', 'description', 'parameter', 
+            'threshold_value', 'severity', 'status', 'created_at', 'updated_at', 
+            'resolved_at', 'notify_email', 'notify_sms', 'notify_push'
+        )
+
