@@ -34,12 +34,6 @@ This project is a Django-based web application designed to facilitate research a
 
 2. Access the application at `http://127.0.0.1:8000/`.
 
-## Collect Static Files
-Before deploying the application, collect all static files:
-   ```bash
-   python manage.py collectstatic
-   ```
-
 ## Tools and Technologies Used
 - Django
 - djangorestframework
@@ -49,7 +43,7 @@ Before deploying the application, collect all static files:
 - [DEREK MURIUKI]
 - [FIDEL ELIUD]
 - [KELVIN NAMBALE]
-- [BERNARD KARANJA]
+- [BENARD KARANJA]
 
 ## License
 This project is licensed under the MIT License.
