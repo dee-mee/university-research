@@ -7,6 +7,7 @@ from .views import MapView, CSVUploadView, ImportSuccessView, flash_drive_import
 router = DefaultRouter()
 router.register(r'weather-stations', views.WeatherStationViewSet)  # Changed from 'stations'
 router.register(r'climate-data', views.ClimateDataViewSet)
+router.register(r'weather-alerts', views.WeatherAlertViewSet)
 
 app_name = 'maps'
 
