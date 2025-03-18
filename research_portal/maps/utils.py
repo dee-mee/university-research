@@ -17,7 +17,7 @@ import io
 import time
 from typing import Dict, List, Union, Optional, Tuple, Any
 
-from .models import WeatherStation, ClimateData, DataExport, WeatherAlert, AlertThreshold
+from .models import WeatherStation, ClimateData, DataExport, WeatherAlert
 
 # Configure logger
 logger = logging.getLogger(__name__)

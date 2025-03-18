@@ -60,20 +60,23 @@ class ClimateDataSerializer(serializers.ModelSerializer):
 class GeoJSONClimateDataSerializer(GeoFeatureModelSerializer):
     """Serializer for returning climate data with station location as GeoJSON"""
     station_name = serializers.CharField(source='station.name', read_only=True)
-    location = serializers.SerializerMethodField()
+    station_id = serializers.IntegerField(source='station.id', read_only=True)
     
     class Meta:
         model = ClimateData
-        geo_field = 'location'
+        geo_field = 'station__location'  # Use dot notation to access station's location
         fields = (
-            'id', 'station', 'station_name', 'location', 'timestamp', 'temperature', 
+            'id', 'station_id', 'station_name', 'timestamp', 'temperature', 
             'humidity', 'precipitation', 'air_quality_index', 'wind_speed', 
             'wind_direction', 'barometric_pressure', 'cloud_cover', 'soil_moisture', 
             'water_level', 'data_quality', 'uv_index'
         )
     
     def get_location(self, obj):
-        return obj.station.location
+        # Return the actual Point object from the station
+        if obj.station and obj.station.location:
+            return obj.station.location
+        return None
 
 
 class DataExportSerializer(serializers.ModelSerializer):
