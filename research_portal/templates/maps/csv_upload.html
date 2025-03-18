@@ -3,91 +3,75 @@
 {% block title %}Import Data from CSV{% endblock %}
 
 {% block content %}
-<div class="container mx-auto py-8">
-    <div class="max-w-2xl mx-auto bg-white p-6 rounded-lg shadow-md">
-        <h1 class="text-2xl font-bold mb-6">Import Data from CSV</h1>
-        
-        <form method="post" enctype="multipart/form-data">
-            {% csrf_token %}
+<div class="container py-5">
+    <div class="card shadow-lg">
+        <div class="card-body">
+            <h1 class="card-title text-center mb-4">Import Data from CSV</h1>
             
-            <div class="mb-4">
-                <label class="block text-gray-700 font-bold mb-2">
-                    {{ form.import_type.label }}
-                </label>
-                <div class="mt-2 space-y-2">
-                    {% for choice in form.import_type %}
-                    <div class="flex items-center">
-                        {{ choice.tag }}
-                        <label for="{{ choice.id_for_label }}" class="ml-2">
-                            {{ choice.choice_label }}
-                        </label>
-                    </div>
-                    {% endfor %}
-                </div>
-                <p class="text-sm text-gray-500 mt-1">{{ form.import_type.help_text }}</p>
-            </div>
-            
-            <div class="mb-4">
-                <label for="{{ form.csv_file.id_for_label }}" class="block text-gray-700 font-bold mb-2">
-                    {{ form.csv_file.label }}
-                </label>
-                {{ form.csv_file }}
-                <p class="text-sm text-gray-500 mt-1">{{ form.csv_file.help_text }}</p>
-            </div>
-            
-            <div class="bg-gray-100 p-4 rounded mb-4">
-                <h3 class="font-semibold mb-2">Required CSV Format:</h3>
-                <div class="tabs">
-                    <div class="tab-header flex border-b">
-                        <button type="button" class="px-4 py-2 border-b-2 border-blue-500 tab-active" onclick="showTab('stations-format')">Weather Stations</button>
-                        <button type="button" class="px-4 py-2" onclick="showTab('climate-format')">Climate Data</button>
-                    </div>
-                    <div class="tab-content pt-4">
-                        <div id="stations-format" class="block">
-                            <p class="mb-2">Your CSV file should have these columns:</p>
-                            <ul class="list-disc pl-5 mb-4">
-                                <li><strong>name</strong> (required): The name of the weather station</li>
-                                <li><strong>latitude</strong> (required): Decimal latitude</li>
-                                <li><strong>longitude</strong> (required): Decimal longitude</li>
-                                <li><strong>description</strong> (optional): Description</li>
-                                <li><strong>altitude</strong> (optional): Altitude in meters</li>
-                                <li><strong>is_active</strong> (optional): true/false, yes/no, 1/0</li>
-                                <li><strong>date_installed</strong> (optional): Date in YYYY-MM-DD format</li>
-                            </ul>
-                            <pre class="bg-gray-200 p-2 rounded overflow-x-auto">name,latitude,longitude,description,altitude,is_active,date_installed
-Station A,34.05,-118.25,Main station downtown,120.5,true,2023-01-15
-Station B,34.10,-118.30,Hilltop monitoring,450.2,true,2023-02-20</pre>
+            <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+                {% csrf_token %}
+                
+                <div class="mb-3">
+                    <label class="form-label fw-bold">{{ form.import_type.label }}</label>
+                    <div class="form-check">
+                        {% for choice in form.import_type %}
+                        <div class="form-check">
+                            {{ choice.tag }}
+                            <label for="{{ choice.id_for_label }}" class="form-check-label">{{ choice.choice_label }}</label>
                         </div>
-                        <div id="climate-format" class="hidden">
-                            <p class="mb-2">Your CSV file should have these columns:</p>
-                            <ul class="list-disc pl-5 mb-4">
-                                <li><strong>station_name</strong> (required): Must match an existing station name</li>
-                                <li><strong>timestamp</strong> (required): Date and time (YYYY-MM-DD HH:MM:SS)</li>
-                                <li><strong>temperature</strong> (optional): Temperature in Celsius</li>
-                                <li><strong>humidity</strong> (optional): Relative humidity (%)</li>
-                                <li><strong>precipitation</strong> (optional): Precipitation in mm</li>
-                                <li><strong>wind_speed</strong> (optional): Wind speed in m/s</li>
-                                <li><strong>wind_direction</strong> (optional): Wind direction in degrees (0-360)</li>
-                                <li><strong>barometric_pressure</strong> (optional): Pressure in hPa</li>
-                                <li><strong>data_quality</strong> (optional): high, medium, low, or uncertain</li>
-                                <li>Other optional fields: air_quality_index, cloud_cover, soil_moisture, water_level, uv_index</li>
+                        {% endfor %}
+                    </div>
+                    <small class="text-muted">{{ form.import_type.help_text }}</small>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="{{ form.csv_file.id_for_label }}" class="form-label fw-bold">{{ form.csv_file.label }}</label>
+                    {{ form.csv_file }}
+                    <small class="text-muted d-block mt-1">{{ form.csv_file.help_text }}</small>
+                </div>
+                
+                <div class="alert alert-info">
+                    <h5 class="alert-heading">Required CSV Format:</h5>
+                    <ul class="nav nav-tabs" id="csvTab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="stations-tab" data-bs-toggle="tab" data-bs-target="#stations-format" type="button" role="tab">Weather Stations</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="climate-tab" data-bs-toggle="tab" data-bs-target="#climate-format" type="button" role="tab">Climate Data</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content p-3 border bg-light" id="csvTabContent">
+                        <div class="tab-pane fade show active" id="stations-format" role="tabpanel">
+                            <p>Your CSV file should have these columns:</p>
+                            <ul>
+                                <li><strong>name</strong>: Name of the weather station</li>
+                                <li><strong>latitude</strong>: Decimal latitude</li>
+                                <li><strong>longitude</strong>: Decimal longitude</li>
+                                <li><strong>description</strong>: Description (optional)</li>
+                                <li><strong>altitude</strong>: Altitude in meters (optional)</li>
                             </ul>
-                            <pre class="bg-gray-200 p-2 rounded overflow-x-auto">station_name,timestamp,temperature,humidity,precipitation,wind_speed,wind_direction,barometric_pressure,data_quality
-Station A,2023-05-25 14:30:00,23.5,65.2,0.0,3.2,180,1013.2,high
-Station B,2023-05-25 14:30:00,22.1,68.0,0.2,2.8,190,1012.8,medium</pre>
+                            <pre class="bg-dark text-white p-3 rounded">name,latitude,longitude,description,altitude
+Station A,34.05,-118.25,Main station downtown,120.5</pre>
+                        </div>
+                        <div class="tab-pane fade" id="climate-format" role="tabpanel">
+                            <p>Your CSV file should have these columns:</p>
+                            <ul>
+                                <li><strong>station_name</strong>: Existing station name</li>
+                                <li><strong>timestamp</strong>: YYYY-MM-DD HH:MM:SS</li>
+                                <li><strong>temperature</strong>: Temperature in Celsius</li>
+                            </ul>
+                            <pre class="bg-dark text-white p-3 rounded">station_name,timestamp,temperature
+Station A,2023-05-25 14:30:00,23.5</pre>
                         </div>
                     </div>
                 </div>
-            </div>
-            
-            <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                Upload and Import
-            </button>
-            
-            <a href="{% url 'maps:flash_drive_import' %}" class="ml-4 text-blue-500 hover:underline">
-                Import from Flash Drive
-            </a>
-        </form>
+                
+                <div class="d-flex justify-content-between">
+                    <button type="submit" class="btn btn-primary">Upload and Import</button>
+                    <a href="{% url 'maps:flash_drive_import' %}" class="btn btn-link">Import from Flash Drive</a>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
