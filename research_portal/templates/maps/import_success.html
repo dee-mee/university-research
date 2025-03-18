@@ -3,35 +3,35 @@
 {% block title %}Import Complete{% endblock %}
 
 {% block content %}
-<div class="container mx-auto py-8">
-    <div class="max-w-2xl mx-auto bg-white p-6 rounded-lg shadow-md">
-        <h1 class="text-2xl font-bold mb-6">Import Results</h1>
+<div class="container py-5">
+    <div class="card shadow-lg p-4">
+        <h1 class="h3 mb-4">Import Results</h1>
         
         {% if results.file_results %}
         <!-- Multiple file results -->
-        <div class="mb-6">
-            <h2 class="text-xl font-semibold mb-2">Summary</h2>
-            <p>Successfully imported {{ results.success_total }} records.</p>
+        <div class="mb-4">
+            <h2 class="h5">Summary</h2>
+            <p>Successfully imported <strong>{{ results.success_total }}</strong> records.</p>
             {% if results.error_total > 0 %}
-            <p class="text-red-600">Encountered {{ results.error_total }} errors.</p>
+            <p class="text-danger">Encountered <strong>{{ results.error_total }}</strong> errors.</p>
             {% endif %}
         </div>
         
-        <div class="mb-6">
-            <h2 class="text-xl font-semibold mb-2">File Details</h2>
+        <div class="mb-4">
+            <h2 class="h5">File Details</h2>
             {% for file_result in results.file_results %}
-            <div class="border rounded p-4 mb-4">
-                <h3 class="font-bold mb-2">{{ file_result.file_name }}</h3>
-                <p>Type: {{ file_result.type }}</p>
-                <p>Successfully imported: {{ file_result.success }} records</p>
+            <div class="card border-secondary mb-3 p-3">
+                <h3 class="h6 font-weight-bold">{{ file_result.file_name }}</h3>
+                <p>Type: <strong>{{ file_result.type }}</strong></p>
+                <p>Successfully imported: <strong>{{ file_result.success }}</strong> records</p>
                 {% if file_result.error > 0 %}
-                <p class="text-red-600">Errors: {{ file_result.error }}</p>
+                <p class="text-danger">Errors: <strong>{{ file_result.error }}</strong></p>
                 {% if file_result.errors %}
                 <details class="mt-2">
-                    <summary class="cursor-pointer text-blue-600">Show errors</summary>
-                    <ul class="list-disc pl-5 mt-2">
+                    <summary class="text-primary">Show errors</summary>
+                    <ul class="list-group list-group-flush mt-2">
                         {% for error in file_result.errors %}
-                        <li class="text-red-600 text-sm">{{ error }}</li>
+                        <li class="list-group-item text-danger">{{ error }}</li>
                         {% endfor %}
                     </ul>
                 </details>
@@ -43,31 +43,31 @@
         
         {% else %}
         <!-- Single file result -->
-        <div class="mb-6">
-            <h2 class="text-xl font-semibold mb-2">{{ results.type }} Import</h2>
-            <p>Successfully imported {{ results.success }} records.</p>
+        <div class="mb-4">
+            <h2 class="h5">{{ results.type }} Import</h2>
+            <p>Successfully imported <strong>{{ results.success }}</strong> records.</p>
             {% if results.error > 0 %}
-            <p class="text-red-600">Encountered {{ results.error }} errors.</p>
+            <p class="text-danger">Encountered <strong>{{ results.error }}</strong> errors.</p>
             {% endif %}
         </div>
         
         {% if results.errors %}
-        <div class="mb-6">
-            <h3 class="font-semibold mb-2">Errors:</h3>
-            <ul class="list-disc pl-5">
+        <div class="mb-4">
+            <h3 class="h6">Errors:</h3>
+            <ul class="list-group">
                 {% for error in results.errors %}
-                <li class="text-red-600">{{ error }}</li>
+                <li class="list-group-item text-danger">{{ error }}</li>
                 {% endfor %}
             </ul>
         </div>
         {% endif %}
         {% endif %}
         
-        <div class="flex mt-6">
-            <a href="{% url 'maps:csv_upload' %}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+        <div class="d-flex mt-4">
+            <a href="{% url 'maps:csv_upload' %}" class="btn btn-primary me-2">
                 Import More Data
             </a>
-            <a href="{% url 'maps:map' %}" class="ml-4 bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+            <a href="{% url 'maps:map' %}" class="btn btn-secondary">
                 View Map
             </a>
         </div>
