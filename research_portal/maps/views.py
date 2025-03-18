@@ -20,13 +20,14 @@ from django.db.models import Avg, Max, Min, Sum
 from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
 from django.contrib.gis.db.models.functions import Distance
+from .utils import check_for_alerts, create_alert_from_detection, send_alert_notifications
 from rest_framework import viewsets, filters
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
-
-from .models import WeatherAlert, WeatherStation, ClimateData
+from .utils import fetch_environmental_data, calculate_statistics
+from .models import DataExport, WeatherAlert, WeatherStation, ClimateData
 from .forms import CSVUploadForm, FlashDriveImportForm
 from .serializers import (
     WeatherAlertSerializer,
@@ -38,12 +39,24 @@ from .permissions import IsAdminOrReadOnly
 
 
 
+# views.py (improved debug_stations)
 def debug_stations(request):
     """Debug view to check GeoJSON output"""
     stations = WeatherStation.objects.all()
     serializer = WeatherStationSerializer(stations, many=True)
-    return JsonResponse(serializer.data)
+    
+    # Return as GeoJSON FeatureCollection with additional debugging info
+    return JsonResponse({
+        'type': 'FeatureCollection',
+        'count': stations.count(),
+        'features': serializer.data,
+        'debug_info': {
+            'fields_available': [field.name for field in WeatherStation._meta.fields],
+            'serializer_fields': list(WeatherStationSerializer().get_fields().keys())
+        }
+    })
 
+# views.py (improved MapView)
 class MapView(TemplateView):
     template_name = 'maps/map.html'
     
@@ -52,17 +65,32 @@ class MapView(TemplateView):
         
         # Get data for initial map rendering
         stations = WeatherStation.objects.all()
-        active_stations = stations.filter(is_active=True).count()
+        active_stations = stations.filter(is_active=True)
+        
+        # Get some recent climate data stats
+        recent_data = ClimateData.objects.filter(
+            timestamp__gte=timezone.now() - timedelta(days=7)
+        ).order_by('-timestamp')[:100]
+        
+        # Get any active alerts
+        active_alerts = WeatherAlert.objects.filter(status='active').order_by('-created_at')[:5]
         
         context.update({
             'stations_count': stations.count(),
-            'active_stations': active_stations,
+            'active_stations': active_stations.count(),
+            'stations_list': stations,
+            'recent_data_count': recent_data.count(),
+            'has_alerts': active_alerts.exists(),
+            'alerts_count': active_alerts.count(),
             'api_base_url': '/api',  # Adjust based on your URL configuration
             'map_title': 'Weather Stations Map',
+            'map_description': 'Interactive map of all weather stations and their data',
+            'geojson_url': '/api/weather-stations/',
         })
         
         return context
 
+# views.py (fixed WeatherStationViewSet)
 class WeatherStationViewSet(viewsets.ModelViewSet):
     queryset = WeatherStation.objects.all()
     serializer_class = WeatherStationSerializer
@@ -75,6 +103,8 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         serializer = self.get_serializer(queryset, many=True)
+        
+        # Return as GeoJSON FeatureCollection
         return Response({
             'type': 'FeatureCollection',
             'features': serializer.data
@@ -104,7 +134,10 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
         ).order_by('distance')
         
         serializer = self.get_serializer(stations, many=True)
-        return Response(serializer.data)
+        return Response({
+            'type': 'FeatureCollection',
+            'features': serializer.data
+        })
     
     @action(detail=True, methods=['get'])
     def data(self, request, pk=None):
@@ -255,6 +288,7 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
         return Response(feature_collection)
 
 
+
 class ClimateDataViewSet(viewsets.ModelViewSet):
     queryset = ClimateData.objects.all().select_related('station')
     serializer_class = ClimateDataSerializer
@@ -267,6 +301,25 @@ class ClimateDataViewSet(viewsets.ModelViewSet):
         if self.request.query_params.get('format') == 'geojson':
             return GeoJSONClimateDataSerializer
         return ClimateDataSerializer
+    
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(queryset, many=True)
+        
+        # If GeoJSON format is requested, wrap in a FeatureCollection
+        if request.query_params.get('format') == 'geojson':
+            return Response({
+                'type': 'FeatureCollection',
+                'features': serializer.data
+            })
+        
+        return Response(serializer.data)
     
     @action(detail=False, methods=['get'])
     def recent(self, request):
@@ -286,6 +339,14 @@ class ClimateDataViewSet(viewsets.ModelViewSet):
         ).select_related('station')
         
         serializer = self.get_serializer(recent_data, many=True)
+        
+        # If GeoJSON format is requested, wrap in a FeatureCollection
+        if request.query_params.get('format') == 'geojson':
+            return Response({
+                'type': 'FeatureCollection',
+                'features': serializer.data
+            })
+        
         return Response(serializer.data)
 
     def perform_create(self, serializer):
@@ -301,6 +362,7 @@ class ClimateDataViewSet(viewsets.ModelViewSet):
             send_alert_notifications(alert)
         
         return climate_data
+
 
 
 class CSVUploadView(FormView):
@@ -341,30 +403,66 @@ class CSVUploadView(FormView):
             io_string = io.StringIO(decoded_file)
             reader = csv.DictReader(io_string)
             
-            required_fields = ['name', 'latitude', 'longitude']
-            
-            # Check if required fields exist
-            for field in required_fields:
-                if field not in reader.fieldnames:
-                    result['errors'].append(f"Missing required field: {field}")
-                    return result
+            # Check for required fields - either (name, latitude, longitude) OR (name, location)
+            if not ('name' in reader.fieldnames and 
+                   (('latitude' in reader.fieldnames and 'longitude' in reader.fieldnames) or 
+                    'location' in reader.fieldnames)):
+                result['errors'].append("Missing required fields: 'name' and either ('latitude' and 'longitude') or 'location'")
+                return result
             
             for row in reader:
                 try:
-                    # Check for required fields
-                    if not row['name'] or not row['latitude'] or not row['longitude']:
+                    # Check for station name
+                    if not row.get('name'):
                         result['error'] += 1
-                        result['errors'].append(f"Missing required data in row: {row}")
+                        result['errors'].append(f"Missing name in row: {row}")
                         continue
                     
-                    # Parse location
-                    try:
-                        latitude = float(row['latitude'])
-                        longitude = float(row['longitude'])
-                        location = Point(longitude, latitude, srid=4326)
-                    except (ValueError, TypeError):
+                    # Parse location - now supporting multiple input formats
+                    location = None
+                    
+                    # Option 1: Separate latitude/longitude fields
+                    if 'latitude' in row and 'longitude' in row and row.get('latitude') and row.get('longitude'):
+                        try:
+                            latitude = float(row['latitude'])
+                            longitude = float(row['longitude'])
+                            location = Point(longitude, latitude, srid=4326)
+                        except (ValueError, TypeError) as e:
+                            result['error'] += 1
+                            result['errors'].append(f"Invalid coordinates in row: {row}. Error: {str(e)}")
+                            continue
+                    
+                    # Option 2: Combined location field (format: "POINT(longitude latitude)" or "longitude,latitude")
+                    elif 'location' in row and row.get('location'):
+                        try:
+                            location_str = row['location'].strip()
+                            
+                            # Check if in WKT format: "POINT(longitude latitude)"
+                            if location_str.upper().startswith('POINT'):
+                                # Extract coordinates from POINT(lon lat) format
+                                coords = location_str.strip('POINT()').split()
+                                longitude = float(coords[0])
+                                latitude = float(coords[1])
+                                location = Point(longitude, latitude, srid=4326)
+                            
+                            # Check if in simple format: "longitude,latitude"
+                            elif ',' in location_str:
+                                coords = location_str.split(',')
+                                longitude = float(coords[0].strip())
+                                latitude = float(coords[1].strip())
+                                location = Point(longitude, latitude, srid=4326)
+                            else:
+                                raise ValueError(f"Unrecognized location format: {location_str}")
+                                
+                        except (ValueError, TypeError, IndexError) as e:
+                            result['error'] += 1
+                            result['errors'].append(f"Invalid location format in row: {row}. Error: {str(e)}")
+                            continue
+                    
+                    # If no valid location data found
+                    if not location:
                         result['error'] += 1
-                        result['errors'].append(f"Invalid coordinates in row: {row}")
+                        result['errors'].append(f"Missing or invalid location data in row: {row}")
                         continue
                     
                     # Parse date if present
@@ -373,8 +471,8 @@ class CSVUploadView(FormView):
                         try:
                             date_installed = parser.parse(row['date_installed']).date()
                         except ValueError:
-                            # If date parsing fails, leave as None
-                            pass
+                            # If date parsing fails, leave as None but log the issue
+                            result['errors'].append(f"Invalid date format in row: {row}. Using null instead.")
                     
                     # Parse altitude if present
                     altitude = None
@@ -382,8 +480,8 @@ class CSVUploadView(FormView):
                         try:
                             altitude = float(row['altitude'])
                         except ValueError:
-                            # If altitude parsing fails, leave as None
-                            pass
+                            # If altitude parsing fails, leave as None but log the issue
+                            result['errors'].append(f"Invalid altitude format in row: {row}. Using null instead.")
                     
                     # Parse is_active if present
                     is_active = True
@@ -427,32 +525,47 @@ class CSVUploadView(FormView):
             io_string = io.StringIO(decoded_file)
             reader = csv.DictReader(io_string)
             
-            required_fields = ['station_name', 'timestamp']
+            # Check for required fields - now supporting multiple station identifier options
+            station_identifiers = ['station_name', 'station_id', 'station']
+            has_station_identifier = any(field in reader.fieldnames for field in station_identifiers)
             
-            # Check if required fields exist
-            for field in required_fields:
-                if field not in reader.fieldnames:
-                    result['errors'].append(f"Missing required field: {field}")
-                    return result
+            if not (has_station_identifier and 'timestamp' in reader.fieldnames):
+                result['errors'].append(f"Missing required fields: 'timestamp' and one of {station_identifiers}")
+                return result
             
             # Get timezone for timestamps
             timezone = pytz.timezone('UTC')  # Default to UTC, adjust if needed
             
             for row in reader:
                 try:
+                    # Handle multiple station identifier options
+                    station_identifier = None
+                    for field in station_identifiers:
+                        if field in row and row[field]:
+                            station_identifier = row[field]
+                            break
+                    
                     # Check for required fields
-                    if not row['station_name'] or not row['timestamp']:
+                    if not station_identifier or not row.get('timestamp'):
                         result['error'] += 1
                         result['errors'].append(f"Missing required data in row: {row}")
                         continue
                     
-                    # Find the station
+                    # Find the station (try by name first, then by ID if possible)
                     try:
-                        station = WeatherStation.objects.get(name=row['station_name'])
+                        # First try getting by name
+                        station = WeatherStation.objects.get(name=station_identifier)
                     except WeatherStation.DoesNotExist:
-                        result['error'] += 1
-                        result['errors'].append(f"Station not found: {row['station_name']}")
-                        continue
+                        try:
+                            # Then try by ID if it looks like an integer
+                            if station_identifier.isdigit():
+                                station = WeatherStation.objects.get(id=int(station_identifier))
+                            else:
+                                raise WeatherStation.DoesNotExist()
+                        except WeatherStation.DoesNotExist:
+                            result['error'] += 1
+                            result['errors'].append(f"Station not found: {station_identifier}")
+                            continue
                     
                     # Parse timestamp
                     try:
@@ -483,7 +596,8 @@ class CSVUploadView(FormView):
                             try:
                                 climate_data[field] = float(row[field])
                             except ValueError:
-                                # Skip this field if conversion fails
+                                # Skip this field if conversion fails, but log the error
+                                result['errors'].append(f"Invalid {field} value in row: {row}. Skipping this field.")
                                 pass
                     
                     # Create or update the climate data
@@ -624,15 +738,11 @@ def flash_drive_import_view(request):
                 file_object = io.StringIO(file_content)
                 file_object.name = csv_file_name
                 
-                # Choose the appropriate processor based on import type
-                from .views import CSVUploadView
-                if import_type == 'stations':
-                    processor = CSVUploadView().process_stations_file
-                else:  # climate_data
-                    processor = CSVUploadView().process_climate_data_file
-                
                 # Process the file
-                result = processor(file_object)
+                if import_type == 'stations':
+                    result = CSVUploadView().process_stations_file(file_object)
+                else:  # climate_data
+                    result = CSVUploadView().process_climate_data_file(file_object)
                 
                 # Add file name to the result
                 result['file_name'] = csv_file_name
@@ -719,8 +829,6 @@ def setup_automated_imports(flash_drive_path=None, import_interval=3600):
         
         def process_files(path, prefix, import_type, all_files):
             """Process specific types of CSV files"""
-            from .views import CSVUploadView
-            
             # Filter files by prefix
             filtered_files = [f for f in all_files if f.startswith(prefix)]
             
@@ -744,14 +852,11 @@ def setup_automated_imports(flash_drive_path=None, import_interval=3600):
                     file_object = io.StringIO(file_content)
                     file_object.name = file_name
                     
-                    # Choose processor based on import type
-                    if import_type == 'stations':
-                        processor = CSVUploadView().process_stations_file
-                    else:  # climate_data
-                        processor = CSVUploadView().process_climate_data_file
-                    
                     # Process the file
-                    result = processor(file_object)
+                    if import_type == 'stations':
+                        result = CSVUploadView().process_stations_file(file_object)
+                    else:  # climate_data
+                        result = CSVUploadView().process_climate_data_file(file_object)
                     
                     # Log the result
                     logging.info(f"Imported {file_name}: {result['success']} success, {result['error']} errors")
@@ -779,7 +884,6 @@ def setup_automated_imports(flash_drive_path=None, import_interval=3600):
     except Exception as e:
         logging.error(f"Error setting up automated imports: {str(e)}")
 
-
 class WeatherAlertViewSet(viewsets.ModelViewSet):
     queryset = WeatherAlert.objects.all()
     serializer_class = WeatherAlertSerializer
@@ -805,3 +909,51 @@ class WeatherAlertViewSet(viewsets.ModelViewSet):
         alerts = WeatherAlert.objects.filter(status='active')
         serializer = self.get_serializer(alerts, many=True)
         return Response(serializer.data)
+    
+# views.py (new map_data endpoint)
+@api_view(['GET'])
+def map_data(request):
+    """API endpoint to get consolidated data for map display"""
+    # Get basic station information
+    stations = WeatherStation.objects.all()
+    station_serializer = WeatherStationSerializer(stations, many=True)
+    
+    # Get recent climate data for active stations
+    recent_data = []
+    active_stations = stations.filter(is_active=True)
+    
+    for station in active_stations:
+        latest_reading = ClimateData.objects.filter(
+            station=station
+        ).order_by('-timestamp').first()
+        
+        if latest_reading:
+            recent_data.append({
+                'station_id': station.id,
+                'station_name': station.name,
+                'timestamp': latest_reading.timestamp,
+                'temperature': latest_reading.temperature,
+                'humidity': latest_reading.humidity,
+                'precipitation': latest_reading.precipitation,
+                'wind_speed': latest_reading.wind_speed,
+                'is_recent': latest_reading.timestamp > (timezone.now() - timedelta(days=1))
+            })
+    
+    # Get active alerts
+    active_alerts = WeatherAlert.objects.filter(status='active')
+    alert_serializer = WeatherAlertSerializer(active_alerts, many=True)
+    
+    return Response({
+        'stations': {
+            'type': 'FeatureCollection',
+            'features': station_serializer.data
+        },
+        'recent_data': recent_data,
+        'alerts': alert_serializer.data,
+        'stats': {
+            'total_stations': stations.count(),
+            'active_stations': active_stations.count(),
+            'stations_with_recent_data': len([d for d in recent_data if d['is_recent']]),
+            'active_alerts': active_alerts.count()
+        }
+    })
