@@ -3,70 +3,70 @@
 {% block title %}Import Data from Flash Drive{% endblock %}
 
 {% block content %}
-<div class="container mx-auto py-8">
-    <div class="max-w-2xl mx-auto bg-white p-6 rounded-lg shadow-md">
-        <h1 class="text-2xl font-bold mb-6">Import Data from Flash Drive</h1>
+<div class="container mx-auto py-12 px-6">
+    <div class="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-lg">
+        <h1 class="text-3xl font-semibold text-gray-800 mb-6 text-center">Import Data from Flash Drive</h1>
         
         {% if messages %}
         <div class="mb-4">
             {% for message in messages %}
-            <div class="p-4 {% if message.tags == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %} rounded-lg">
+            <div class="p-4 rounded-lg {% if message.tags == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
                 {{ message }}
             </div>
             {% endfor %}
         </div>
         {% endif %}
         
-        <form method="post">
+        <form method="post" class="space-y-6">
             {% csrf_token %}
             
-            <div class="mb-4">
-                <label class="block text-gray-700 font-bold mb-2">
+            <div>
+                <label class="block text-gray-700 font-semibold mb-2">
                     {{ form.import_type.label }}
                 </label>
-                <div class="mt-2 space-y-2">
+                <div class="space-y-2">
                     {% for choice in form.import_type %}
-                    <div class="flex items-center">
+                    <div class="flex items-center space-x-2">
                         {{ choice.tag }}
-                        <label for="{{ choice.id_for_label }}" class="ml-2">
-                            {{ choice.choice_label }}
-                        </label>
+                        <label for="{{ choice.id_for_label }}" class="text-gray-600">{{ choice.choice_label }}</label>
                     </div>
                     {% endfor %}
                 </div>
                 <p class="text-sm text-gray-500 mt-1">{{ form.import_type.help_text }}</p>
             </div>
             
-            <div class="mb-4">
-                <label for="{{ form.drive_path.id_for_label }}" class="block text-gray-700 font-bold mb-2">
+            <div>
+                <label for="{{ form.drive_path.id_for_label }}" class="block text-gray-700 font-semibold mb-2">
                     {{ form.drive_path.label }}
                 </label>
                 {{ form.drive_path }}
                 <p class="text-sm text-gray-500 mt-1">{{ form.drive_path.help_text }}</p>
             </div>
             
-            <div class="bg-gray-100 p-4 rounded mb-4">
-                <h3 class="font-semibold mb-2">Important Notes:</h3>
-                <ul class="list-disc pl-5">
+            <div class="bg-gray-50 p-5 rounded-lg border border-gray-200">
+                <h3 class="font-semibold text-gray-700 mb-2">Important Notes:</h3>
+                <ul class="list-disc pl-5 text-gray-600">
                     <li>CSV files should be placed in the root directory of the flash drive</li>
                     <li>Files should follow the same format as described in the CSV upload page</li>
                     <li>Station files should be imported before climate data files</li>
                     <li>For automatic detection, name files with prefixes:
                         <ul class="list-disc pl-5 mt-1">
-                            <li><code>station_*.csv</code> for weather station data</li>
-                            <li><code>climate_*.csv</code> for climate data</li>
+                            <li><code class="text-blue-500">station_*.csv</code> for weather station data</li>
+                            <li><code class="text-blue-500">climate_*.csv</code> for climate data</li>
                         </ul>
                     </li>
                 </ul>
             </div>
             
-            <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                Import from Flash Drive
-            </button>
-            
-            <a href="{% url 'maps:csv_upload' %}" class="ml-4 text-blue-500 hover:underline">
-                Upload CSV File Instead
-            </a>
+            <div class="flex justify-between items-center">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-300">
+                    Import from Flash Drive
+                </button>
+                
+                <a href="{% url 'maps:csv_upload' %}" class="text-blue-600 hover:underline">
+                    Upload CSV File Instead
+                </a>
+            </div>
         </form>
     </div>
 </div>

@@ -11,9 +11,6 @@ def homepage(request):
 def contact(request):
     return render(request, 'contact/contact.html')
 
-def map_view(request):
-    return render(request, 'contact/map.html')
-
     
 def people(request):
     return render(request, 'contact/people.html')

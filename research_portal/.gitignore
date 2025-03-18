@@ -1,23 +1,60 @@
-venv
-.venv
-**/migrations
-**/staticfiles
-**/media
-db.sqlite3
-**/__pycache__
-**/*.pyc
-**/*.pyo
-**/*.pyd
-**/*.pyz
-**/*.pyw
-.idea
-/media
-/.idea
-**.sqlite3
-**.idea
-**.idea/*
-**.idea/vcs.xml
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
 
-.idea
-.idea/vcs.xml
-.env
+# Virtual environment
+venv/
+env/
+*.env
+*.venv
+
+# Django specific
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+*.log
+*.pot
+*.pyc
+
+# VS Code settings
+.vscode/
+
+# PyCharm settings
+.idea/
+*.iml
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Pipenv and Poetry
+Pipfile
+Pipfile.lock
+poetry.lock
+
+# Migrations (if you want to ignore generated migrations)
+*/migrations/*.py
+!*/migrations/__init__.py
+
+# Testing
+.tox/
+.nox/
+.coverage
+htmlcov/
+*.cover
+*.py,cover
+.cache
+nosetests.xml
+coverage.xml
+*.mo
+hypothesis/
+
+# MyPy & Pyright
+.mypy_cache/
+.pyright/
+
+# Docker
+docker-compose.override.yml
+.envrc

@@ -122,3 +122,44 @@ class DataExport(models.Model):
     
     def __str__(self):
         return f"Export {self.export_format} - {self.created_at}"
+
+class WeatherAlert(models.Model):
+    """Alerts for extreme weather conditions"""
+    SEVERITY_CHOICES = [
+        ('info', _('Information')),
+        ('warning', _('Warning')),
+        ('danger', _('Danger')),
+        ('emergency', _('Emergency')),
+    ]
+    
+    STATUS_CHOICES = [
+        ('active', _('Active')),
+        ('resolved', _('Resolved')),
+        ('monitoring', _('Monitoring')),
+    ]
+    
+    station = models.ForeignKey(WeatherStation, on_delete=models.CASCADE, related_name='alerts')
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    parameter = models.CharField(max_length=50)  # e.g., 'temperature', 'precipitation'
+    threshold_value = models.FloatField()
+    severity = models.CharField(max_length=10, choices=SEVERITY_CHOICES)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    
+    # Optional: Notification settings
+    notify_email = models.BooleanField(default=True)
+    notify_sms = models.BooleanField(default=False)
+    notify_push = models.BooleanField(default=False)
+    
+    class Meta:
+        verbose_name = _("Weather Alert")
+        verbose_name_plural = _("Weather Alerts")
+        ordering = ["-created_at"]
+    
+    def __str__(self):
+        return f"{self.get_severity_display()}: {self.title} ({self.station.name})"
+     
+    
