@@ -6,18 +6,19 @@ from rest_framework import viewsets
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import serializers
 from rest_framework_gis.serializers import GeoFeatureModelSerializer
-from .models import WeatherAlert, WeatherStation, ClimateData, DataExport
+from .models import WeatherAlert, WeatherStation, ClimateData, DataExport, Country, WeatherDataType
 
 class WeatherStationSerializer(GeoFeatureModelSerializer):
     latitude = serializers.SerializerMethodField()
     longitude = serializers.SerializerMethodField()
+    country_name = serializers.CharField(source='country.name', read_only=True)
     
     class Meta:
         model = WeatherStation
         geo_field = 'location'
         fields = (
             'id', 'name', 'description', 'location', 'latitude', 'longitude',
-            'altitude', 'is_active', 'date_installed'
+            'altitude', 'is_active', 'date_installed', 'country_name'
         )
         
     def get_latitude(self, obj):
@@ -81,23 +82,29 @@ class GeoJSONClimateDataSerializer(GeoFeatureModelSerializer):
 
 class DataExportSerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(source='user.email', read_only=True)
-    station_name = serializers.CharField(source='station.name', read_only=True)
+    station_names = serializers.SerializerMethodField()
+    country_name = serializers.CharField(source='country.name', read_only=True)
     
     class Meta:
         model = DataExport
         fields = (
-            'id', 'user', 'user_email', 'station', 'station_name', 
-            'export_format', 'date_from', 'date_to', 'created_at'
+            'id', 'user', 'user_email', 'stations', 'station_names', 'country', 'country_name', 
+            'export_format', 'date_from', 'date_to', 'created_at', 'status'
         )
+    
+    def get_station_names(self, obj):
+        return [station.name for station in obj.stations.all()]
 
 class WeatherAlertSerializer(serializers.ModelSerializer):
     station_name = serializers.CharField(source='station.name', read_only=True)
+    country_name = serializers.CharField(source='country.name', read_only=True)
+    data_type_name = serializers.CharField(source='data_type.name', read_only=True)
 
     class Meta:
         model = WeatherAlert
         fields = (
-            'id', 'station', 'station_name', 'title', 'description', 'parameter', 
-            'threshold_value', 'severity', 'status', 'created_at', 'updated_at', 
-            'resolved_at', 'notify_email', 'notify_sms', 'notify_push'
+            'id', 'station', 'station_name', 'country', 'country_name', 'title', 'description', 
+            'data_type', 'data_type_name', 'parameter', 'threshold_value', 'severity', 'status', 
+            'created_at', 'updated_at', 'resolved_at', 'notify_email', 'notify_sms', 'notify_push'
         )
 
