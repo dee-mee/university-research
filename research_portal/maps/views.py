@@ -96,8 +96,8 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
     serializer_class = WeatherStationSerializer
     permission_classes = [IsAdminOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['is_active']
-    search_fields = ['name', 'description']
+    filterset_fields = ['is_active', 'country']
+    search_fields = ['name', 'description', 'country__name']
     ordering_fields = ['name', 'date_installed']
     
     def list(self, request, *args, **kwargs):
@@ -180,7 +180,7 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
         if request.user.is_authenticated:
             DataExport.objects.create(
                 user=request.user,
-                station=station,
+                stations=[station],
                 export_format=format_type,
                 date_from=start_date,
                 date_to=timezone.now()
@@ -275,7 +275,8 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
                     'description': station.description,
                     'is_active': station.is_active,
                     'altitude': station.altitude,
-                    'date_installed': station.date_installed.isoformat() if station.date_installed else None
+                    'date_installed': station.date_installed.isoformat() if station.date_installed else None,
+                    'country': station.country.name if station.country else None
                 }
             }
             features.append(feature)
@@ -364,31 +365,62 @@ class ClimateDataViewSet(viewsets.ModelViewSet):
         return climate_data
 
 
+import io
+import os
+import csv
+import logging
+import pytz
+from datetime import datetime
+from dateutil import parser
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
+from django.utils import timezone
+from django.views import View
+from django.views.generic.edit import FormView
+from django.contrib.gis.geos import Point
+from rest_framework.decorators import api_view, permission_classes, action
+from rest_framework.permissions import IsAdminUser
+from rest_framework.response import Response
+from rest_framework import viewsets, filters
+from django_filters.rest_framework import DjangoFilterBackend
+
+from .models import WeatherStation, ClimateData, Country, WeatherDataType
+from .serializers import WeatherAlertSerializer
+from .forms import CSVUploadForm, FlashDriveImportForm
+
 
 class CSVUploadView(FormView):
     template_name = 'maps/csv_upload.html'
     form_class = CSVUploadForm
     success_url = '/upload/success/'
-    
+
     @method_decorator(login_required)
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
-    
+
     def form_valid(self, form):
         import_type = form.cleaned_data['import_type']
         csv_file = form.cleaned_data['csv_file']
-        
+
         # Process the file
         if import_type == 'stations':
             result = self.process_stations_file(csv_file)
-        else:  # climate_data
+        elif import_type == 'climate_data':
             result = self.process_climate_data_file(csv_file)
-        
+        elif import_type == 'weather_data_types':
+            result = self.process_weather_data_types_file(csv_file)
+        elif import_type == 'countries':
+            result = self.process_countries_file(csv_file)
+        else:
+            result = {'success': 0, 'error': 1, 'errors': ['Invalid import type']}
+
         # Store results in session for display
         self.request.session['import_results'] = result
-        
+
         return super().form_valid(form)
-    
+
     def process_stations_file(self, csv_file):
         """Process a CSV file containing weather station data"""
         result = {
@@ -397,19 +429,20 @@ class CSVUploadView(FormView):
             'errors': [],
             'type': 'Weather Stations'
         }
-        
+
         try:
             decoded_file = csv_file.read().decode('utf-8')
             io_string = io.StringIO(decoded_file)
             reader = csv.DictReader(io_string)
-            
+
             # Check for required fields - either (name, latitude, longitude) OR (name, location)
-            if not ('name' in reader.fieldnames and 
-                   (('latitude' in reader.fieldnames and 'longitude' in reader.fieldnames) or 
-                    'location' in reader.fieldnames)):
-                result['errors'].append("Missing required fields: 'name' and either ('latitude' and 'longitude') or 'location'")
+            if not ('name' in reader.fieldnames and
+                    (('latitude' in reader.fieldnames and 'longitude' in reader.fieldnames) or
+                     'location' in reader.fieldnames)):
+                result['errors'].append(
+                    "Missing required fields: 'name' and either ('latitude' and 'longitude') or 'location'")
                 return result
-            
+
             for row in reader:
                 try:
                     # Check for station name
@@ -417,10 +450,10 @@ class CSVUploadView(FormView):
                         result['error'] += 1
                         result['errors'].append(f"Missing name in row: {row}")
                         continue
-                    
+
                     # Parse location - now supporting multiple input formats
                     location = None
-                    
+
                     # Option 1: Separate latitude/longitude fields
                     if 'latitude' in row and 'longitude' in row and row.get('latitude') and row.get('longitude'):
                         try:
@@ -431,12 +464,12 @@ class CSVUploadView(FormView):
                             result['error'] += 1
                             result['errors'].append(f"Invalid coordinates in row: {row}. Error: {str(e)}")
                             continue
-                    
+
                     # Option 2: Combined location field (format: "POINT(longitude latitude)" or "longitude,latitude")
                     elif 'location' in row and row.get('location'):
                         try:
                             location_str = row['location'].strip()
-                            
+
                             # Check if in WKT format: "POINT(longitude latitude)"
                             if location_str.upper().startswith('POINT'):
                                 # Extract coordinates from POINT(lon lat) format
@@ -444,7 +477,7 @@ class CSVUploadView(FormView):
                                 longitude = float(coords[0])
                                 latitude = float(coords[1])
                                 location = Point(longitude, latitude, srid=4326)
-                            
+
                             # Check if in simple format: "longitude,latitude"
                             elif ',' in location_str:
                                 coords = location_str.split(',')
@@ -453,18 +486,18 @@ class CSVUploadView(FormView):
                                 location = Point(longitude, latitude, srid=4326)
                             else:
                                 raise ValueError(f"Unrecognized location format: {location_str}")
-                                
+
                         except (ValueError, TypeError, IndexError) as e:
                             result['error'] += 1
                             result['errors'].append(f"Invalid location format in row: {row}. Error: {str(e)}")
                             continue
-                    
+
                     # If no valid location data found
                     if not location:
                         result['error'] += 1
                         result['errors'].append(f"Missing or invalid location data in row: {row}")
                         continue
-                    
+
                     # Parse date if present
                     date_installed = None
                     if 'date_installed' in row and row['date_installed']:
@@ -473,7 +506,17 @@ class CSVUploadView(FormView):
                         except ValueError:
                             # If date parsing fails, leave as None but log the issue
                             result['errors'].append(f"Invalid date format in row: {row}. Using null instead.")
-                    
+
+                    # Parse decommissioned date if present
+                    date_decommissioned = None
+                    if 'date_decommissioned' in row and row['date_decommissioned']:
+                        try:
+                            date_decommissioned = parser.parse(row['date_decommissioned']).date()
+                        except ValueError:
+                            # If date parsing fails, leave as None but log the issue
+                            result['errors'].append(
+                                f"Invalid decommissioned date format in row: {row}. Using null instead.")
+
                     # Parse altitude if present
                     altitude = None
                     if 'altitude' in row and row['altitude']:
@@ -482,35 +525,72 @@ class CSVUploadView(FormView):
                         except ValueError:
                             # If altitude parsing fails, leave as None but log the issue
                             result['errors'].append(f"Invalid altitude format in row: {row}. Using null instead.")
-                    
+
                     # Parse is_active if present
                     is_active = True
                     if 'is_active' in row and row['is_active']:
                         is_active = row['is_active'].lower() in ('true', 'yes', '1', 't', 'y')
-                    
+
+                    # Get or create country if specified
+                    country = None
+                    if 'country' in row and row['country']:
+                        try:
+                            country = Country.objects.get(name=row['country'])
+                        except Country.DoesNotExist:
+                            try:
+                                country = Country.objects.get(code=row['country'])
+                            except Country.DoesNotExist:
+                                result['errors'].append(f"Country not found: {row['country']}. Using null instead.")
+
+                    # Parse data type flags
+                    data_type_flags = {
+                        'has_temperature': True,
+                        'has_precipitation': True,
+                        'has_humidity': True,
+                        'has_wind': True,
+                        'has_air_quality': False,
+                        'has_soil_moisture': False,
+                        'has_water_level': False
+                    }
+
+                    for flag_name in data_type_flags:
+                        if flag_name in row and row[flag_name]:
+                            data_type_flags[flag_name] = row[flag_name].lower() in ('true', 'yes', '1', 't', 'y')
+
+                    # Create station_id if not provided
+                    station_id = row.get('station_id')
+                    if not station_id:
+                        # Generate a station ID based on name and location
+                        station_id = f"{row['name'].lower().replace(' ', '_')}_{location.y:.2f}_{location.x:.2f}"
+
                     # Create or update the station
                     station, created = WeatherStation.objects.update_or_create(
-                        name=row['name'],
+                        station_id=station_id,
                         defaults={
+                            'name': row['name'],
                             'location': location,
                             'description': row.get('description', ''),
                             'altitude': altitude,
                             'is_active': is_active,
                             'date_installed': date_installed,
+                            'date_decommissioned': date_decommissioned,
+                            'country': country,
+                            'region': row.get('region', ''),
+                            **data_type_flags
                         }
                     )
-                    
+
                     result['success'] += 1
-                    
+
                 except Exception as e:
                     result['error'] += 1
                     result['errors'].append(f"Error processing row: {row}. Error: {str(e)}")
-            
+
         except Exception as e:
             result['errors'].append(f"Error processing file: {str(e)}")
-        
+
         return result
-    
+
     def process_climate_data_file(self, csv_file):
         """Process a CSV file containing climate data"""
         result = {
@@ -519,23 +599,23 @@ class CSVUploadView(FormView):
             'errors': [],
             'type': 'Climate Data'
         }
-        
+
         try:
             decoded_file = csv_file.read().decode('utf-8')
             io_string = io.StringIO(decoded_file)
             reader = csv.DictReader(io_string)
-            
+
             # Check for required fields - now supporting multiple station identifier options
             station_identifiers = ['station_name', 'station_id', 'station']
             has_station_identifier = any(field in reader.fieldnames for field in station_identifiers)
-            
+
             if not (has_station_identifier and 'timestamp' in reader.fieldnames):
                 result['errors'].append(f"Missing required fields: 'timestamp' and one of {station_identifiers}")
                 return result
-            
+
             # Get timezone for timestamps
             timezone = pytz.timezone('UTC')  # Default to UTC, adjust if needed
-            
+
             for row in reader:
                 try:
                     # Handle multiple station identifier options
@@ -544,29 +624,33 @@ class CSVUploadView(FormView):
                         if field in row and row[field]:
                             station_identifier = row[field]
                             break
-                    
+
                     # Check for required fields
                     if not station_identifier or not row.get('timestamp'):
                         result['error'] += 1
                         result['errors'].append(f"Missing required data in row: {row}")
                         continue
-                    
-                    # Find the station (try by name first, then by ID if possible)
+
+                    # Find the station (try by station_id first, then by name)
                     try:
-                        # First try getting by name
-                        station = WeatherStation.objects.get(name=station_identifier)
+                        # First try getting by station_id
+                        station = WeatherStation.objects.get(station_id=station_identifier)
                     except WeatherStation.DoesNotExist:
                         try:
-                            # Then try by ID if it looks like an integer
-                            if station_identifier.isdigit():
-                                station = WeatherStation.objects.get(id=int(station_identifier))
-                            else:
-                                raise WeatherStation.DoesNotExist()
+                            # Then try by name
+                            station = WeatherStation.objects.get(name=station_identifier)
                         except WeatherStation.DoesNotExist:
-                            result['error'] += 1
-                            result['errors'].append(f"Station not found: {station_identifier}")
-                            continue
-                    
+                            try:
+                                # Finally try by ID if it looks like an integer
+                                if station_identifier.isdigit():
+                                    station = WeatherStation.objects.get(id=int(station_identifier))
+                                else:
+                                    raise WeatherStation.DoesNotExist()
+                            except WeatherStation.DoesNotExist:
+                                result['error'] += 1
+                                result['errors'].append(f"Station not found: {station_identifier}")
+                                continue
+
                     # Parse timestamp
                     try:
                         timestamp = parser.parse(row['timestamp'])
@@ -576,21 +660,23 @@ class CSVUploadView(FormView):
                         result['error'] += 1
                         result['errors'].append(f"Invalid timestamp in row: {row}")
                         continue
-                    
+
                     # Create climate data dictionary with defaults
                     climate_data = {
                         'station': station,
                         'timestamp': timestamp,
+                        'year': timestamp.year,
+                        'month': timestamp.month,
                         'data_quality': row.get('data_quality', 'medium'),
                     }
-                    
+
                     # Map numeric fields with proper conversion
                     numeric_fields = [
                         'temperature', 'humidity', 'precipitation', 'air_quality_index',
                         'wind_speed', 'wind_direction', 'barometric_pressure', 'cloud_cover',
                         'soil_moisture', 'water_level', 'uv_index'
                     ]
-                    
+
                     for field in numeric_fields:
                         if field in row and row[field]:
                             try:
@@ -599,29 +685,141 @@ class CSVUploadView(FormView):
                                 # Skip this field if conversion fails, but log the error
                                 result['errors'].append(f"Invalid {field} value in row: {row}. Skipping this field.")
                                 pass
-                    
+
                     # Create or update the climate data
                     data, created = ClimateData.objects.update_or_create(
                         station=station,
                         timestamp=timestamp,
                         defaults=climate_data
                     )
-                    
+
                     result['success'] += 1
-                    
+
                 except Exception as e:
                     result['error'] += 1
                     result['errors'].append(f"Error processing row: {row}. Error: {str(e)}")
-            
+
         except Exception as e:
             result['errors'].append(f"Error processing file: {str(e)}")
-        
+
+        return result
+
+    def process_weather_data_types_file(self, csv_file):
+        """Process a CSV file containing weather data type definitions"""
+        result = {
+            'success': 0,
+            'error': 0,
+            'errors': [],
+            'type': 'Weather Data Types'
+        }
+
+        try:
+            decoded_file = csv_file.read().decode('utf-8')
+            io_string = io.StringIO(decoded_file)
+            reader = csv.DictReader(io_string)
+
+            # Check for required fields
+            if 'name' not in reader.fieldnames:
+                result['errors'].append("Missing required field: 'name'")
+                return result
+
+            for row in reader:
+                try:
+                    # Check for required fields
+                    if not row.get('name'):
+                        result['error'] += 1
+                        result['errors'].append(f"Missing name in row: {row}")
+                        continue
+
+                    # Parse numeric fields
+                    min_value = None
+                    if 'min_value' in row and row['min_value']:
+                        try:
+                            min_value = float(row['min_value'])
+                        except ValueError:
+                            result['errors'].append(f"Invalid min_value in row: {row}. Using null instead.")
+
+                    max_value = None
+                    if 'max_value' in row and row['max_value']:
+                        try:
+                            max_value = float(row['max_value'])
+                        except ValueError:
+                            result['errors'].append(f"Invalid max_value in row: {row}. Using null instead.")
+
+                    # Create or update the weather data type
+                    data_type, created = WeatherDataType.objects.update_or_create(
+                        name=row['name'],
+                        defaults={
+                            'display_name': row.get('display_name', row['name']),
+                            'description': row.get('description', ''),
+                            'unit': row.get('unit', ''),
+                            'min_value': min_value,
+                            'max_value': max_value,
+                            'icon': row.get('icon', '')
+                        }
+                    )
+
+                    result['success'] += 1
+
+                except Exception as e:
+                    result['error'] += 1
+                    result['errors'].append(f"Error processing row: {row}. Error: {str(e)}")
+
+        except Exception as e:
+            result['errors'].append(f"Error processing file: {str(e)}")
+
+        return result
+
+    def process_countries_file(self, csv_file):
+        """Process a CSV file containing country information"""
+        result = {
+            'success': 0,
+            'error': 0,
+            'errors': [],
+            'type': 'Countries'
+        }
+
+        try:
+            decoded_file = csv_file.read().decode('utf-8')
+            io_string = io.StringIO(decoded_file)
+            reader = csv.DictReader(io_string)
+
+            # Check for required fields
+            if not ('name' in reader.fieldnames and 'code' in reader.fieldnames):
+                result['errors'].append("Missing required fields: 'name' and 'code'")
+                return result
+
+            for row in reader:
+                try:
+                    # Check for required fields
+                    if not row.get('name') or not row.get('code'):
+                        result['error'] += 1
+                        result['errors'].append(f"Missing name or code in row: {row}")
+                        continue
+
+                    # Create or update the country
+                    country, created = Country.objects.update_or_create(
+                        code=row['code'],
+                        defaults={
+                            'name': row['name']
+                        }
+                    )
+
+                    result['success'] += 1
+
+                except Exception as e:
+                    result['error'] += 1
+                    result['errors'].append(f"Error processing row: {row}. Error: {str(e)}")
+
+        except Exception as e:
+            result['errors'].append(f"Error processing file: {str(e)}")
+
         return result
 
 
 class ImportSuccessView(View):
     template_name = 'maps/import_success.html'
-    
+
     def get(self, request):
         results = request.session.get('import_results', {})
         return render(request, self.template_name, {'results': results})
@@ -633,16 +831,23 @@ def api_import_csv(request):
     """API endpoint for importing CSV data"""
     if 'file' not in request.FILES:
         return Response({'error': 'No file provided'}, status=400)
-    
+
     import_type = request.data.get('import_type', 'stations')
     csv_file = request.FILES['file']
-    
+
     # Process the file
+    view = CSVUploadView()
     if import_type == 'stations':
-        result = CSVUploadView().process_stations_file(csv_file)
-    else:  # climate_data
-        result = CSVUploadView().process_climate_data_file(csv_file)
-    
+        result = view.process_stations_file(csv_file)
+    elif import_type == 'climate_data':
+        result = view.process_climate_data_file(csv_file)
+    elif import_type == 'weather_data_types':
+        result = view.process_weather_data_types_file(csv_file)
+    elif import_type == 'countries':
+        result = view.process_countries_file(csv_file)
+    else:
+        result = {'error': 'Invalid import type'}
+
     return Response(result)
 
 
@@ -654,7 +859,7 @@ def is_safe_path(base_dir, path):
     # Convert to absolute paths
     base_dir_abs = os.path.abspath(base_dir)
     path_abs = os.path.abspath(path)
-    
+
     # Check if path is within base directory
     return os.path.commonpath([base_dir_abs]) == os.path.commonpath([base_dir_abs, path_abs])
 
@@ -667,17 +872,17 @@ def flash_drive_import_view(request):
         if form.is_valid():
             import_type = form.cleaned_data['import_type']
             drive_path = form.cleaned_data['drive_path']
-            
+
             # Security check: Validate the path is within acceptable boundaries
             if not is_safe_path('/media', drive_path):
                 messages.error(request, "Invalid drive path. Path must be within the media directory.")
                 return render(request, 'maps/flash_drive_import.html', {'form': form})
-            
+
             # Verify the path exists
             if not os.path.exists(drive_path):
                 messages.error(request, f"The specified path does not exist: {drive_path}")
                 return render(request, 'maps/flash_drive_import.html', {'form': form})
-            
+
             # Look for CSV files in the directory
             try:
                 csv_files = [f for f in os.listdir(drive_path) if f.endswith('.csv')]
@@ -687,21 +892,21 @@ def flash_drive_import_view(request):
             except Exception as e:
                 messages.error(request, f"Error accessing directory: {str(e)}")
                 return render(request, 'maps/flash_drive_import.html', {'form': form})
-            
+
             if not csv_files:
                 messages.error(request, "No CSV files found in the specified directory.")
                 return render(request, 'maps/flash_drive_import.html', {'form': form})
-            
+
             # Process all CSV files
             results = {
                 'success_total': 0,
                 'error_total': 0,
                 'file_results': []
             }
-            
+
             for csv_file_name in csv_files:
                 file_path = os.path.join(drive_path, csv_file_name)
-                
+
                 # Process the file with multiple encoding attempts
                 try:
                     with open(file_path, 'r', encoding='utf-8') as file:
@@ -717,7 +922,8 @@ def flash_drive_import_view(request):
                             'file_name': csv_file_name,
                             'success': 0,
                             'error': 1,
-                            'errors': ["Could not decode file encoding. Please ensure it's properly encoded (UTF-8 or Latin-1)."]
+                            'errors': [
+                                "Could not decode file encoding. Please ensure it's properly encoded (UTF-8 or Latin-1)."]
                         }
                         results['error_total'] += 1
                         results['file_results'].append(result)
@@ -733,27 +939,48 @@ def flash_drive_import_view(request):
                     results['error_total'] += 1
                     results['file_results'].append(result)
                     continue
-                
+
                 # Create a file-like object
                 file_object = io.StringIO(file_content)
                 file_object.name = csv_file_name
-                
-                # Process the file
-                if import_type == 'stations':
-                    result = CSVUploadView().process_stations_file(file_object)
-                else:  # climate_data
-                    result = CSVUploadView().process_climate_data_file(file_object)
-                
+
+                # Process the file based on import type or filename prefix
+                csv_view = CSVUploadView()
+
+                if import_type != 'auto':
+                    # Use the specified import type
+                    if import_type == 'stations':
+                        result = csv_view.process_stations_file(file_object)
+                    elif import_type == 'climate_data':
+                        result = csv_view.process_climate_data_file(file_object)
+                    elif import_type == 'weather_data_types':
+                        result = csv_view.process_weather_data_types_file(file_object)
+                    elif import_type == 'countries':
+                        result = csv_view.process_countries_file(file_object)
+                else:
+                    # Auto-detect based on filename prefix
+                    if csv_file_name.startswith('station_'):
+                        result = csv_view.process_stations_file(file_object)
+                    elif csv_file_name.startswith('climate_'):
+                        result = csv_view.process_climate_data_file(file_object)
+                    elif csv_file_name.startswith('datatype_'):
+                        result = csv_view.process_weather_data_types_file(file_object)
+                    elif csv_file_name.startswith('country_'):
+                        result = csv_view.process_countries_file(file_object)
+                    else:
+                        # Default to climate data
+                        result = csv_view.process_climate_data_file(file_object)
+
                 # Add file name to the result
                 result['file_name'] = csv_file_name
-                
+
                 # Update totals
                 results['success_total'] += result['success']
                 results['error_total'] += result['error']
-                
+
                 # Add to file results
                 results['file_results'].append(result)
-                
+
                 # Option to move or rename processed files to avoid reimporting
                 try:
                     if result['success'] > 0:
@@ -764,24 +991,24 @@ def flash_drive_import_view(request):
                 except Exception as e:
                     # Log but don't fail if we can't move the file
                     logging.warning(f"Could not mark file as processed: {str(e)}")
-            
+
             # Store results in session for display
             request.session['import_results'] = results
-            
+
             return redirect('maps:import_success')
     else:
         form = FlashDriveImportForm()
-    
+
     return render(request, 'maps/flash_drive_import.html', {'form': form})
 
 
 def setup_automated_imports(flash_drive_path=None, import_interval=3600):
     """
     Set up scheduled imports from a flash drive with improved configuration and error handling
-    
+
     This function should be called from your app's AppConfig.ready() method
     to set up scheduled tasks when the application starts.
-    
+
     Parameters:
     - flash_drive_path: Path to monitor for CSV files, defaults to environment variable or '/media/usb'
     - import_interval: How often to check for new files (in seconds), defaults to environment variable or 3600
@@ -790,15 +1017,15 @@ def setup_automated_imports(flash_drive_path=None, import_interval=3600):
         from apscheduler.schedulers.background import BackgroundScheduler
         from apscheduler.triggers.interval import IntervalTrigger
         import logging
-        
+
         # Use environment variables if path not provided
         if flash_drive_path is None:
             flash_drive_path = os.environ.get('FLASH_DRIVE_PATH', '/media/usb')
-        
+
         # Use environment variable for interval if not provided
         if import_interval is None:
             import_interval = int(os.environ.get('IMPORT_INTERVAL', '3600'))
-        
+
         def import_task():
             """Task to import CSV files from the flash drive path"""
             logging.info(f"Running scheduled import from {flash_drive_path}")
@@ -807,7 +1034,7 @@ def setup_automated_imports(flash_drive_path=None, import_interval=3600):
                 if not is_safe_path('/media', flash_drive_path):
                     logging.error(f"Unsafe path detected: {flash_drive_path}")
                     return
-                
+
                 if os.path.exists(flash_drive_path):
                     # Look for CSV files
                     try:
@@ -818,24 +1045,26 @@ def setup_automated_imports(flash_drive_path=None, import_interval=3600):
                     except Exception as e:
                         logging.error(f"Error accessing directory {flash_drive_path}: {str(e)}")
                         return
-                    
+
                     # Process files in appropriate order
+                    process_files(flash_drive_path, 'country_', 'countries', csv_files)
+                    process_files(flash_drive_path, 'datatype_', 'weather_data_types', csv_files)
                     process_files(flash_drive_path, 'station_', 'stations', csv_files)
                     process_files(flash_drive_path, 'climate_', 'climate_data', csv_files)
                 else:
                     logging.warning(f"Flash drive path {flash_drive_path} does not exist")
             except Exception as e:
                 logging.error(f"Error in import task: {str(e)}")
-        
+
         def process_files(path, prefix, import_type, all_files):
             """Process specific types of CSV files"""
             # Filter files by prefix
             filtered_files = [f for f in all_files if f.startswith(prefix)]
-            
+
             for file_name in filtered_files:
                 try:
                     file_path = os.path.join(path, file_name)
-                    
+
                     # Try different encodings
                     try:
                         with open(file_path, 'r', encoding='utf-8') as file:
@@ -847,27 +1076,35 @@ def setup_automated_imports(flash_drive_path=None, import_interval=3600):
                         except UnicodeDecodeError:
                             logging.error(f"Cannot decode file {file_name}: Encoding issues")
                             continue
-                    
+
                     # Create a file-like object
                     file_object = io.StringIO(file_content)
                     file_object.name = file_name
-                    
-                    # Process the file
+
+                    # Process the file based on import type
+                    csv_view = CSVUploadView()
                     if import_type == 'stations':
-                        result = CSVUploadView().process_stations_file(file_object)
-                    else:  # climate_data
-                        result = CSVUploadView().process_climate_data_file(file_object)
-                    
+                        result = csv_view.process_stations_file(file_object)
+                    elif import_type == 'climate_data':
+                        result = csv_view.process_climate_data_file(file_object)
+                    elif import_type == 'weather_data_types':
+                        result = csv_view.process_weather_data_types_file(file_object)
+                    elif import_type == 'countries':
+                        result = csv_view.process_countries_file(file_object)
+                    else:
+                        logging.error(f"Unknown import type: {import_type}")
+                        continue
+
                     # Log the result
                     logging.info(f"Imported {file_name}: {result['success']} success, {result['error']} errors")
-                    
+
                     # Move processed file to avoid reimporting
                     processed_path = file_path + '.processed'
                     if result['success'] > 0 and not os.path.exists(processed_path):
                         os.rename(file_path, processed_path)
                 except Exception as e:
                     logging.error(f"Error processing {file_name}: {str(e)}")
-        
+
         # Create and start the scheduler
         scheduler = BackgroundScheduler()
         scheduler.add_job(
@@ -888,8 +1125,8 @@ class WeatherAlertViewSet(viewsets.ModelViewSet):
     queryset = WeatherAlert.objects.all()
     serializer_class = WeatherAlertSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['station', 'severity', 'status']
-    search_fields = ['title', 'description']
+    filterset_fields = ['station', 'severity', 'status', 'country']
+    search_fields = ['title', 'description', 'station__name', 'country__name']
     ordering_fields = ['created_at', 'updated_at']
     
     @action(detail=True, methods=['post'])
