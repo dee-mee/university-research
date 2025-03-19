@@ -1,75 +1,102 @@
 {% extends "base.html" %}
 
-{% block title %}Import Complete{% endblock %}
+{% block title %}Import Results{% endblock %}
 
 {% block content %}
 <div class="container py-5">
-    <div class="card shadow-lg p-4">
-        <h1 class="h3 mb-4">Import Results</h1>
-        
-        {% if results.file_results %}
-        <!-- Multiple file results -->
-        <div class="mb-4">
-            <h2 class="h5">Summary</h2>
-            <p>Successfully imported <strong>{{ results.success_total }}</strong> records.</p>
-            {% if results.error_total > 0 %}
-            <p class="text-danger">Encountered <strong>{{ results.error_total }}</strong> errors.</p>
+    <div class="card shadow-lg">
+        <div class="card-body">
+            <h1 class="card-title text-center mb-4">Import Results</h1>
+
+            {% if messages %}
+            <div class="mb-4">
+                {% for message in messages %}
+                <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            </div>
             {% endif %}
-        </div>
-        
-        <div class="mb-4">
-            <h2 class="h5">File Details</h2>
-            {% for file_result in results.file_results %}
-            <div class="card border-secondary mb-3 p-3">
-                <h3 class="h6 font-weight-bold">{{ file_result.file_name }}</h3>
-                <p>Type: <strong>{{ file_result.type }}</strong></p>
-                <p>Successfully imported: <strong>{{ file_result.success }}</strong> records</p>
-                {% if file_result.error > 0 %}
-                <p class="text-danger">Errors: <strong>{{ file_result.error }}</strong></p>
-                {% if file_result.errors %}
-                <details class="mt-2">
-                    <summary class="text-primary">Show errors</summary>
-                    <ul class="list-group list-group-flush mt-2">
-                        {% for error in file_result.errors %}
-                        <li class="list-group-item text-danger">{{ error }}</li>
+
+            {% if results %}
+            <div class="mb-4">
+                {% if results.file_results %}
+                <!-- Multiple file results (flash drive import) -->
+                <div class="alert alert-{% if results.error_total > 0 %}warning{% else %}success{% endif %}">
+                    <h5 class="alert-heading">Summary:</h5>
+                    <p>
+                        <strong>Successfully imported:</strong> {{ results.success_total }} records<br>
+                        <strong>Errors:</strong> {{ results.error_total }} records
+                    </p>
+                </div>
+
+                <h5 class="mb-3">Detailed Results:</h5>
+                <div class="accordion" id="fileResultsAccordion">
+                    {% for file_result in results.file_results %}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="heading{{ forloop.counter }}">
+                            <button class="accordion-button {% if not file_result.errors %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ forloop.counter }}" aria-expanded="{% if file_result.errors %}true{% else %}false{% endif %}" aria-controls="collapse{{ forloop.counter }}">
+                                <span class="me-2">{{ file_result.file_name }}</span>
+                                <span class="badge {% if file_result.error > 0 %}bg-warning{% else %}bg-success{% endif %} text-dark">
+                                    {{ file_result.success }} successful / {{ file_result.error }} errors
+                                </span>
+                            </button>
+                        </h2>
+                        <div id="collapse{{ forloop.counter }}" class="accordion-collapse collapse {% if file_result.errors %}show{% endif %}" aria-labelledby="heading{{ forloop.counter }}" data-bs-parent="#fileResultsAccordion">
+                            <div class="accordion-body">
+                                <p><strong>Type:</strong> {{ file_result.type|default:"Unknown" }}</p>
+
+                                {% if file_result.errors %}
+                                <div class="alert alert-danger">
+                                    <h6 class="alert-heading">Errors:</h6>
+                                    <ul class="mb-0">
+                                        {% for error in file_result.errors %}
+                                        <li>{{ error }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% else %}
+                <!-- Single file results (CSV upload) -->
+                <div class="alert alert-{% if results.error > 0 %}warning{% else %}success{% endif %}">
+                    <h5 class="alert-heading">Import Results:</h5>
+                    <p>
+                        <strong>Type:</strong> {{ results.type }}<br>
+                        <strong>Successfully imported:</strong> {{ results.success }} records<br>
+                        <strong>Errors:</strong> {{ results.error }} records
+                    </p>
+                </div>
+
+                {% if results.errors %}
+                <div class="alert alert-danger">
+                    <h5 class="alert-heading">Errors:</h5>
+                    <ul class="mb-0">
+                        {% for error in results.errors %}
+                        <li>{{ error }}</li>
                         {% endfor %}
                     </ul>
-                </details>
+                </div>
                 {% endif %}
                 {% endif %}
             </div>
-            {% endfor %}
-        </div>
-        
-        {% else %}
-        <!-- Single file result -->
-        <div class="mb-4">
-            <h2 class="h5">{{ results.type }} Import</h2>
-            <p>Successfully imported <strong>{{ results.success }}</strong> records.</p>
-            {% if results.error > 0 %}
-            <p class="text-danger">Encountered <strong>{{ results.error }}</strong> errors.</p>
+            {% else %}
+            <div class="alert alert-info">
+                <h5 class="alert-heading">No Results Found</h5>
+                <p class="mb-0">No import results are available. Please try importing again.</p>
+            </div>
             {% endif %}
-        </div>
-        
-        {% if results.errors %}
-        <div class="mb-4">
-            <h3 class="h6">Errors:</h3>
-            <ul class="list-group">
-                {% for error in results.errors %}
-                <li class="list-group-item text-danger">{{ error }}</li>
-                {% endfor %}
-            </ul>
-        </div>
-        {% endif %}
-        {% endif %}
-        
-        <div class="d-flex mt-4">
-            <a href="{% url 'maps:csv_upload' %}" class="btn btn-primary me-2">
-                Import More Data
-            </a>
-            <a href="{% url 'maps:map' %}" class="btn btn-secondary">
-                View Map
-            </a>
+
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'maps:csv_upload' %}" class="btn btn-primary">Import More Data</a>
+                <a href="{% url 'maps:map' %}" class="btn btn-outline-secondary">View Map</a>
+            </div>
         </div>
     </div>
 </div>
