@@ -358,6 +358,17 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   }
+  
+  // Add station selection dropdown event listener
+  const stationSelect = document.getElementById('stationSelect');
+  if (stationSelect) {
+    stationSelect.addEventListener('change', function() {
+      // Call the map's zoomToStation method with the selected value
+      if (map.zoomToStation) {
+        map.zoomToStation(this.value);
+      }
+    });
+  }
 });
 </script>
 </body>

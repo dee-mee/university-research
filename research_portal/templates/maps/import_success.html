@@ -1,75 +1,51 @@
 {% extends "base.html" %}
+{% load static %}
 
-{% block title %}Import Complete{% endblock %}
+{% block title %}Import Results{% endblock %}
 
 {% block content %}
-<div class="container py-5">
-    <div class="card shadow-lg p-4">
-        <h1 class="h3 mb-4">Import Results</h1>
-        
-        {% if results.file_results %}
-        <!-- Multiple file results -->
-        <div class="mb-4">
-            <h2 class="h5">Summary</h2>
-            <p>Successfully imported <strong>{{ results.success_total }}</strong> records.</p>
-            {% if results.error_total > 0 %}
-            <p class="text-danger">Encountered <strong>{{ results.error_total }}</strong> errors.</p>
+<div class="container py-4">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <h2 class="card-title mb-0">
+                <i class="fas fa-check-circle me-2"></i>Import Results
+            </h2>
+        </div>
+        <div class="card-body">
+            {% if results %}
+                <div class="alert alert-info">
+                    <h4 class="alert-heading">Import Summary</h4>
+                    <p>Type: {{ results.type }}</p>
+                    <p>Successfully processed: {{ results.success }}</p>
+                    <p>Errors encountered: {{ results.error }}</p>
+                </div>
+
+                {% if results.errors %}
+                    <div class="alert alert-warning">
+                        <h4 class="alert-heading">Warnings/Errors</h4>
+                        <ul class="list-unstyled mb-0">
+                            {% for error in results.errors %}
+                                <li><i class="fas fa-exclamation-triangle me-2"></i>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+            {% else %}
+                <div class="alert alert-warning">
+                    <h4 class="alert-heading">No Results Found</h4>
+                    <p>No import results were found in the session.</p>
+                </div>
             {% endif %}
         </div>
-        
-        <div class="mb-4">
-            <h2 class="h5">File Details</h2>
-            {% for file_result in results.file_results %}
-            <div class="card border-secondary mb-3 p-3">
-                <h3 class="h6 font-weight-bold">{{ file_result.file_name }}</h3>
-                <p>Type: <strong>{{ file_result.type }}</strong></p>
-                <p>Successfully imported: <strong>{{ file_result.success }}</strong> records</p>
-                {% if file_result.error > 0 %}
-                <p class="text-danger">Errors: <strong>{{ file_result.error }}</strong></p>
-                {% if file_result.errors %}
-                <details class="mt-2">
-                    <summary class="text-primary">Show errors</summary>
-                    <ul class="list-group list-group-flush mt-2">
-                        {% for error in file_result.errors %}
-                        <li class="list-group-item text-danger">{{ error }}</li>
-                        {% endfor %}
-                    </ul>
-                </details>
-                {% endif %}
-                {% endif %}
+        <div class="card-footer">
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'maps:csv_upload' %}" class="btn btn-primary">
+                    <i class="fas fa-upload me-2"></i>Import Another File
+                </a>
+                <a href="{% url 'maps:map' %}" class="btn btn-secondary">
+                    <i class="fas fa-map me-2"></i>Return to Map
+                </a>
             </div>
-            {% endfor %}
-        </div>
-        
-        {% else %}
-        <!-- Single file result -->
-        <div class="mb-4">
-            <h2 class="h5">{{ results.type }} Import</h2>
-            <p>Successfully imported <strong>{{ results.success }}</strong> records.</p>
-            {% if results.error > 0 %}
-            <p class="text-danger">Encountered <strong>{{ results.error }}</strong> errors.</p>
-            {% endif %}
-        </div>
-        
-        {% if results.errors %}
-        <div class="mb-4">
-            <h3 class="h6">Errors:</h3>
-            <ul class="list-group">
-                {% for error in results.errors %}
-                <li class="list-group-item text-danger">{{ error }}</li>
-                {% endfor %}
-            </ul>
-        </div>
-        {% endif %}
-        {% endif %}
-        
-        <div class="d-flex mt-4">
-            <a href="{% url 'maps:csv_upload' %}" class="btn btn-primary me-2">
-                Import More Data
-            </a>
-            <a href="{% url 'maps:map' %}" class="btn btn-secondary">
-                View Map
-            </a>
         </div>
     </div>
 </div>
