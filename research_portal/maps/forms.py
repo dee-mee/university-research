@@ -101,69 +101,49 @@ class BaseImportForm(forms.Form):
 
 class CSVUploadForm(BaseImportForm):
     """Form for uploading CSV files"""
+    IMPORT_CHOICES = [
+        ('stations', _('Weather Stations')),
+        ('climate_data', _('Climate Data')),
+        ('weather_data_types', _('Weather Data Types')),
+        ('countries', _('Countries')),
+    ]
+    
+    import_type = forms.ChoiceField(
+        choices=IMPORT_CHOICES,
+        label=_("Import Type"),
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        initial='stations',
+        help_text=_("Select the type of data you want to import.")
+    )
+    
     csv_file = forms.FileField(
         label=_("CSV File"),
+        widget=forms.FileInput(attrs={'class': 'form-control', 'accept': '.csv,.txt'}),
         help_text=_("Select a CSV file to upload. Required file format depends on the import type."),
         validators=[FileExtensionValidator(allowed_extensions=['csv', 'txt'])]
     )
 
-    date_format = forms.ChoiceField(
-        choices=[
-            ('YYYY-MM-DD', _('YYYY-MM-DD (2025-03-19)')),
-            ('MM/DD/YYYY', _('MM/DD/YYYY (03/19/2025)')),
-            ('DD/MM/YYYY', _('DD/MM/YYYY (19/03/2025)')),
-            ('YYYY/MM/DD', _('YYYY/MM/DD (2025/03/19)')),
-        ],
-        initial='YYYY-MM-DD',
-        label=_("Date Format"),
-        help_text=_("Select the date format used in your CSV file.")
-    )
-
-    encoding = forms.ChoiceField(
-        choices=[
-            ('utf-8', _('UTF-8')),
-            ('iso-8859-1', _('ISO-8859-1')),
-            ('windows-1252', _('Windows-1252')),
-            ('utf-16', _('UTF-16')),
-        ],
-        initial='utf-8',
-        label=_("File Encoding"),
-        help_text=_("Select the character encoding of your CSV file.")
-    )
-
-    delimiter = forms.ChoiceField(
-        choices=[
-            (',', _('Comma (,)')),
-            (';', _('Semicolon (;)')),
-            ('\t', _('Tab')),
-            ('|', _('Pipe (|)')),
-        ],
-        initial=',',
-        label=_("Delimiter"),
-        help_text=_("Select the delimiter used in your CSV file.")
-    )
-
-    def clean_csv_file(self):
-        csv_file = self.cleaned_data.get('csv_file')
+    def clean(self):
+        cleaned_data = super().clean()
+        
+        # Get import_type and csv_file
+        import_type = cleaned_data.get('import_type')
+        csv_file = cleaned_data.get('csv_file')
+        
+        # Validate file is present
         if not csv_file:
-            return None
-
+            self.add_error('csv_file', _("Please select a file to upload."))
+            return cleaned_data
+            
         # Check file extension
         if not csv_file.name.lower().endswith(('.csv', '.txt')):
-            raise forms.ValidationError(_("The file must be a CSV or TXT file."))
-
+            self.add_error('csv_file', _("The file must be a CSV or TXT file."))
+            
         # Check file size (max 50MB)
         if csv_file.size > 50 * 1024 * 1024:  # 50MB in bytes
-            raise forms.ValidationError(_("The file size must be under 50MB."))
-
-        # Preview and validate data
-        try:
-            preview_data = self.preview_data(csv_file)
-            return csv_file
-        except forms.ValidationError as e:
-            raise e
-        except Exception as e:
-            raise forms.ValidationError(f"Error validating CSV: {str(e)}")
+            self.add_error('csv_file', _("The file size must be under 50MB."))
+            
+        return cleaned_data
 
 
 class ExcelUploadForm(BaseImportForm):
