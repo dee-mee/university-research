@@ -4,6 +4,8 @@ from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.contrib.postgres.fields import ArrayField
+import json
+from datetime import datetime
 
 
 class Country(models.Model):
@@ -44,6 +46,13 @@ class WeatherStation(models.Model):
     has_air_quality = models.BooleanField(default=False)
     has_soil_moisture = models.BooleanField(default=False)
     has_water_level = models.BooleanField(default=False)
+    
+    # Data stacking fields
+    data_stack = models.TextField(blank=True, null=True, help_text="JSON serialized stack of pending data readings")
+    last_data_feed = models.DateTimeField(null=True, blank=True, help_text="Timestamp of last data feed")
+    max_stack_size = models.PositiveIntegerField(default=1000, help_text="Maximum number of items in the data stack")
+    auto_process = models.BooleanField(default=False, help_text="Whether to automatically process data when stack reaches threshold")
+    process_threshold = models.PositiveIntegerField(default=100, help_text="Threshold for auto-processing stack data")
     
     class Meta:
         verbose_name = _("Weather Station")
@@ -102,6 +111,140 @@ class WeatherStation(models.Model):
         if self.has_water_level:
             data_types.append('water_level')
         return data_types
+
+    def push_data(self, data_dict):
+        """
+        Push a data reading onto the stack for later processing
+        
+        Args:
+            data_dict (dict): Dictionary containing the weather measurement data
+        
+        Returns:
+            bool: True if successfully added, False if stack is full
+        """
+        stack_data = []
+        if self.data_stack:
+            try:
+                stack_data = json.loads(self.data_stack)
+            except json.JSONDecodeError:
+                stack_data = []
+        
+        # Check if stack is full
+        if len(stack_data) >= self.max_stack_size:
+            return False
+            
+        # Add timestamp if not provided
+        if 'timestamp' not in data_dict:
+            data_dict['timestamp'] = datetime.now().isoformat()
+        
+        # Push data to stack
+        stack_data.append(data_dict)
+        self.data_stack = json.dumps(stack_data)
+        self.last_data_feed = datetime.now()
+        self.save(update_fields=['data_stack', 'last_data_feed'])
+        
+        # Auto process if enabled and threshold reached
+        if self.auto_process and len(stack_data) >= self.process_threshold:
+            self.process_data_stack()
+        
+        return True
+    
+    def pop_data(self):
+        """
+        Pop the most recent data reading from the stack
+        
+        Returns:
+            dict: The data reading, or None if stack is empty
+        """
+        if not self.data_stack:
+            return None
+            
+        try:
+            stack_data = json.loads(self.data_stack)
+            if not stack_data:
+                return None
+                
+            data = stack_data.pop()
+            self.data_stack = json.dumps(stack_data)
+            self.save(update_fields=['data_stack'])
+            return data
+        except json.JSONDecodeError:
+            return None
+    
+    def peek_data(self):
+        """
+        Look at the most recent data reading without removing it
+        
+        Returns:
+            dict: The data reading, or None if stack is empty
+        """
+        if not self.data_stack:
+            return None
+            
+        try:
+            stack_data = json.loads(self.data_stack)
+            if not stack_data:
+                return None
+                
+            return stack_data[-1]
+        except json.JSONDecodeError:
+            return None
+    
+    def stack_size(self):
+        """
+        Get the current size of the data stack
+        
+        Returns:
+            int: Number of items in the stack
+        """
+        if not self.data_stack:
+            return 0
+            
+        try:
+            stack_data = json.loads(self.data_stack)
+            return len(stack_data)
+        except json.JSONDecodeError:
+            return 0
+    
+    def process_data_stack(self):
+        """
+        Process all data in the stack and create ClimateData records
+        
+        Returns:
+            int: Number of records processed
+        """
+        from .models import ClimateData
+        
+        if not self.data_stack:
+            return 0
+            
+        try:
+            stack_data = json.loads(self.data_stack)
+            if not stack_data:
+                return 0
+            
+            count = 0
+            for data_reading in stack_data:
+                # Convert timestamp string to datetime
+                timestamp = datetime.fromisoformat(data_reading.pop('timestamp')) if isinstance(data_reading.get('timestamp'), str) else data_reading.pop('timestamp', datetime.now())
+                
+                # Create climate data record
+                climate_data = ClimateData(
+                    station=self,
+                    timestamp=timestamp,
+                    **{k: v for k, v in data_reading.items() if hasattr(ClimateData, k)}
+                )
+                climate_data.save()
+                count += 1
+                
+            # Clear the stack after processing
+            self.data_stack = json.dumps([])
+            self.save(update_fields=['data_stack'])
+            return count
+        except Exception as e:
+            # Log error
+            print(f"Error processing data stack: {e}")
+            return 0
 
 
 class WeatherDataType(models.Model):

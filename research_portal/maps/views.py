@@ -4,10 +4,12 @@ import json
 import pytz
 import logging
 import io
+import pandas as pd
+import xlsxwriter
 from datetime import datetime, timedelta
 from pathlib import Path
 from dateutil import parser
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, JsonResponse
 from django.contrib import messages
 from django.utils import timezone
@@ -16,10 +18,13 @@ from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.generic import FormView, TemplateView
-from django.db.models import Avg, Max, Min, Sum
+from django.db.models import Avg, Max, Min, Sum, OuterRef, Subquery
 from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
 from django.contrib.gis.db.models.functions import Distance
+from django.db import models
+import operator
+from functools import reduce
 from .utils import check_for_alerts, create_alert_from_detection, send_alert_notifications
 from rest_framework import viewsets, filters
 from rest_framework.decorators import action, api_view, permission_classes
@@ -33,7 +38,9 @@ from .serializers import (
     WeatherAlertSerializer,
     WeatherStationSerializer,
     ClimateDataSerializer,
-    GeoJSONClimateDataSerializer
+    GeoJSONClimateDataSerializer,
+    StackedDataSerializer,
+    StackInfoSerializer
 )
 from .permissions import IsAdminOrReadOnly
 from django.urls import reverse_lazy, reverse
@@ -104,12 +111,34 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
     
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
-        serializer = self.get_serializer(queryset, many=True)
         
-        return Response({
+        # Manually create the GeoJSON feature collection
+        features = []
+        for station in queryset:
+            feature = {
+                'type': 'Feature',
+                'geometry': {
+                    'type': 'Point',
+                    'coordinates': [station.longitude, station.latitude]
+                },
+                'properties': {
+                    'id': station.id,
+                    'name': station.name,
+                    'description': station.description,
+                    'is_active': station.is_active,
+                    'altitude': station.altitude,
+                    'date_installed': station.date_installed.isoformat() if station.date_installed else None,
+                    'country': station.country.name if station.country else None
+                }
+            }
+            features.append(feature)
+        
+        feature_collection = {
             'type': 'FeatureCollection',
-            'features': [station.to_representation() for station in queryset]
-        })
+            'features': features
+        }
+        
+        return Response(feature_collection)
     
     @action(detail=False, methods=['get'])
     def nearby(self, request):
@@ -267,98 +296,58 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
             'stats': stats
         })
     
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+    @action(detail=True, methods=['post'])
+    def push_data(self, request, pk=None):
+        """Push weather data onto the station's stack"""
+        station = self.get_object()
+        serializer = StackedDataSerializer(data=request.data)
         
-        # Manually create the GeoJSON feature collection
-        features = []
-        for station in queryset:
-            feature = {
-                'type': 'Feature',
-                'geometry': {
-                    'type': 'Point',
-                    'coordinates': [station.longitude, station.latitude]
-                },
-                'properties': {
-                    'id': station.id,
-                    'name': station.name,
-                    'description': station.description,
-                    'is_active': station.is_active,
-                    'altitude': station.altitude,
-                    'date_installed': station.date_installed.isoformat() if station.date_installed else None,
-                    'country': station.country.name if station.country else None
-                }
-            }
-            features.append(feature)
+        if serializer.is_valid():
+            success = station.push_data(serializer.validated_data)
+            if success:
+                return Response({
+                    'success': True, 
+                    'stack_size': station.stack_size(),
+                    'message': 'Data added to stack successfully'
+                })
+            else:
+                return Response({
+                    'success': False,
+                    'message': 'Stack is full'
+                }, status=400)
+        else:
+            return Response(serializer.errors, status=400)
+    
+    @action(detail=True, methods=['post'])
+    def process_stack(self, request, pk=None):
+        """Process all data in the station's stack"""
+        station = self.get_object()
+        records_processed = station.process_data_stack()
         
-        feature_collection = {
-            'type': 'FeatureCollection',
-            'features': features
+        return Response({
+            'success': True,
+            'records_processed': records_processed,
+            'message': f'Successfully processed {records_processed} records'
+        })
+    
+    @action(detail=True, methods=['get'])
+    def stack_info(self, request, pk=None):
+        """Get information about the station's data stack"""
+        station = self.get_object()
+        latest_data = station.peek_data()
+        
+        data = {
+            'station_id': station.id,
+            'station_name': station.name,
+            'stack_size': station.stack_size(),
+            'max_stack_size': station.max_stack_size,
+            'last_data_feed': station.last_data_feed,
+            'auto_process': station.auto_process,
+            'process_threshold': station.process_threshold,
+            'latest_data': latest_data
         }
         
-        return Response(feature_collection)
-
-
-
-class ClimateDataViewSet(viewsets.ModelViewSet):
-    queryset = ClimateData.objects.all().select_related('station')
-    serializer_class = ClimateDataSerializer
-    permission_classes = [IsAdminOrReadOnly]
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields = ['station', 'data_quality', 'year', 'month']
-    ordering_fields = ['timestamp', 'temperature', 'precipitation']
-    
-    def get_serializer_class(self):
-        if self.request.query_params.get('format') == 'geojson':
-            return GeoJSONClimateDataSerializer
-        return ClimateDataSerializer
-    
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-        page = self.paginate_queryset(queryset)
-        
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        
-        serializer = self.get_serializer(queryset, many=True)
-        
-        # If GeoJSON format is requested, wrap in a FeatureCollection
-        if request.query_params.get('format') == 'geojson':
-            return Response({
-                'type': 'FeatureCollection',
-                'features': serializer.data
-            })
-        
-        return Response(serializer.data)
-    
-    @action(detail=False, methods=['get'])
-    def recent(self, request):
-        """Get the most recent climate data for all stations"""
-        hours = int(request.query_params.get('hours', 24))
-        data_types = request.query_params.getlist('data_types', [])
-        since = timezone.now() - timedelta(hours=hours)
-        
-        # Get latest reading for each station
-        subquery = ClimateData.objects.filter(
-            station=OuterRef('station'),
-            timestamp__gte=since
-        ).order_by('-timestamp').values('id')[:1]
-        
-        query = ClimateData.objects.filter(
-            id__in=Subquery(subquery)
-        ).select_related('station')
-        
-        # Filter by data types if specified
-        if data_types:
-            conditions = []
-            for data_type in data_types:
-                if hasattr(ClimateData, data_type):
-                    conditions.append(~models.Q(**{data_type: None}))
-            if conditions:
-                query = query.filter(reduce(operator.or_, conditions))
-        
-        serializer = self.get_serializer(query, many=True)
+        serializer = StackInfoSerializer(data)
         return Response(serializer.data)
 
     def perform_create(self, serializer):
@@ -1235,3 +1224,526 @@ def setup_automated_imports(flash_drive_path=None, import_interval=3600):
         logging.warning("APScheduler not installed. Automated imports will not run.")
     except Exception as e:
         logging.error(f"Error setting up automated imports: {str(e)}")
+
+
+def station_statistics_view(request, station_id):
+    """View for displaying station statistics in a template"""
+    try:
+        station = WeatherStation.objects.get(pk=station_id)
+    except WeatherStation.DoesNotExist:
+        messages.error(request, f"Weather station with ID {station_id} does not exist.")
+        return redirect('maps:map')
+    
+    # Calculate days for different time periods
+    days_30 = timezone.now() - timedelta(days=30)
+    days_90 = timezone.now() - timedelta(days=90)
+    days_365 = timezone.now() - timedelta(days=365)
+    
+    # Get statistics for different time periods
+    stats_30 = ClimateData.objects.filter(
+        station=station,
+        timestamp__gte=days_30
+    ).aggregate(
+        avg_temp=Avg('temperature'),
+        max_temp=Max('temperature'),
+        min_temp=Min('temperature'),
+        avg_humidity=Avg('humidity'),
+        total_precipitation=Sum('precipitation', default=0),
+        avg_wind_speed=Avg('wind_speed'),
+        max_wind_speed=Max('wind_speed'),
+        avg_pressure=Avg('barometric_pressure'),
+        max_uv=Max('uv_index')
+    )
+    
+    stats_90 = ClimateData.objects.filter(
+        station=station,
+        timestamp__gte=days_90
+    ).aggregate(
+        avg_temp=Avg('temperature'),
+        max_temp=Max('temperature'),
+        min_temp=Min('temperature'),
+        avg_humidity=Avg('humidity'),
+        total_precipitation=Sum('precipitation', default=0)
+    )
+    
+    stats_365 = ClimateData.objects.filter(
+        station=station,
+        timestamp__gte=days_365
+    ).aggregate(
+        avg_temp=Avg('temperature'),
+        total_precipitation=Sum('precipitation', default=0)
+    )
+    
+    # Get recent climate data points for this station
+    recent_data = ClimateData.objects.filter(
+        station=station
+    ).order_by('-timestamp')[:100]
+    
+    context = {
+        'station': station,
+        'stats_30': stats_30,
+        'stats_90': stats_90,
+        'stats_365': stats_365,
+        'recent_data': recent_data,
+        'current_year': timezone.now().year,
+    }
+    
+    return render(request, 'maps/station_statistics.html', context)
+
+def station_data_export_view(request, station_id):
+    """View for station data export options"""
+    try:
+        station = WeatherStation.objects.get(pk=station_id)
+    except WeatherStation.DoesNotExist:
+        messages.error(request, f"Weather station with ID {station_id} does not exist.")
+        return redirect('maps:map')
+    
+    # Calculate data availability
+    earliest_record = ClimateData.objects.filter(station=station).order_by('timestamp').first()
+    latest_record = ClimateData.objects.filter(station=station).order_by('-timestamp').first()
+    record_count = ClimateData.objects.filter(station=station).count()
+    
+    # Get data types that are actually available for this station
+    data_types = []
+    data_type_fields = [
+        'temperature', 'humidity', 'precipitation', 'wind_speed', 
+        'wind_direction', 'barometric_pressure', 'air_quality_index',
+        'cloud_cover', 'soil_moisture', 'water_level', 'uv_index'
+    ]
+    
+    for field in data_type_fields:
+        # Check if field exists in data and is not all null
+        if ClimateData.objects.filter(station=station).exclude(**{field: None}).exists():
+            # Get the display name if available, otherwise use the field name
+            try:
+                data_type = WeatherDataType.objects.get(name=field)
+                display_name = data_type.display_name
+                unit = data_type.unit
+            except WeatherDataType.DoesNotExist:
+                display_name = field.replace('_', ' ').title()
+                unit = ''
+                
+            data_types.append({
+                'field': field,
+                'display_name': display_name,
+                'unit': unit
+            })
+    
+    context = {
+        'station': station,
+        'earliest_record': earliest_record,
+        'latest_record': latest_record,
+        'record_count': record_count,
+        'data_types': data_types,
+    }
+    
+    return render(request, 'maps/station_data_export.html', context)
+
+def download_station_data(request, station_id):
+    """Download station data in the specified format"""
+    try:
+        station = WeatherStation.objects.get(pk=station_id)
+    except WeatherStation.DoesNotExist:
+        messages.error(request, f"Weather station with ID {station_id} does not exist.")
+        return redirect('maps:map')
+    
+    # Get parameters from query
+    format_type = request.GET.get('format', 'csv').lower()
+    date_from_str = request.GET.get('date_from')
+    date_to_str = request.GET.get('date_to')
+    selected_fields = request.GET.getlist('fields')
+    
+    # Default fields if none selected
+    if not selected_fields:
+        selected_fields = ['timestamp', 'temperature', 'humidity', 'precipitation']
+    
+    # Always include timestamp
+    if 'timestamp' not in selected_fields:
+        selected_fields = ['timestamp'] + selected_fields
+    
+    # Parse dates if provided
+    filters = {'station': station}
+    
+    # Default date range - last 30 days if not specified
+    end_date = timezone.now()
+    start_date = end_date - timedelta(days=30)
+    
+    if date_from_str:
+        try:
+            start_date = parser.parse(date_from_str)
+            if timezone.is_naive(start_date):
+                start_date = timezone.make_aware(start_date)
+            filters['timestamp__gte'] = start_date
+        except ValueError:
+            messages.warning(request, f"Invalid from date format: {date_from_str}. Using default.")
+    
+    if date_to_str:
+        try:
+            end_date = parser.parse(date_to_str)
+            if timezone.is_naive(end_date):
+                end_date = timezone.make_aware(end_date)
+            filters['timestamp__lte'] = end_date
+        except ValueError:
+            messages.warning(request, f"Invalid to date format: {date_to_str}. Using default.")
+    
+    # Always add date filters even if not provided in request
+    filters['timestamp__gte'] = filters.get('timestamp__gte', start_date)
+    filters['timestamp__lte'] = filters.get('timestamp__lte', end_date)
+    
+    # Query the data
+    data = ClimateData.objects.filter(**filters).order_by('-timestamp')
+    
+    # Create filename with date info
+    date_str = timezone.now().strftime("%Y%m%d")
+    filename = f"{station.name.replace(' ', '_')}_{date_str}"
+    
+    # Record the export if user is authenticated
+    if request.user.is_authenticated:
+        # Create the DataExport object with proper date_from and date_to values
+        data_export = DataExport.objects.create(
+            user=request.user,
+            export_format=format_type,
+            date_from=filters['timestamp__gte'],
+            date_to=filters['timestamp__lte'],
+            status='completed'
+        )
+        # Now add the station to the many-to-many relationship
+        data_export.stations.add(station)
+    
+    if format_type == 'csv':
+        # Create CSV response
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
+        
+        writer = csv.writer(response)
+        
+        # Write headers
+        headers = ['Station Name', 'Station ID'] + [field for field in selected_fields]
+        writer.writerow(headers)
+        
+        # Write data rows
+        for record in data:
+            row = [
+                station.name,
+                station.station_id or station.id,
+            ]
+            
+            for field in selected_fields:
+                if field == 'timestamp':
+                    value = record.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+                else:
+                    value = getattr(record, field, '')
+                row.append(value)
+                
+            writer.writerow(row)
+            
+        return response
+        
+    elif format_type == 'excel':
+        # Create Excel file in memory
+        output = io.BytesIO()
+        workbook = xlsxwriter.Workbook(output)
+        worksheet = workbook.add_worksheet('Station Data')
+        
+        # Add bold format for headers
+        bold = workbook.add_format({'bold': True})
+        
+        # Write headers
+        headers = ['Station Name', 'Station ID'] + [field for field in selected_fields]
+        for col, header in enumerate(headers):
+            worksheet.write(0, col, header, bold)
+        
+        # Write data rows
+        for row_idx, record in enumerate(data, start=1):
+            worksheet.write(row_idx, 0, station.name)
+            worksheet.write(row_idx, 1, station.station_id or str(station.id))
+            
+            for col_idx, field in enumerate(selected_fields, start=2):
+                if field == 'timestamp':
+                    value = record.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+                else:
+                    value = getattr(record, field, '')
+                worksheet.write(row_idx, col_idx, value)
+        
+        workbook.close()
+        
+        # Prepare the response
+        output.seek(0)
+        response = HttpResponse(
+            output.read(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{filename}.xlsx"'
+        return response
+        
+    elif format_type == 'json':
+        # Create list of dictionaries
+        result = []
+        for record in data:
+            item = {
+                'station_name': station.name,
+                'station_id': station.station_id or station.id
+            }
+            
+            for field in selected_fields:
+                if field == 'timestamp':
+                    item[field] = record.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+                else:
+                    item[field] = getattr(record, field, None)
+                    
+            result.append(item)
+            
+        # Create JSON response
+        response = HttpResponse(json.dumps(result, default=str), content_type='application/json')
+        response['Content-Disposition'] = f'attachment; filename="{filename}.json"'
+        return response
+    
+    else:
+        messages.error(request, f"Unsupported format: {format_type}")
+        return redirect('maps:station_data_export', station_id=station_id)
+
+class ClimateDataViewSet(viewsets.ModelViewSet):
+    queryset = ClimateData.objects.all().select_related('station')
+    serializer_class = ClimateDataSerializer
+    permission_classes = [IsAdminOrReadOnly]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['station', 'data_quality', 'year', 'month']
+    ordering_fields = ['timestamp', 'temperature', 'precipitation']
+    
+    def get_serializer_class(self):
+        if self.request.query_params.get('format') == 'geojson':
+            return GeoJSONClimateDataSerializer
+        return ClimateDataSerializer
+    
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(queryset, many=True)
+        
+        # If GeoJSON format is requested, wrap in a FeatureCollection
+        if request.query_params.get('format') == 'geojson':
+            return Response({
+                'type': 'FeatureCollection',
+                'features': serializer.data
+            })
+        
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def recent(self, request):
+        """Get the most recent climate data for all stations"""
+        hours = int(request.query_params.get('hours', 24))
+        data_types = request.query_params.getlist('data_types', [])
+        since = timezone.now() - timedelta(hours=hours)
+        
+        # Get latest reading for each station
+        subquery = ClimateData.objects.filter(
+            station=OuterRef('station'),
+            timestamp__gte=since
+        ).order_by('-timestamp').values('id')[:1]
+        
+        query = ClimateData.objects.filter(
+            id__in=Subquery(subquery)
+        ).select_related('station')
+        
+        # Filter by data types if specified
+        if data_types:
+            conditions = []
+            for data_type in data_types:
+                if hasattr(ClimateData, data_type):
+                    conditions.append(~models.Q(**{data_type: None}))
+            if conditions:
+                query = query.filter(reduce(operator.or_, conditions))
+        
+        serializer = self.get_serializer(query, many=True)
+        return Response(serializer.data)
+
+    def perform_create(self, serializer):
+        """Override create to check for alerts when new data is added"""
+        climate_data = serializer.save()
+        
+        # Check for potential alerts
+        alerts = check_for_alerts(climate_data)
+        
+        # Create alerts and send notifications
+        for alert_data in alerts:
+            alert = create_alert_from_detection(climate_data.station, alert_data)
+            send_alert_notifications(alert)
+        
+        return climate_data
+
+@api_view(['POST'])
+def push_station_data(request, station_id):
+    """API endpoint for pushing data to a station's stack"""
+    try:
+        station = get_object_or_404(WeatherStation, pk=station_id)
+        serializer = StackedDataSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            success = station.push_data(serializer.validated_data)
+            if success:
+                return Response({
+                    'success': True, 
+                    'stack_size': station.stack_size(),
+                    'message': 'Data added to stack successfully'
+                })
+            else:
+                return Response({
+                    'success': False,
+                    'message': 'Stack is full'
+                }, status=400)
+        else:
+            return Response(serializer.errors, status=400)
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+
+@api_view(['POST'])
+def process_station_stack(request, station_id):
+    """API endpoint for processing a station's data stack"""
+    try:
+        station = get_object_or_404(WeatherStation, pk=station_id)
+        records_processed = station.process_data_stack()
+        
+        return Response({
+            'success': True,
+            'records_processed': records_processed,
+            'message': f'Successfully processed {records_processed} records'
+        })
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+
+@api_view(['GET'])
+def get_stack_info(request, station_id):
+    """API endpoint for getting information about a station's data stack"""
+    try:
+        station = get_object_or_404(WeatherStation, pk=station_id)
+        latest_data = station.peek_data()
+        
+        data = {
+            'station_id': station.id,
+            'station_name': station.name,
+            'stack_size': station.stack_size(),
+            'max_stack_size': station.max_stack_size,
+            'last_data_feed': station.last_data_feed,
+            'auto_process': station.auto_process,
+            'process_threshold': station.process_threshold,
+            'latest_data': latest_data
+        }
+        
+        serializer = StackInfoSerializer(data)
+        return Response(serializer.data)
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+
+@api_view(['POST'])
+def clear_station_stack(request, station_id):
+    """API endpoint for clearing a station's data stack"""
+    try:
+        station = get_object_or_404(WeatherStation, pk=station_id)
+        import json
+        
+        # Get current stack size for reporting
+        stack_size = station.stack_size()
+        
+        # Clear the stack
+        station.data_stack = json.dumps([])
+        station.save(update_fields=['data_stack'])
+        
+        return Response({
+            'success': True,
+            'cleared_items': stack_size,
+            'message': f'Successfully cleared {stack_size} items from the stack'
+        })
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+
+def station_data_stack_view(request, station_id):
+    """View for managing a station's data stack in a template"""
+    try:
+        station = get_object_or_404(WeatherStation, pk=station_id)
+        
+        # Handle stack configuration updates if form submitted
+        if request.method == 'POST':
+            from .forms import DataStackSettingsForm
+            form = DataStackSettingsForm(request.POST, instance=station)
+            if form.is_valid():
+                form.save()
+                messages.success(request, "Data stack settings updated successfully")
+            else:
+                for field, errors in form.errors.items():
+                    for error in errors:
+                        messages.error(request, f"{field}: {error}")
+        else:
+            from .forms import DataStackSettingsForm
+            form = DataStackSettingsForm(instance=station)
+        
+        # Get stack data for display
+        try:
+            import json
+            stack_data = json.loads(station.data_stack) if station.data_stack else []
+            # Limit to last 50 items to prevent overwhelming the page
+            stack_preview = stack_data[-50:] if len(stack_data) > 50 else stack_data
+        except:
+            stack_preview = []
+        
+        context = {
+            'station': station,
+            'stack_size': station.stack_size(),
+            'max_stack_size': station.max_stack_size,
+            'form': form,
+            'stack_preview': stack_preview,
+            'has_data': len(stack_preview) > 0,
+            'last_data_feed': station.last_data_feed,
+        }
+        
+        return render(request, 'maps/station_data_stack.html', context)
+        
+    except WeatherStation.DoesNotExist:
+        messages.error(request, f"Weather station with ID {station_id} does not exist.")
+        return redirect('maps:map')
+
+@api_view(['GET'])
+def climate_data_recent(request):
+    """Get recent climate data for all stations"""
+    hours = int(request.query_params.get('hours', 24))
+    since = timezone.now() - timedelta(hours=hours)
+    
+    # Get latest reading for each station
+    climate_data = []
+    stations = WeatherStation.objects.filter(is_active=True)
+    
+    for station in stations:
+        latest = ClimateData.objects.filter(
+            station=station,
+            timestamp__gte=since
+        ).order_by('-timestamp').first()
+        
+        if latest:
+            climate_data.append(latest)
+    
+    serializer = ClimateDataSerializer(climate_data, many=True)
+    return Response(serializer.data)
+
+@api_view(['GET'])
+def station_climate_data(request, station_id):
+    """Get climate data for a specific station - fallback endpoint for the map JS"""
+    try:
+        station = get_object_or_404(WeatherStation, pk=station_id)
+        days = int(request.query_params.get('days', 7))
+        start_date = timezone.now() - timedelta(days=days)
+        
+        data = ClimateData.objects.filter(
+            station=station,
+            timestamp__gte=start_date
+        ).order_by('-timestamp')
+        
+        serializer = ClimateDataSerializer(data, many=True)
+        return Response(serializer.data)
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+

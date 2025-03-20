@@ -22,10 +22,11 @@ class WeatherDataTypeAdmin(admin.ModelAdmin):
 
 @admin.register(WeatherStation)
 class WeatherStationAdmin(GISModelAdmin):
-    list_display = ('name', 'station_id', 'country', 'is_active', 'date_installed', 'data_types_available')
-    list_filter = ('is_active', 'country', 'has_temperature', 'has_precipitation', 'has_humidity', 'has_wind', 'has_air_quality')
+    list_display = ('name', 'station_id', 'country', 'is_active', 'date_installed', 'data_types_available', 'stack_info')
+    list_filter = ('is_active', 'country', 'has_temperature', 'has_precipitation', 'has_humidity', 'has_wind', 'has_air_quality', 'auto_process')
     search_fields = ('name', 'station_id', 'description', 'country__name')
-    readonly_fields = ('created_at', 'updated_at', 'map_preview')
+    readonly_fields = ('created_at', 'updated_at', 'map_preview', 'stack_size', 'last_data_feed', 'stack_preview')
+    actions = ['process_data_stacks', 'clear_data_stacks']
     
     fieldsets = (
         (None, {
@@ -40,6 +41,11 @@ class WeatherStationAdmin(GISModelAdmin):
         ('Available Data Types', {
             'fields': ('has_temperature', 'has_precipitation', 'has_humidity', 'has_wind', 
                       'has_air_quality', 'has_soil_moisture', 'has_water_level')
+        }),
+        ('Data Stack Configuration', {
+            'fields': ('max_stack_size', 'auto_process', 'process_threshold', 'stack_size', 'last_data_feed', 'stack_preview'),
+            'classes': ('collapse',),
+            'description': 'Configure how the station handles stacked data readings.'
         }),
         ('Metadata', {
             'fields': ('created_at', 'updated_at'),
@@ -60,6 +66,106 @@ class WeatherStationAdmin(GISModelAdmin):
     def data_types_available(self, obj):
         return ", ".join(obj.available_data_types())
     data_types_available.short_description = "Available Data"
+    
+    def stack_size(self, obj):
+        """Display the current size of the data stack"""
+        return obj.stack_size()
+    stack_size.short_description = "Stack Size"
+    
+    def stack_info(self, obj):
+        """Display stack info in the list view"""
+        size = obj.stack_size()
+        if size == 0:
+            return "No stacked data"
+        elif obj.auto_process and size >= obj.process_threshold:
+            return format_html('<span style="color: #ff9900;">{} readings (auto-process at {})</span>', size, obj.process_threshold)
+        elif size >= obj.max_stack_size * 0.9:  # 90% full
+            return format_html('<span style="color: #ff0000;">{} readings (max: {})</span>', size, obj.max_stack_size)
+        else:
+            return format_html('{} readings', size)
+    stack_info.short_description = "Data Stack"
+    
+    def stack_preview(self, obj):
+        """Show a preview of the latest stacked data items"""
+        import json
+        
+        size = obj.stack_size()
+        if size == 0:
+            return "No data in stack"
+            
+        try:
+            stack_data = json.loads(obj.data_stack)
+            if not stack_data:
+                return "Stack is empty"
+                
+            # Take the last 5 items (most recent first)
+            preview_data = stack_data[-5:]
+            
+            # Format the data as an HTML table
+            html = '<table style="border-collapse: collapse; width: 100%;">'
+            html += '<tr style="background-color: #f2f2f2;"><th style="padding: 8px; text-align: left;">Timestamp</th>'
+            html += '<th style="padding: 8px; text-align: left;">Data</th></tr>'
+            
+            for item in reversed(preview_data):  # Show most recent at the top
+                timestamp = item.get('timestamp', 'Unknown time')
+                html += f'<tr><td style="border: 1px solid #ddd; padding: 8px;">{timestamp}</td>'
+                
+                # Format data values
+                data_values = []
+                for key, value in item.items():
+                    if key != 'timestamp':
+                        data_values.append(f"{key}: {value}")
+                
+                html += f'<td style="border: 1px solid #ddd; padding: 8px;">{", ".join(data_values)}</td></tr>'
+            
+            html += '</table>'
+            
+            if size > 5:
+                html += f'<p>{size - 5} more readings not shown</p>'
+                
+            return format_html(html)
+            
+        except Exception as e:
+            return f"Error displaying stack data: {str(e)}"
+    stack_preview.short_description = "Stack Preview"
+    
+    def process_data_stacks(self, request, queryset):
+        """Process the data stacks for selected weather stations"""
+        records_total = 0
+        stations_processed = 0
+        
+        for station in queryset:
+            records_processed = station.process_data_stack()
+            if records_processed > 0:
+                stations_processed += 1
+                records_total += records_processed
+        
+        if records_total > 0:
+            self.message_user(request, f"Successfully processed {records_total} readings from {stations_processed} stations.")
+        else:
+            self.message_user(request, f"No data found to process in the selected stations.")
+    process_data_stacks.short_description = "Process data stacks for selected stations"
+    
+    def clear_data_stacks(self, request, queryset):
+        """Clear the data stacks for selected weather stations"""
+        import json
+        
+        stations_cleared = 0
+        readings_cleared = 0
+        
+        for station in queryset:
+            stack_size = station.stack_size()
+            if stack_size > 0:
+                readings_cleared += stack_size
+                station.data_stack = json.dumps([])
+                station.save(update_fields=['data_stack'])
+                stations_cleared += 1
+        
+        if stations_cleared > 0:
+            self.message_user(request, f"Cleared {readings_cleared} readings from {stations_cleared} stations.")
+        else:
+            self.message_user(request, "No data stacks were cleared. Stacks may already be empty.")
+    clear_data_stacks.short_description = "Clear data stacks for selected stations"
 
 
 class ClimateDataInline(admin.TabularInline):

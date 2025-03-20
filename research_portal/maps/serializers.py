@@ -21,6 +21,8 @@ class WeatherDataTypeSerializer(serializers.ModelSerializer):
 class WeatherStationSerializer(GeoFeatureModelSerializer):
     country_name = serializers.CharField(source='country.name', read_only=True)
     data_types = serializers.SerializerMethodField()
+    stack_size = serializers.SerializerMethodField()
+    last_data_feed = serializers.DateTimeField(read_only=True)
     
     class Meta:
         model = WeatherStation
@@ -28,11 +30,15 @@ class WeatherStationSerializer(GeoFeatureModelSerializer):
         fields = (
             'id', 'name', 'station_id', 'description', 'location', 
             'altitude', 'is_active', 'date_installed', 'date_decommissioned',
-            'country', 'country_name', 'region', 'data_types'
+            'country', 'country_name', 'region', 'data_types', 
+            'stack_size', 'last_data_feed', 'auto_process', 'process_threshold', 'max_stack_size'
         )
     
     def get_data_types(self, obj):
         return obj.available_data_types()
+    
+    def get_stack_size(self, obj):
+        return obj.stack_size()
 
 class ClimateDataSerializer(serializers.ModelSerializer):
     station_name = serializers.CharField(source='station.name', read_only=True)
@@ -111,4 +117,29 @@ class WeatherAlertSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at', 'resolved_at',
             'notify_email', 'notify_sms', 'notify_push'
         )
+
+class StackedDataSerializer(serializers.Serializer):
+    timestamp = serializers.DateTimeField(required=False)
+    temperature = serializers.FloatField(required=False)
+    humidity = serializers.FloatField(required=False)
+    precipitation = serializers.FloatField(required=False)
+    air_quality_index = serializers.IntegerField(required=False)
+    wind_speed = serializers.FloatField(required=False)
+    wind_direction = serializers.FloatField(required=False)
+    barometric_pressure = serializers.FloatField(required=False)
+    cloud_cover = serializers.FloatField(required=False)
+    soil_moisture = serializers.FloatField(required=False)
+    water_level = serializers.FloatField(required=False)
+    uv_index = serializers.FloatField(required=False)
+    data_quality = serializers.ChoiceField(choices=ClimateData.QUALITY_CHOICES, default='medium', required=False)
+
+class StackInfoSerializer(serializers.Serializer):
+    station_id = serializers.IntegerField(read_only=True)
+    station_name = serializers.CharField(read_only=True)
+    stack_size = serializers.IntegerField(read_only=True)
+    max_stack_size = serializers.IntegerField(read_only=True)
+    last_data_feed = serializers.DateTimeField(read_only=True)
+    auto_process = serializers.BooleanField(read_only=True)
+    process_threshold = serializers.IntegerField(read_only=True)
+    latest_data = StackedDataSerializer(read_only=True)
 

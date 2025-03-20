@@ -108,12 +108,25 @@ class CSVUploadForm(BaseImportForm):
         ('countries', _('Countries')),
     ]
     
+    PROCESSING_CHOICES = [
+        ('direct', _('Direct Database Insert')),
+        ('stack', _('Add to Data Stack')),
+    ]
+    
     import_type = forms.ChoiceField(
         choices=IMPORT_CHOICES,
         label=_("Import Type"),
         widget=forms.Select(attrs={'class': 'form-select'}),
         initial='stations',
         help_text=_("Select the type of data you want to import.")
+    )
+    
+    processing_mode = forms.ChoiceField(
+        choices=PROCESSING_CHOICES,
+        label=_("Processing Mode"),
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        initial='direct',
+        help_text=_("Choose how to process climate data. Stack mode adds to stations' data stacks for later processing.")
     )
     
     csv_file = forms.FileField(
@@ -662,3 +675,33 @@ class DataTransformForm(forms.Form):
         label=_("Missing Data Handling"),
         help_text=_("How to handle missing values in the imported data.")
     )
+
+
+# Add a new form for data stack settings
+class DataStackSettingsForm(forms.ModelForm):
+    """Form for configuring a weather station's data stack settings"""
+    
+    class Meta:
+        model = WeatherStation
+        fields = ['max_stack_size', 'auto_process', 'process_threshold']
+        widgets = {
+            'max_stack_size': forms.NumberInput(attrs={'class': 'form-control'}),
+            'process_threshold': forms.NumberInput(attrs={'class': 'form-control'}),
+            'auto_process': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        help_texts = {
+            'max_stack_size': _("Maximum number of readings that can be stored in the stack"),
+            'auto_process': _("Automatically process readings when threshold is reached"),
+            'process_threshold': _("Number of readings that triggers automatic processing"),
+        }
+        
+    def clean(self):
+        cleaned_data = super().clean()
+        max_stack_size = cleaned_data.get('max_stack_size')
+        process_threshold = cleaned_data.get('process_threshold')
+        
+        if max_stack_size is not None and process_threshold is not None:
+            if process_threshold > max_stack_size:
+                self.add_error('process_threshold', _("Process threshold cannot be greater than max stack size"))
+                
+        return cleaned_data
