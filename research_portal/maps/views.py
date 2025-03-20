@@ -27,7 +27,7 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from .utils import fetch_environmental_data, calculate_statistics
-from .models import DataExport, WeatherAlert, WeatherStation, ClimateData
+from .models import DataExport, WeatherAlert, WeatherStation, ClimateData, Country, WeatherDataType
 from .forms import CSVUploadForm, FlashDriveImportForm
 from .serializers import (
     WeatherAlertSerializer,
@@ -36,23 +36,22 @@ from .serializers import (
     GeoJSONClimateDataSerializer
 )
 from .permissions import IsAdminOrReadOnly
-
+from django.urls import reverse_lazy, reverse
 
 
 # views.py (improved debug_stations)
 def debug_stations(request):
     """Debug view to check GeoJSON output"""
-    stations = WeatherStation.objects.all()
-    serializer = WeatherStationSerializer(stations, many=True)
+    stations = WeatherStation.objects.all().select_related('country')
+    features = [station.to_representation() for station in stations]
     
-    # Return as GeoJSON FeatureCollection with additional debugging info
     return JsonResponse({
         'type': 'FeatureCollection',
-        'count': stations.count(),
-        'features': serializer.data,
+        'count': len(features),
+        'features': features,
         'debug_info': {
             'fields_available': [field.name for field in WeatherStation._meta.fields],
-            'serializer_fields': list(WeatherStationSerializer().get_fields().keys())
+            'data_types': list(WeatherDataType.objects.values_list('name', flat=True))
         }
     })
 
@@ -63,17 +62,19 @@ class MapView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
-        # Get data for initial map rendering
-        stations = WeatherStation.objects.all()
+        # Get data for initial map rendering with optimized queries
+        stations = WeatherStation.objects.select_related('country').all()
         active_stations = stations.filter(is_active=True)
         
-        # Get some recent climate data stats
-        recent_data = ClimateData.objects.filter(
+        # Get recent climate data with related station info
+        recent_data = ClimateData.objects.select_related('station').filter(
             timestamp__gte=timezone.now() - timedelta(days=7)
         ).order_by('-timestamp')[:100]
         
-        # Get any active alerts
-        active_alerts = WeatherAlert.objects.filter(status='active').order_by('-created_at')[:5]
+        # Get active alerts with related station and country info
+        active_alerts = WeatherAlert.objects.select_related('station', 'country', 'data_type').filter(
+            status='active'
+        ).order_by('-created_at')[:5]
         
         context.update({
             'stations_count': stations.count(),
@@ -82,7 +83,8 @@ class MapView(TemplateView):
             'recent_data_count': recent_data.count(),
             'has_alerts': active_alerts.exists(),
             'alerts_count': active_alerts.count(),
-            'api_base_url': '/api',  # Adjust based on your URL configuration
+            'data_types': WeatherDataType.objects.all(),
+            'api_base_url': '/api',
             'map_title': 'Weather Stations Map',
             'map_description': 'Interactive map of all weather stations and their data',
             'geojson_url': '/api/weather-stations/',
@@ -104,10 +106,9 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
         queryset = self.filter_queryset(self.get_queryset())
         serializer = self.get_serializer(queryset, many=True)
         
-        # Return as GeoJSON FeatureCollection
         return Response({
             'type': 'FeatureCollection',
-            'features': serializer.data
+            'features': [station.to_representation() for station in queryset]
         })
     
     @action(detail=False, methods=['get'])
@@ -143,21 +144,30 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
     def data(self, request, pk=None):
         """Get climate data for a specific station"""
         station = self.get_object()
-        days = int(request.query_params.get('days', 7))  # Default to last 7 days
+        days = int(request.query_params.get('days', 7))
+        data_types = request.query_params.getlist('data_types', [])
         
         start_date = timezone.now() - timedelta(days=days)
-        climate_data = ClimateData.objects.filter(
+        query = ClimateData.objects.filter(
             station=station,
             timestamp__gte=start_date
         ).order_by('-timestamp')
         
-        # Use pagination from the viewset
-        page = self.paginate_queryset(climate_data)
+        # Filter by data types if specified
+        if data_types:
+            conditions = []
+            for data_type in data_types:
+                if hasattr(ClimateData, data_type):
+                    conditions.append(~models.Q(**{data_type: None}))
+            if conditions:
+                query = query.filter(reduce(operator.or_, conditions))
+        
+        page = self.paginate_queryset(query)
         if page is not None:
             serializer = ClimateDataSerializer(page, many=True)
             return self.get_paginated_response(serializer.data)
         
-        serializer = ClimateDataSerializer(climate_data, many=True)
+        serializer = ClimateDataSerializer(query, many=True)
         return Response(serializer.data)
     
     @action(detail=True, methods=['get'])
@@ -295,7 +305,7 @@ class ClimateDataViewSet(viewsets.ModelViewSet):
     serializer_class = ClimateDataSerializer
     permission_classes = [IsAdminOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields = ['station', 'data_quality']
+    filterset_fields = ['station', 'data_quality', 'year', 'month']
     ordering_fields = ['timestamp', 'temperature', 'precipitation']
     
     def get_serializer_class(self):
@@ -326,28 +336,29 @@ class ClimateDataViewSet(viewsets.ModelViewSet):
     def recent(self, request):
         """Get the most recent climate data for all stations"""
         hours = int(request.query_params.get('hours', 24))
+        data_types = request.query_params.getlist('data_types', [])
         since = timezone.now() - timedelta(hours=hours)
         
-        # Subquery to get the latest reading for each station
-        from django.db.models import OuterRef, Subquery
-        latest_per_station = ClimateData.objects.filter(
+        # Get latest reading for each station
+        subquery = ClimateData.objects.filter(
             station=OuterRef('station'),
             timestamp__gte=since
         ).order_by('-timestamp').values('id')[:1]
         
-        recent_data = ClimateData.objects.filter(
-            id__in=Subquery(latest_per_station)
+        query = ClimateData.objects.filter(
+            id__in=Subquery(subquery)
         ).select_related('station')
         
-        serializer = self.get_serializer(recent_data, many=True)
+        # Filter by data types if specified
+        if data_types:
+            conditions = []
+            for data_type in data_types:
+                if hasattr(ClimateData, data_type):
+                    conditions.append(~models.Q(**{data_type: None}))
+            if conditions:
+                query = query.filter(reduce(operator.or_, conditions))
         
-        # If GeoJSON format is requested, wrap in a FeatureCollection
-        if request.query_params.get('format') == 'geojson':
-            return Response({
-                'type': 'FeatureCollection',
-                'features': serializer.data
-            })
-        
+        serializer = self.get_serializer(query, many=True)
         return Response(serializer.data)
 
     def perform_create(self, serializer):
@@ -364,62 +375,157 @@ class ClimateDataViewSet(viewsets.ModelViewSet):
         
         return climate_data
 
-
-import io
-import os
-import csv
-import logging
-import pytz
-from datetime import datetime
-from dateutil import parser
-from django.shortcuts import render, redirect
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from django.utils.decorators import method_decorator
-from django.utils import timezone
-from django.views import View
-from django.views.generic.edit import FormView
-from django.contrib.gis.geos import Point
-from rest_framework.decorators import api_view, permission_classes, action
-from rest_framework.permissions import IsAdminUser
-from rest_framework.response import Response
-from rest_framework import viewsets, filters
-from django_filters.rest_framework import DjangoFilterBackend
-
-from .models import WeatherStation, ClimateData, Country, WeatherDataType
-from .serializers import WeatherAlertSerializer
-from .forms import CSVUploadForm, FlashDriveImportForm
+class WeatherAlertViewSet(viewsets.ModelViewSet):
+    queryset = WeatherAlert.objects.all().select_related('station', 'country', 'data_type')
+    serializer_class = WeatherAlertSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['station', 'severity', 'status', 'country', 'data_type']
+    search_fields = ['title', 'description', 'station__name', 'country__name']
+    ordering_fields = ['created_at', 'updated_at', 'severity']
+    
+    @action(detail=True, methods=['post'])
+    def resolve(self, request, pk=None):
+        """Mark an alert as resolved"""
+        alert = self.get_object()
+        alert.status = 'resolved'
+        alert.resolved_at = timezone.now()
+        alert.save()
+        
+        serializer = self.get_serializer(alert)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def active(self, request):
+        """Get all active alerts"""
+        alerts = WeatherAlert.objects.filter(status='active')
+        serializer = self.get_serializer(alerts, many=True)
+        return Response(serializer.data)
+    
+# views.py (new map_data endpoint)
+@api_view(['GET'])
+def map_data(request):
+    """API endpoint to get consolidated data for map display"""
+    # Get stations with related data
+    stations = WeatherStation.objects.select_related('country').all()
+    
+    # Get recent climate data for active stations
+    recent_data = []
+    active_stations = stations.filter(is_active=True)
+    
+    for station in active_stations:
+        latest_reading = ClimateData.objects.filter(
+            station=station
+        ).order_by('-timestamp').first()
+        
+        if latest_reading:
+            data = {
+                'station_id': station.id,
+                'station_name': station.name,
+                'timestamp': latest_reading.timestamp,
+                'data': {}
+            }
+            
+            # Add available measurements
+            for data_type in station.available_data_types():
+                if hasattr(latest_reading, data_type):
+                    value = getattr(latest_reading, data_type)
+                    if value is not None:
+                        data['data'][data_type] = value
+            
+            data['is_recent'] = latest_reading.timestamp > (timezone.now() - timedelta(days=1))
+            recent_data.append(data)
+    
+    # Get active alerts with related info
+    active_alerts = WeatherAlert.objects.select_related(
+        'station', 'country', 'data_type'
+    ).filter(status='active')
+    
+    return Response({
+        'stations': {
+            'type': 'FeatureCollection',
+            'features': [station.to_representation() for station in stations]
+        },
+        'recent_data': recent_data,
+        'alerts': WeatherAlertSerializer(active_alerts, many=True).data,
+        'stats': {
+            'total_stations': stations.count(),
+            'active_stations': active_stations.count(),
+            'stations_with_recent_data': len([d for d in recent_data if d['is_recent']]),
+            'active_alerts': active_alerts.count(),
+            'available_data_types': list(WeatherDataType.objects.values('name', 'display_name', 'unit'))
+        }
+    })
 
 
 class CSVUploadView(FormView):
     template_name = 'maps/csv_upload.html'
     form_class = CSVUploadForm
-    success_url = '/upload/success/'
+    success_url = reverse_lazy('maps:import_success')
 
-    @method_decorator(login_required)
+    # @method_decorator(login_required)
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['current_datetime'] = timezone.now()
+        return context
+
     def form_valid(self, form):
-        import_type = form.cleaned_data['import_type']
-        csv_file = form.cleaned_data['csv_file']
+        try:
+            import_type = form.cleaned_data['import_type']
+            csv_file = form.cleaned_data['csv_file']
 
-        # Process the file
-        if import_type == 'stations':
-            result = self.process_stations_file(csv_file)
-        elif import_type == 'climate_data':
-            result = self.process_climate_data_file(csv_file)
-        elif import_type == 'weather_data_types':
-            result = self.process_weather_data_types_file(csv_file)
-        elif import_type == 'countries':
-            result = self.process_countries_file(csv_file)
-        else:
-            result = {'success': 0, 'error': 1, 'errors': ['Invalid import type']}
+            # Process the file and store results
+            if import_type == 'stations':
+                result = self.process_stations_file(csv_file)
+            elif import_type == 'climate_data':
+                result = self.process_climate_data_file(csv_file)
+            elif import_type == 'weather_data_types':
+                result = self.process_weather_data_types_file(csv_file)
+            elif import_type == 'countries':
+                result = self.process_countries_file(csv_file)
+            else:
+                result = {'success': 0, 'error': 1, 'errors': ['Invalid import type']}
 
-        # Store results in session for display
-        self.request.session['import_results'] = result
+            # Store results in session
+            self.request.session['import_results'] = result
 
-        return super().form_valid(form)
+            # If this is an AJAX request, return JSON response
+            if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'redirect_url': self.get_success_url(),
+                    'result': result
+                })
+
+            # Add message for regular form submission
+            if result['success'] > 0:
+                messages.success(
+                    self.request,
+                    f"Successfully processed {result['success']} records. "
+                    f"Encountered {result['error']} errors."
+                )
+            else:
+                messages.error(
+                    self.request,
+                    f"Import failed. Encountered {result['error']} errors."
+                )
+
+            return super().form_valid(form)
+
+        except Exception as e:
+            error_msg = str(e)
+            messages.error(self.request, f"An error occurred: {error_msg}")
+            
+            # If AJAX request, return error response
+            if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': False,
+                    'error': error_msg
+                }, status=400)
+                
+            return self.form_invalid(form)
 
     def process_stations_file(self, csv_file):
         """Process a CSV file containing weather station data"""
@@ -821,12 +927,21 @@ class ImportSuccessView(View):
     template_name = 'maps/import_success.html'
 
     def get(self, request):
+        # Get results from session
         results = request.session.get('import_results', {})
-        return render(request, self.template_name, {'results': results})
+        
+        # Clear results from session after displaying
+        if 'import_results' in request.session:
+            del request.session['import_results']
+            
+        return render(request, self.template_name, {
+            'results': results,
+            'has_results': bool(results)
+        })
 
 
 @api_view(['POST'])
-@permission_classes([IsAdminUser])
+# @permission_classes([IsAdminUser])
 def api_import_csv(request):
     """API endpoint for importing CSV data"""
     if 'file' not in request.FILES:
@@ -864,7 +979,7 @@ def is_safe_path(base_dir, path):
     return os.path.commonpath([base_dir_abs]) == os.path.commonpath([base_dir_abs, path_abs])
 
 
-@login_required
+# @login_required
 def flash_drive_import_view(request):
     """View to import data from a flash drive with improved security and error handling"""
     if request.method == 'POST':
@@ -952,7 +1067,7 @@ def flash_drive_import_view(request):
                     if import_type == 'stations':
                         result = csv_view.process_stations_file(file_object)
                     elif import_type == 'climate_data':
-                        result = csv_view.process_climate_data_file(file_object)
+                        driveresult = csv_view.process_climate_data_file(file_object)
                     elif import_type == 'weather_data_types':
                         result = csv_view.process_weather_data_types_file(file_object)
                     elif import_type == 'countries':
@@ -1120,77 +1235,3 @@ def setup_automated_imports(flash_drive_path=None, import_interval=3600):
         logging.warning("APScheduler not installed. Automated imports will not run.")
     except Exception as e:
         logging.error(f"Error setting up automated imports: {str(e)}")
-
-class WeatherAlertViewSet(viewsets.ModelViewSet):
-    queryset = WeatherAlert.objects.all()
-    serializer_class = WeatherAlertSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['station', 'severity', 'status', 'country']
-    search_fields = ['title', 'description', 'station__name', 'country__name']
-    ordering_fields = ['created_at', 'updated_at']
-    
-    @action(detail=True, methods=['post'])
-    def resolve(self, request, pk=None):
-        """Mark an alert as resolved"""
-        alert = self.get_object()
-        alert.status = 'resolved'
-        alert.resolved_at = timezone.now()
-        alert.save()
-        
-        serializer = self.get_serializer(alert)
-        return Response(serializer.data)
-    
-    @action(detail=False, methods=['get'])
-    def active(self, request):
-        """Get all active alerts"""
-        alerts = WeatherAlert.objects.filter(status='active')
-        serializer = self.get_serializer(alerts, many=True)
-        return Response(serializer.data)
-    
-# views.py (new map_data endpoint)
-@api_view(['GET'])
-def map_data(request):
-    """API endpoint to get consolidated data for map display"""
-    # Get basic station information
-    stations = WeatherStation.objects.all()
-    station_serializer = WeatherStationSerializer(stations, many=True)
-    
-    # Get recent climate data for active stations
-    recent_data = []
-    active_stations = stations.filter(is_active=True)
-    
-    for station in active_stations:
-        latest_reading = ClimateData.objects.filter(
-            station=station
-        ).order_by('-timestamp').first()
-        
-        if latest_reading:
-            recent_data.append({
-                'station_id': station.id,
-                'station_name': station.name,
-                'timestamp': latest_reading.timestamp,
-                'temperature': latest_reading.temperature,
-                'humidity': latest_reading.humidity,
-                'precipitation': latest_reading.precipitation,
-                'wind_speed': latest_reading.wind_speed,
-                'is_recent': latest_reading.timestamp > (timezone.now() - timedelta(days=1))
-            })
-    
-    # Get active alerts
-    active_alerts = WeatherAlert.objects.filter(status='active')
-    alert_serializer = WeatherAlertSerializer(active_alerts, many=True)
-    
-    return Response({
-        'stations': {
-            'type': 'FeatureCollection',
-            'features': station_serializer.data
-        },
-        'recent_data': recent_data,
-        'alerts': alert_serializer.data,
-        'stats': {
-            'total_stations': stations.count(),
-            'active_stations': active_stations.count(),
-            'stations_with_recent_data': len([d for d in recent_data if d['is_recent']]),
-            'active_alerts': active_alerts.count()
-        }
-    })
