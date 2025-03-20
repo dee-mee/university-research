@@ -1,73 +1,174 @@
 {% extends "base.html" %}
 
-{% block title %}Import Data from Flash Drive{% endblock %}
+{% block title %}Import Data from CSV{% endblock %}
 
 {% block content %}
-<div class="container mx-auto py-12 px-6">
-    <div class="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-lg">
-        <h1 class="text-3xl font-semibold text-gray-800 mb-6 text-center">Import Data from Flash Drive</h1>
-        
-        {% if messages %}
-        <div class="mb-4">
-            {% for message in messages %}
-            <div class="p-4 rounded-lg {% if message.tags == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
-                {{ message }}
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
-        
-        <form method="post" class="space-y-6">
-            {% csrf_token %}
-            
-            <div>
-                <label class="block text-gray-700 font-semibold mb-2">
-                    {{ form.import_type.label }}
-                </label>
-                <div class="space-y-2">
-                    {% for choice in form.import_type %}
-                    <div class="flex items-center space-x-2">
-                        {{ choice.tag }}
-                        <label for="{{ choice.id_for_label }}" class="text-gray-600">{{ choice.choice_label }}</label>
-                    </div>
-                    {% endfor %}
+<div class="container py-5">
+    <div class="card shadow-lg">
+        <div class="card-body">
+            <h1 class="card-title text-center mb-4">Import Data from CSV</h1>
+
+            {% if messages %}
+            <div class="mb-4">
+                {% for message in messages %}
+                <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
-                <p class="text-sm text-gray-500 mt-1">{{ form.import_type.help_text }}</p>
+                {% endfor %}
             </div>
-            
-            <div>
-                <label for="{{ form.drive_path.id_for_label }}" class="block text-gray-700 font-semibold mb-2">
-                    {{ form.drive_path.label }}
-                </label>
-                {{ form.drive_path }}
-                <p class="text-sm text-gray-500 mt-1">{{ form.drive_path.help_text }}</p>
-            </div>
-            
-            <div class="bg-gray-50 p-5 rounded-lg border border-gray-200">
-                <h3 class="font-semibold text-gray-700 mb-2">Important Notes:</h3>
-                <ul class="list-disc pl-5 text-gray-600">
-                    <li>CSV files should be placed in the root directory of the flash drive</li>
-                    <li>Files should follow the same format as described in the CSV upload page</li>
-                    <li>Station files should be imported before climate data files</li>
-                    <li>For automatic detection, name files with prefixes:
-                        <ul class="list-disc pl-5 mt-1">
-                            <li><code class="text-blue-500">station_*.csv</code> for weather station data</li>
-                            <li><code class="text-blue-500">climate_*.csv</code> for climate data</li>
-                        </ul>
-                    </li>
-                </ul>
-            </div>
-            
-            <div class="flex justify-between items-center">
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-300">
-                    Import from Flash Drive
-                </button>
-                
-                <a href="{% url 'maps:csv_upload' %}" class="text-blue-600 hover:underline">
-                    Upload CSV File Instead
-                </a>
-            </div>
-        </form>
+            {% endif %}
+
+            <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+                {% csrf_token %}
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">{{ form.import_type.label }}</label>
+                    <div class="form-check">
+                        {% for choice in form.import_type %}
+                        <div class="form-check">
+                            {{ choice.tag }}
+                            <label for="{{ choice.id_for_label }}" class="form-check-label">{{ choice.choice_label }}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <small class="text-muted">{{ form.import_type.help_text }}</small>
+                </div>
+
+                <div class="mb-3">
+                    <label for="{{ form.csv_file.id_for_label }}" class="form-label fw-bold">{{ form.csv_file.label }}</label>
+                    {{ form.csv_file }}
+                    <small class="text-muted d-block mt-1">{{ form.csv_file.help_text }}</small>
+                    {% if form.csv_file.errors %}
+                    <div class="invalid-feedback d-block">
+                        {% for error in form.csv_file.errors %}
+                        {{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="alert alert-info">
+                    <h5 class="alert-heading">Required CSV Format:</h5>
+                    <ul class="nav nav-tabs" id="csvTab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="stations-tab" data-bs-toggle="tab" data-bs-target="#stations-format" type="button" role="tab">Weather Stations</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="climate-tab" data-bs-toggle="tab" data-bs-target="#climate-format" type="button" role="tab">Climate Data</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="datatypes-tab" data-bs-toggle="tab" data-bs-target="#datatypes-format" type="button" role="tab">Data Types</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="countries-tab" data-bs-toggle="tab" data-bs-target="#countries-format" type="button" role="tab">Countries</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content p-3 border bg-light" id="csvTabContent">
+                        <div class="tab-pane fade show active" id="stations-format" role="tabpanel">
+                            <p>Your CSV file should have these columns:</p>
+                            <ul>
+                                <li><strong>name</strong>: Name of the weather station (required)</li>
+                                <li><strong>latitude</strong> and <strong>longitude</strong>: Decimal coordinates (required unless 'location' is provided)</li>
+                                <li><strong>location</strong>: Alternative to latitude/longitude (e.g., "POINT(longitude latitude)" or "longitude,latitude")</li>
+                                <li><strong>station_id</strong>: Unique identifier (optional, will be generated if not provided)</li>
+                                <li><strong>description</strong>: Description (optional)</li>
+                                <li><strong>altitude</strong>: Altitude in meters (optional)</li>
+                                <li><strong>is_active</strong>: Whether station is active (true/false, optional)</li>
+                                <li><strong>date_installed</strong>: Date of installation (optional)</li>
+                                <li><strong>date_decommissioned</strong>: Date decommissioned (optional)</li>
+                                <li><strong>country</strong>: Country name or code (optional)</li>
+                                <li><strong>region</strong>: Region name (optional)</li>
+                                <li><strong>has_temperature</strong>, <strong>has_precipitation</strong>, etc.: Data type flags (true/false, optional)</li>
+                            </ul>
+                            <pre class="bg-dark text-white p-3 rounded">name,latitude,longitude,description,altitude,is_active,country
+Station A,34.05,-118.25,Main station downtown,120.5,true,US
+Station B,51.51,-0.13,City center monitoring,42,true,UK</pre>
+                        </div>
+                        <div class="tab-pane fade" id="climate-format" role="tabpanel">
+                            <p>Your CSV file should have these columns:</p>
+                            <ul>
+                                <li><strong>station_name</strong> or <strong>station_id</strong> or <strong>station</strong>: Identifier for existing station (required)</li>
+                                <li><strong>timestamp</strong>: YYYY-MM-DD HH:MM:SS (required)</li>
+                                <li><strong>temperature</strong>: Temperature in Celsius (optional)</li>
+                                <li><strong>humidity</strong>: Relative humidity percentage (optional)</li>
+                                <li><strong>precipitation</strong>: Precipitation amount (optional)</li>
+                                <li><strong>wind_speed</strong>: Wind speed (optional)</li>
+                                <li><strong>wind_direction</strong>: Wind direction in degrees (optional)</li>
+                                <li><strong>data_quality</strong>: Quality indicator (optional)</li>
+                                <li>Other optional measurements: <strong>air_quality_index</strong>, <strong>barometric_pressure</strong>, <strong>cloud_cover</strong>, <strong>soil_moisture</strong>, <strong>water_level</strong>, <strong>uv_index</strong></li>
+                            </ul>
+                            <pre class="bg-dark text-white p-3 rounded">station_name,timestamp,temperature,humidity,precipitation
+Station A,2023-05-25 14:30:00,23.5,65,0
+Station B,2023-05-25 14:30:00,22.1,72,1.2</pre>
+                        </div>
+                        <div class="tab-pane fade" id="datatypes-format" role="tabpanel">
+                            <p>Your CSV file should have these columns:</p>
+                            <ul>
+                                <li><strong>name</strong>: Data type name (required)</li>
+                                <li><strong>display_name</strong>: Human-readable name (optional)</li>
+                                <li><strong>description</strong>: Description (optional)</li>
+                                <li><strong>unit</strong>: Unit of measurement (optional)</li>
+                                <li><strong>min_value</strong>: Minimum valid value (optional)</li>
+                                <li><strong>max_value</strong>: Maximum valid value (optional)</li>
+                                <li><strong>icon</strong>: Icon identifier (optional)</li>
+                            </ul>
+                            <pre class="bg-dark text-white p-3 rounded">name,display_name,description,unit,min_value,max_value
+temperature,Temperature,Air temperature,°C,-273.15,100
+humidity,Humidity,Relative humidity,%,0,100</pre>
+                        </div>
+                        <div class="tab-pane fade" id="countries-format" role="tabpanel">
+                            <p>Your CSV file should have these columns:</p>
+                            <ul>
+                                <li><strong>name</strong>: Country name (required)</li>
+                                <li><strong>code</strong>: Country code (required)</li>
+                            </ul>
+                            <pre class="bg-dark text-white p-3 rounded">name,code
+United States,US
+United Kingdom,UK</pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <button type="submit" class="btn btn-primary">Upload and Import</button>
+                    <a href="{% url 'maps:flash_drive_import' %}" class="btn btn-outline-secondary">Import from Flash Drive</a>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Get the active import type
+    const importTypeInputs = document.querySelectorAll('input[name="import_type"]');
+    let activeImportType = 'stations';
+
+    for (const input of importTypeInputs) {
+        if (input.checked) {
+            activeImportType = input.value;
+        }
+
+        // Add event listener for import type change
+        input.addEventListener('change', function() {
+            if (this.checked) {
+                // Activate the corresponding tab
+                const tabId = `${this.value}-tab`;
+                const tab = document.getElementById(tabId);
+                if (tab) {
+                    tab.click();
+                }
+            }
+        });
+    }
+
+    // Activate the tab corresponding to the selected import type
+    const tabId = `${activeImportType}-tab`;
+    const tab = document.getElementById(tabId);
+    if (tab) {
+        tab.click();
+    }
+});
+</script>
 {% endblock %}

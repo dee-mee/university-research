@@ -71,7 +71,7 @@ class WeatherStationMap {
      * Load weather stations from the API
      */
     loadStations() {
-        // Use the correct endpoint based on your Django URLs
+        // Fix URL path: Remove duplicate "api" in the path
         fetch(`${this.apiBaseUrl}/weather-stations/`)
             .then(response => {
                 if (!response.ok) {
@@ -131,14 +131,31 @@ class WeatherStationMap {
             })
             .catch(error => {
                 console.error("Error loading stations:", error);
-                // Try the debug endpoint as fallback
-                fetch(`${this.apiBaseUrl}/debug/stations/`)
+                // Try the debug endpoint as fallback with corrected paths
+                fetch(`/maps/api/debug/stations/`)
+                    .then(response => {
+                        if (!response.ok) {
+                            // Try another fallback path
+                            return fetch(`/maps/api/map-data/`);
+                        }
+                        return response;
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            // Final fallback to just trying the debug_stations path directly
+                            return fetch(`/debug_stations/`);
+                        }
+                        return response;
+                    })
                     .then(response => response.json())
                     .then(data => {
                         console.log("Debug endpoint data:", data);
                         if (data && (data.features || data.results || Array.isArray(data))) {
                             if (data.features) {
                                 this.stations = data.features;
+                            } else if (data.stations && data.stations.features) {
+                                // Handle map_data response format
+                                this.stations = data.stations.features;
                             } else if (data.results) {
                                 this.stations = data.results;
                             } else {
@@ -265,26 +282,23 @@ class WeatherStationMap {
             return;
         }
         
-        fetch(`${this.apiBaseUrl}/weather-stations/${stationId}/data/?days=7`)
+        // Try to access station data using the correct API endpoint path
+        fetch(`/maps/api/weather-stations/${stationId}/data/?days=7`)
             .then(response => {
                 if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
+                    // First fallback - try using DRF viewset endpoint directly
+                    return fetch(`/maps/api/climate-data/?station=${stationId}&days=7`);
                 }
-                return response.json();
+                return response;
             })
-            .then(data => {
-                // Try alternative endpoint if no results
-                if (!data.results || data.results.length === 0) {
-                    return fetch(`${this.apiBaseUrl}/climate-data/?station=${stationId}&days=7`)
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error(`HTTP error! Status: ${response.status}`);
-                            }
-                            return response.json();
-                        });
+            .then(response => {
+                if (!response.ok) {
+                    // Second fallback - try accessing the station directly via map-data
+                    return fetch(`/maps/api/map-data/?station=${stationId}`);
                 }
-                return data;
+                return response;
             })
+            .then(response => response.json())
             .then(data => {
                 // Get station info for popup location
                 const station = this.findStationById(stationId);
@@ -359,7 +373,7 @@ class WeatherStationMap {
                    ${latest.wind_direction !== null && latest.wind_direction !== undefined ? 'at ' + latest.wind_direction + '°' : ''}</p>
                 <p><strong>Air Quality:</strong> ${latest.air_quality_index !== null && latest.air_quality_index !== undefined ? latest.air_quality_index : 'N/A'}</p>
                 <p><strong>Data Quality:</strong> ${latest.data_quality || 'Good'}</p>
-                <button class="btn btn-sm btn-secondary" onclick="window.location.href='${this.apiBaseUrl}/weather-stations/${stationId}/statistics/'">View Statistics</button>
+                <button class="btn btn-sm btn-secondary" onclick="window.location.href='/maps/stations/${stationId}/statistics/'">View Statistics</button>
             </div>
         `;
     }
@@ -464,23 +478,30 @@ class WeatherStationMap {
      * Load data for heatmap
      */
     loadHeatmapData() {
-        fetch(`${this.apiBaseUrl}/climate-data/recent/?hours=24`)
+        // Use correct API endpoint path for climate data
+        fetch(`/maps/api/climate-data/recent/?hours=24`)
             .then(response => {
                 if (!response.ok) {
-                    return fetch(`${this.apiBaseUrl}/climate-data/?hours=24`);
+                    // Try fallback path
+                    return fetch(`/maps/api/climate-data/?hours=24`);
                 }
                 return response;
             })
             .then(response => {
                 if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
+                    // Try the map-data endpoint as another fallback
+                    return fetch(`/maps/api/map-data/`);
                 }
-                return response.json();
+                return response;
             })
+            .then(response => response.json())
             .then(data => {
                 // Handle different response formats
                 let results;
-                if (data.results && Array.isArray(data.results)) {
+                // Check for map-data response format
+                if (data.recent_data && Array.isArray(data.recent_data)) {
+                    results = data.recent_data;
+                } else if (data.results && Array.isArray(data.results)) {
                     results = data.results;
                 } else if (Array.isArray(data)) {
                     results = data;
@@ -492,21 +513,7 @@ class WeatherStationMap {
             })
             .catch(error => {
                 console.error("Error loading heatmap data:", error);
-                // Try alternative map-data endpoint
-                fetch(`${this.apiBaseUrl}/map-data/?data_type=${this.dataView}`)
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! Status: ${response.status}`);
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        let results = data.results || data || [];
-                        this.createHeatmap(results);
-                    })
-                    .catch(fallbackError => {
-                        this.showError(`Failed to load heatmap data: ${error.message}`);
-                    });
+                this.showError(`Failed to load heatmap data: ${error.message}`);
             });
     }
     

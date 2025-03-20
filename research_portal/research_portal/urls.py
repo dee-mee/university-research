@@ -24,7 +24,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('research.urls')),
     path('', include('profiles.urls')),
-    path('', include('maps.urls')),
+    path('maps/', include('maps.urls')),
     path('api-auth/', include('rest_framework.urls')),
     path('logout/', logout_view, name='logout'),
 ]
