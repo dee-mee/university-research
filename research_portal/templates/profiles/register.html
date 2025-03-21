@@ -142,8 +142,15 @@
                     <input type="text" id="id_number" name="id_number" required>
                 </div>
                 <div class="input-group">
-                    <label for="dob">Date of Birth</label>
-                    <input type="date" id="dob" name="dob" required>
+                    <label for="id_dob">Date of Birth</label>
+                    <input type="date" id="id_dob" name="dob" class="form-control" required>
+                    {% if form.dob.errors %}
+                    <div class="error-message">
+                        {% for error in form.dob.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                 </div>
                 <div class="input-group">
                     <label for="gender">Gender</label>
