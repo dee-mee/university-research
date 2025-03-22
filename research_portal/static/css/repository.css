@@ -1,0 +1,551 @@
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+    color: #333;
+    background-color: #f5f7f9;
+}
+/* Custom Navbar Styling with Gradient */
+.custom-navbar {
+    background: linear-gradient(to right, rgba(13, 93, 197, 0.95), rgba(4, 17, 75, 0.95));
+    padding: 15px 0;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    transition: all 0.5s ease;
+}
+
+.custom-navbar.scrolled {
+    background: rgba(13, 93, 197, 0.98);
+    padding: 10px 0;
+}
+
+.custom-navbar .navbar-brand img,
+.custom-navbar .navbar-brand2 img {
+    height: 40px;
+    transition: all 0.3s ease;
+}
+
+.custom-navbar .navbar-nav .nav-link {
+    font-weight: bold;
+    font-size: 16px;
+    color: #ffffff;
+    padding: 8px 16px;
+    margin: 0 4px;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.custom-navbar .navbar-nav .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: #ffd700;
+}
+
+.custom-navbar .navbar-nav .nav-item.active .nav-link {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: #ffd700;
+}
+
+/* Custom Dropdown Styling */
+.custom-navbar .dropdown-menu {
+    background: linear-gradient(to right, rgba(13, 93, 197, 0.95), rgba(4, 17, 75, 0.95));
+    border: none;
+    border-radius: 0 0 8px 8px;
+    margin-top: 0;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+    padding: 0;
+    min-width: 200px;
+}
+
+.custom-navbar .dropdown-item {
+    color: #ffffff;
+    font-weight: 500;
+    padding: 12px 20px;
+    transition: all 0.3s ease;
+    font-size: 14px;
+}
+
+.custom-navbar .dropdown-item:hover, 
+.custom-navbar .dropdown-item:focus {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: #ffd700;
+}
+
+.custom-navbar .dropdown-item.active {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: #ffd700;
+}
+
+/* Dropdown divider styling */
+.custom-navbar .dropdown-divider {
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    margin: 0.5rem 0;
+}
+
+/* Bootstrap override to remove default dropdown styles */
+.dropdown-menu {
+    --bs-dropdown-bg: transparent;
+    --bs-dropdown-border-color: transparent;
+    --bs-dropdown-border-radius: 0;
+    --bs-dropdown-inner-border-radius: 0;
+    --bs-dropdown-divider-bg: rgba(255, 255, 255, 0.15);
+    --bs-dropdown-box-shadow: none;
+    --bs-dropdown-link-color: #fff;
+    --bs-dropdown-link-hover-color: #ffd700;
+    --bs-dropdown-link-hover-bg: rgba(255, 255, 255, 0.15);
+    --bs-dropdown-link-active-color: #ffd700;
+    --bs-dropdown-link-active-bg: rgba(255, 255, 255, 0.2);
+    --bs-dropdown-link-disabled-color: #adb5bd;
+    --bs-dropdown-header-color: #f8f9fa;
+}
+
+/* Custom styling for dropdown toggle indicators */
+.custom-navbar .dropdown-toggle::after {
+    margin-left: 6px;
+    vertical-align: middle;
+    transition: transform 0.3s ease;
+}
+
+.custom-navbar .dropdown:hover .dropdown-toggle::after {
+    transform: rotate(180deg);
+}
+
+/* Login button styling */
+.custom-navbar .btn-primary {
+    background-color: #ffd700;
+    border-color: #ffd700;
+    color: #04114b;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.custom-navbar .btn-primary:hover {
+    background-color: #ffeb3b;
+    border-color: #ffeb3b;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* User dropdown styling */
+.custom-navbar .bi-person-circle {
+    font-size: 1.5rem;
+}
+
+/* Navbar scroll effect */
+@media (min-width: 992px) {
+    .custom-navbar {
+        padding: 15px 0;
+    }
+    
+    .custom-navbar.scrolled {
+        padding: 8px 0;
+    }
+}
+
+/* Mobile styling */
+@media (max-width: 991px) {
+    .custom-navbar .navbar-collapse {
+        background: linear-gradient(to bottom, rgba(13, 93, 197, 0.95), rgba(4, 17, 75, 0.95));
+        margin-top: 10px;
+        padding: 10px;
+        border-radius: 8px;
+    }
+    
+    .custom-navbar .navbar-nav .nav-link {
+        padding: 12px 16px;
+    }
+    
+    .custom-navbar .dropdown-menu {
+        background: rgba(4, 17, 75, 0.8);
+        margin-left: 16px;
+    }
+}
+
+/* Main Content */
+main {
+    min-height: calc(100vh - 56px);
+    background-color: #f5f7f9;
+    padding: 40px 20px;
+}
+
+/* Search Container */
+.search-container {
+    max-width: 1280px;
+    margin: 0 auto;
+    background-color: #fff;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    padding: 30px;
+}
+
+.search-container h1 {
+    font-size: 24px;
+    font-weight: 400;
+    color: #333;
+    margin-bottom: 30px;
+}
+
+/* Search Form */
+.search-form {
+    margin-bottom: 30px;
+}
+
+.search-box {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.search-input {
+    flex: 1;
+    height: 40px;
+    padding: 0 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px;
+    color: #333;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #0066cc;
+    box-shadow: 0 0 0 2px rgba(0,102,204,0.1);
+}
+
+.search-button, .reset-button {
+    height: 40px;
+    padding: 0 20px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.search-button {
+    background-color: #0066cc;
+    color: #fff;
+}
+
+.search-button:hover {
+    background-color: #0052a3;
+}
+
+.reset-button {
+    background-color: #f0f0f0;
+    color: #666;
+    text-decoration: none;
+}
+
+.reset-button:hover {
+    background-color: #e0e0e0;
+}
+
+/* View Options */
+.view-options {
+    display: flex;
+    gap: 40px;
+    padding: 15px 20px;
+    background-color: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.sidebar-view, .version-options {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.sidebar-view span, .version-options span {
+    color: #666;
+    font-size: 14px;
+}
+
+input[type="radio"], input[type="checkbox"] {
+    margin: 0;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    color: #333;
+    font-size: 14px;
+}
+
+/* Search Constraints */
+.search-constraints {
+    margin: 20px 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.constraint-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background-color: #e3f2fd;
+    color: #0066cc;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.constraint-tag .remove {
+    cursor: pointer;
+    opacity: 0.7;
+    font-size: 16px;
+}
+
+.constraint-tag .remove:hover {
+    opacity: 1;
+}
+
+/* Selection Info */
+.selection-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 0;
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 20px;
+    color: #666;
+}
+
+/* Dataset List */
+.dataset-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.dataset-item {
+    padding: 20px;
+    background-color: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+}
+
+/* Dataset Badges */
+.dataset-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.badge.isimip2a {
+    background-color: #e3f2fd;
+    color: #0066cc;
+}
+
+.badge.derived-output-data {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+}
+
+.badge.zimmer2023 {
+    background-color: #fff3e0;
+    color: #ef6c00;
+}
+
+.badge.gswp3 {
+    background-color: #f3e5f5;
+    color: #7b1fa2;
+}
+
+.badge.historical {
+    background-color: #fce4ec;
+    color: #c2185b;
+}
+
+.badge.clm40 {
+    background-color: #e8eaf6;
+    color: #3f51b5;
+}
+
+.badge.dis {
+    background-color: #eceff1;
+    color: #455a64;
+}
+
+.badge.terms {
+    background-color: #f1f8e9;
+    color: #558b2f;
+}
+
+.badge.cc0 {
+    background-color: #fffde7;
+    color: #f9a825;
+}
+
+.badge.date {
+    background-color: #e0f2f1;
+    color: #00695c;
+}
+
+/* Dataset DOI */
+.dataset-doi {
+    margin-bottom: 12px;
+}
+
+.dataset-doi a {
+    color: #0066cc;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.dataset-doi a:hover {
+    text-decoration: underline;
+}
+
+/* Dataset Title */
+.dataset-title {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.dataset-title a {
+    color: #0066cc;
+    text-decoration: none;
+}
+
+.dataset-title a:hover {
+    text-decoration: underline;
+}
+
+/* Dataset Actions */
+.dataset-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 15px;
+}
+
+.select-dataset {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: #666;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.action-buttons button {
+    height: 32px;
+    padding: 0 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: #fff;
+    color: #666;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.action-buttons button:hover {
+    background-color: #f5f5f5;
+    border-color: #ccc;
+}
+
+.btn-configure {
+    background-color: #0066cc !important;
+    color: #fff !important;
+    border-color: #0066cc !important;
+}
+
+.btn-configure:hover {
+    background-color: #0052a3 !important;
+    border-color: #0052a3 !important;
+}
+
+/* Responsive Design */
+@media (max-width: 1280px) {
+    .search-container {
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 992px) {
+    .view-options {
+        flex-direction: column;
+        gap: 15px;
+    }
+}
+
+@media (max-width: 768px) {
+    .search-box {
+        flex-direction: column;
+    }
+
+    .search-button, .reset-button {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .dataset-actions {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .action-buttons {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
+
+@media (max-width: 576px) {
+    main {
+        padding: 20px 10px;
+    }
+
+    .search-container {
+        padding: 20px 15px;
+    }
+
+    .dataset-item {
+        padding: 15px;
+    }
+
+    .action-buttons {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .action-buttons button {
+        flex: 1 1 calc(50% - 5px);
+        justify-content: center;
+    }
+} 

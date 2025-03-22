@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<link rel="stylesheet" href="{% static 'css/repository.css' %}">
+{% endblock %}
+
+{% block header %}
+<header class="isimip-header">
+    <div class="header-content">
+        <div class="logo-section">
+            <a href="{% url 'repository:dataset_list' %}" class="logo">
+                <img src="{% static 'images/jooust_logo.png' %}" alt="ISIMIP Logo">
+            </a>
+        </div>
+        <nav class="main-nav">
+            <ul>
+                <li class="active"><a href="{% url 'repository:dataset_list' %}">SEARCH</a></li>
+                <li><a href="#">DOI</a></li>
+                <li><a href="#">METADATA</a></li>
+                <li><a href="#">ISSUES & NOTES</a></li>
+            </ul>
+        </nav>
+        <nav class="secondary-nav">
+            <ul>
+                <li><a href="#">DOCUMENTATION</a></li>
+                <li><a href="#">TERMS OF USE</a></li>
+            </ul>
+        </nav>
+    </div>
+</header>
+{% endblock %}
+
+{% block content %}
+<div class="repository-container">
+    <!-- Sidebar with categories -->
+    <div class="repository-sidebar">
+        <div class="sidebar-section">
+            <h3>Categories</h3>
+            <div class="category-tree">
+                {% for category in categories %}
+                    <div class="category-item">
+                        <div class="category-header">
+                            <a href="{% url 'repository:category_datasets' category.slug %}" class="category-link">
+                                {{ category.name }}
+                            </a>
+                            {% if category.subcategories.exists %}
+                                <button class="toggle-subcategories" data-category="{{ category.slug }}">
+                                    <span class="toggle-icon">▼</span>
+                                </button>
+                            {% endif %}
+                        </div>
+                        {% if category.subcategories.exists %}
+                            <div class="subcategories" id="subcategories-{{ category.slug }}">
+                                {% for subcategory in category.subcategories.all %}
+                                    <div class="subcategory-item">
+                                        <a href="{% url 'repository:category_datasets' subcategory.slug %}" class="subcategory-link">
+                                            {{ subcategory.name }}
+                                        </a>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        {% if user.is_authenticated %}
+        <div class="sidebar-section">
+            <h3>My Datasets</h3>
+            <ul class="user-datasets">
+                <li><a href="{% url 'repository:dataset_create' %}">Upload New Dataset</a></li>
+                <li><a href="{% url 'repository:my_datasets' %}">My Datasets</a></li>
+                <li><a href="{% url 'repository:download_history' %}">Download History</a></li>
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Main content area -->
+    <div class="repository-content">
+        {% block repository_content %}{% endblock %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle subcategories
+    const toggleButtons = document.querySelectorAll('.toggle-subcategories');
+    toggleButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const categorySlug = this.dataset.category;
+            const subcategories = document.getElementById(`subcategories-${categorySlug}`);
+            const icon = this.querySelector('.toggle-icon');
+            
+            if (subcategories.style.display === 'none' || !subcategories.style.display) {
+                subcategories.style.display = 'block';
+                icon.textContent = '▼';
+            } else {
+                subcategories.style.display = 'none';
+                icon.textContent = '▶';
+            }
+        });
+    });
+});
+</script>
+{% endblock %} 

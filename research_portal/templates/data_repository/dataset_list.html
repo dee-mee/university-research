@@ -1,0 +1,127 @@
+{% extends "data_repository/base_repository.html" %}
+{% load static %}
+
+{% block extra_js %}
+<script src="{% static 'js/repository.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="search-container">
+    <h1>Search the ISIMIP Repository</h1>
+
+    <form method="get" class="search-form">
+        <div class="search-box">
+            <input type="text" name="q" class="search-input" placeholder="Enter search query" value="{{ request.GET.q }}">
+            <button type="submit" class="search-button">
+                <i class="fas fa-search"></i>
+                Search
+            </button>
+            {% if request.GET.q %}
+            <a href="{% url 'repository:dataset_list' %}" class="reset-button">
+                <i class="fas fa-times"></i>
+                Reset
+            </a>
+            {% endif %}
+        </div>
+
+        <div class="view-options">
+            <div class="sidebar-view">
+                <span>Sidebar view:</span>
+                <label>
+                    <input type="radio" name="view" value="tree" {% if view_type == 'tree' %}checked{% endif %}>
+                    Tree
+                </label>
+                <label>
+                    <input type="radio" name="view" value="facets" {% if view_type == 'facets' %}checked{% endif %}>
+                    Facets
+                </label>
+            </div>
+            <div class="version-options">
+                <label>
+                    <input type="radio" name="version_filter" value="latest" {% if version_filter == 'latest' %}checked{% endif %}>
+                    Show only the latest version
+                </label>
+                <label>
+                    <input type="radio" name="version_filter" value="specific" {% if version_filter == 'specific' %}checked{% endif %}>
+                    Show specific versions with date constraints
+                </label>
+                <label>
+                    <input type="checkbox" name="show_archived" {% if show_archived %}checked{% endif %}>
+                    Show archived files
+                </label>
+            </div>
+        </div>
+
+        {% if request.GET.q %}
+        <div class="search-constraints">
+            <div class="constraint-tag">
+                tree = ISIMIP2a
+                <span class="remove" data-reset-url="{% url 'repository:dataset_list' %}">×</span>
+            </div>
+        </div>
+        {% endif %}
+    </form>
+
+    <div class="selection-info">
+        <span>More than 1,000 datasets found.</span>
+        <span>
+            <label class="select-dataset">
+                <input type="checkbox" id="select-all">
+                Select all datasets
+            </label>
+        </span>
+    </div>
+
+    <div class="dataset-list">
+        {% for dataset in datasets %}
+        <div class="dataset-item">
+            <div class="dataset-badges">
+                <span class="badge isimip2a">ISIMIP2a</span>
+                <span class="badge derived-output-data">DerivedOutputData</span>
+                <span class="badge zimmer2023">Zimmer2023</span>
+                <span class="badge gswp3">GSWP3</span>
+                <span class="badge historical">historical</span>
+                <span class="badge clm40">CLM40</span>
+                <span class="badge dis">dis</span>
+                <span class="badge terms">Terms of use</span>
+                <span class="badge cc0">CC0 1.0</span>
+                <span class="badge date">20240519</span>
+            </div>
+
+            <div class="dataset-doi">
+                <a href="https://doi.org/10.48364/ISIMIP.303619" target="_blank">https://doi.org/10.48364/ISIMIP.303619</a>
+            </div>
+
+            <h2 class="dataset-title">
+                <a href="#">cama-flood_clm40_gswp3_nobc_hist_nosoc_co2_dis_900arcsec_global_annual</a>
+            </h2>
+
+            <div class="dataset-actions">
+                <label class="select-dataset">
+                    <input type="checkbox" name="dataset" value="{{ dataset.id }}">
+                    Select dataset
+                </label>
+                <div class="action-buttons">
+                    <button type="button">
+                        <i class="fas fa-info-circle"></i>
+                        Metadata
+                    </button>
+                    <button type="button">
+                        <i class="fas fa-download"></i>
+                        Download
+                    </button>
+                    <button type="button" class="btn-configure">
+                        <i class="fas fa-cog"></i>
+                        Configure
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="no-results">
+            <p>No datasets found matching your criteria.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,79 @@
+{% extends "data_repository/base_repository.html" %}
+{% load static %}
+
+{% block repository_content %}
+<div class="dataset-detail">
+    <div class="dataset-header">
+        <h1>{{ dataset.title }}</h1>
+        <div class="dataset-meta">
+            <span class="category">{{ dataset.category.name }}</span>
+            <span class="version">v{{ current_version.version_number }}</span>
+            <span class="created-by">Created by {{ dataset.created_by.get_full_name }}</span>
+            <span class="date">Published {{ dataset.published_at|date:"F j, Y" }}</span>
+        </div>
+    </div>
+
+    {% if dataset.thumbnail %}
+    <div class="dataset-thumbnail">
+        <img src="{{ dataset.thumbnail.url }}" alt="{{ dataset.title }}">
+    </div>
+    {% endif %}
+
+    <div class="dataset-description">
+        {{ dataset.description|linebreaks }}
+    </div>
+
+    {% if current_version %}
+    <div class="dataset-version">
+        <h2>Current Version</h2>
+        <div class="version-info">
+            <p><strong>Version:</strong> {{ current_version.version_number }}</p>
+            <p><strong>Uploaded:</strong> {{ current_version.created_at|date:"F j, Y" }}</p>
+            <p><strong>File Size:</strong> {{ current_version.file_size|filesizeformat }}</p>
+            {% if current_version.description %}
+            <p><strong>Changes:</strong> {{ current_version.description }}</p>
+            {% endif %}
+        </div>
+        {% if access.access_type == 'public' or user == dataset.created_by or user in access.allowed_users.all %}
+        <a href="{% url 'repository:dataset_download' dataset.id current_version.id %}" class="download-button">
+            Download Dataset
+        </a>
+        {% else %}
+        <p class="access-restricted">This dataset requires special access. Please contact the dataset owner.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if versions.count > 1 %}
+    <div class="version-history">
+        <h2>Version History</h2>
+        <div class="versions-list">
+            {% for version in versions %}
+            {% if version != current_version %}
+            <div class="version-item">
+                <h3>Version {{ version.version_number }}</h3>
+                <p><strong>Uploaded:</strong> {{ version.created_at|date:"F j, Y" }}</p>
+                <p><strong>File Size:</strong> {{ version.file_size|filesizeformat }}</p>
+                {% if version.description %}
+                <p><strong>Changes:</strong> {{ version.description }}</p>
+                {% endif %}
+                {% if access.access_type == 'public' or user == dataset.created_by or user in access.allowed_users.all %}
+                <a href="{% url 'repository:dataset_download' dataset.id version.id %}" class="download-button">
+                    Download Version {{ version.version_number }}
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if user == dataset.created_by %}
+    <div class="dataset-actions">
+        <a href="{% url 'repository:dataset_edit' dataset.slug %}" class="edit-button">Edit Dataset</a>
+        <a href="{% url 'repository:version_create' dataset.id %}" class="upload-button">Upload New Version</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %} 
