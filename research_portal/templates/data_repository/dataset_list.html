@@ -1,127 +1,218 @@
-{% extends "data_repository/base_repository.html" %}
+{% extends 'base.html' %}
 {% load static %}
 
 {% block extra_js %}
-<script src="{% static 'js/repository.js' %}"></script>
+<script src="{% static 'js/dataset_list.js' %}"></script>
 {% endblock %}
 
 {% block content %}
-<div class="search-container">
-    <h1>Search the ISIMIP Repository</h1>
-
-    <form method="get" class="search-form">
-        <div class="search-box">
-            <input type="text" name="q" class="search-input" placeholder="Enter search query" value="{{ request.GET.q }}">
-            <button type="submit" class="search-button">
-                <i class="fas fa-search"></i>
-                Search
-            </button>
-            {% if request.GET.q %}
-            <a href="{% url 'repository:dataset_list' %}" class="reset-button">
-                <i class="fas fa-times"></i>
-                Reset
-            </a>
-            {% endif %}
+<div class="container mt-4">
+    <h1>Search the JOOUST Repository</h1>
+    
+    <!-- Search Bar -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <form method="get" class="mb-0">
+                <div class="row g-3 align-items-center">
+                    <div class="col">
+                        <input type="text" name="q" class="form-control" placeholder="Enter search query" value="{{ request.GET.q }}">
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-primary">
+                            Search <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                    <div class="col-auto">
+                        <a href="{% url 'repository:dataset_list' %}" class="btn btn-outline-secondary">
+                            Reset <i class="fas fa-times"></i>
+                        </a>
+                    </div>
+                </div>
+            </form>
         </div>
-
-        <div class="view-options">
-            <div class="sidebar-view">
-                <span>Sidebar view:</span>
-                <label>
-                    <input type="radio" name="view" value="tree" {% if view_type == 'tree' %}checked{% endif %}>
-                    Tree
-                </label>
-                <label>
-                    <input type="radio" name="view" value="facets" {% if view_type == 'facets' %}checked{% endif %}>
-                    Facets
-                </label>
-            </div>
-            <div class="version-options">
-                <label>
-                    <input type="radio" name="version_filter" value="latest" {% if version_filter == 'latest' %}checked{% endif %}>
-                    Show only the latest version
-                </label>
-                <label>
-                    <input type="radio" name="version_filter" value="specific" {% if version_filter == 'specific' %}checked{% endif %}>
-                    Show specific versions with date constraints
-                </label>
-                <label>
-                    <input type="checkbox" name="show_archived" {% if show_archived %}checked{% endif %}>
-                    Show archived files
-                </label>
-            </div>
-        </div>
-
-        {% if request.GET.q %}
-        <div class="search-constraints">
-            <div class="constraint-tag">
-                tree = ISIMIP2a
-                <span class="remove" data-reset-url="{% url 'repository:dataset_list' %}">×</span>
-            </div>
-        </div>
-        {% endif %}
-    </form>
-
-    <div class="selection-info">
-        <span>More than 1,000 datasets found.</span>
-        <span>
-            <label class="select-dataset">
-                <input type="checkbox" id="select-all">
-                Select all datasets
-            </label>
-        </span>
     </div>
 
-    <div class="dataset-list">
-        {% for dataset in datasets %}
-        <div class="dataset-item">
-            <div class="dataset-badges">
-                <span class="badge isimip2a">ISIMIP2a</span>
-                <span class="badge derived-output-data">DerivedOutputData</span>
-                <span class="badge zimmer2023">Zimmer2023</span>
-                <span class="badge gswp3">GSWP3</span>
-                <span class="badge historical">historical</span>
-                <span class="badge clm40">CLM40</span>
-                <span class="badge dis">dis</span>
-                <span class="badge terms">Terms of use</span>
-                <span class="badge cc0">CC0 1.0</span>
-                <span class="badge date">20240519</span>
-            </div>
-
-            <div class="dataset-doi">
-                <a href="https://doi.org/10.48364/ISIMIP.303619" target="_blank">https://doi.org/10.48364/ISIMIP.303619</a>
-            </div>
-
-            <h2 class="dataset-title">
-                <a href="#">cama-flood_clm40_gswp3_nobc_hist_nosoc_co2_dis_900arcsec_global_annual</a>
-            </h2>
-
-            <div class="dataset-actions">
-                <label class="select-dataset">
-                    <input type="checkbox" name="dataset" value="{{ dataset.id }}">
-                    Select dataset
-                </label>
-                <div class="action-buttons">
-                    <button type="button">
-                        <i class="fas fa-info-circle"></i>
-                        Metadata
-                    </button>
-                    <button type="button">
-                        <i class="fas fa-download"></i>
-                        Download
-                    </button>
-                    <button type="button" class="btn-configure">
-                        <i class="fas fa-cog"></i>
-                        Configure
-                    </button>
+    <!-- View Options -->
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <div class="mb-2">
+                        <strong>Sidebar view:</strong>
+                        <i class="fas fa-info-circle ms-1" data-bs-toggle="tooltip" title="Tree view shows a hierarchical structure of datasets. Facets view shows filterable categories."></i>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="view" id="treeView" checked>
+                        <label class="form-check-label" for="treeView">Tree</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="view" id="facetsView">
+                        <label class="form-check-label" for="facetsView">Facets</label>
+                    </div>
                 </div>
             </div>
         </div>
-        {% empty %}
-        <div class="no-results">
-            <p>No datasets found matching your criteria.</p>
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="version" id="latestVersion" checked>
+                        <label class="form-check-label" for="latestVersion">Show only the latest version</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="version" id="specificVersion">
+                        <label class="form-check-label" for="specificVersion">Show specific versions with date constraints</label>
+                    </div>
+                    <div class="form-check form-check-inline float-end">
+                        <input class="form-check-input" type="checkbox" id="showArchived">
+                        <label class="form-check-label" for="showArchived">Show archived files</label>
+                    </div>
+                </div>
+            </div>
         </div>
-        {% endfor %}
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body sidebar-content">
+                    <!-- Content will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Dataset List -->
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="selection-info">
+                            <strong>Selection:</strong> You selected {{ selected_count|default:"0" }} dataset of {{ total_size|default:"0" }} B size.
+                        </div>
+                        <div>
+                            More than {{ total_datasets|default:"1,000" }} datasets found.
+                        </div>
+                    </div>
+
+                    <div class="dataset-list">
+                        {% for dataset in datasets %}
+                        <div class="dataset-item mb-3 p-3 border rounded">
+                            <!-- Dataset Tags -->
+                            <div class="mb-2">
+                                <span class="badge bg-warning text-dark">{{ dataset.simulation_round|default:"JOOUST2a" }}</span>
+                                <span class="badge bg-secondary">{{ dataset.data_type|default:"DerivedOutputData" }}</span>
+                                <span class="badge bg-success">{{ dataset.author_year|default:"Research2023" }}</span>
+                                <span class="badge bg-info">{{ dataset.climate_forcing|default:"GSWP3" }}</span>
+                                <span class="badge bg-dark">{{ dataset.scenario|default:"historical" }}</span>
+                                <span class="badge bg-primary">{{ dataset.impact_model|default:"CLM4.0" }}</span>
+                                <span class="badge bg-dark">{{ dataset.variable|default:"dis" }}</span>
+                                <span class="float-end">
+                                    <span class="badge bg-secondary">Terms of use</span>
+                                    <span class="badge bg-info">CC0 1.0</span>
+                                    <span class="badge bg-dark">{{ dataset.created_at|date:"Ymd"|default:"20240619" }}</span>
+                                </span>
+                            </div>
+
+                            <!-- Dataset DOI -->
+                            <div class="small text-muted mb-1">
+                                {{ dataset.doi|default:"https://doi.org/10.48364/JOOUST.303619" }}
+                            </div>
+
+                            <!-- Dataset Title -->
+                            <h5 class="mb-2">
+                                <a href="{% url 'repository:dataset_detail' dataset.pk %}" class="text-decoration-none">{{ dataset.title }}</a>
+                            </h5>
+
+                            <!-- Dataset Actions -->
+                            <div class="d-flex gap-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="select-{{ dataset.id }}" data-size="{{ dataset.versions.first.file_size|default:0 }}">
+                                    <label class="form-check-label" for="select-{{ dataset.id }}">Select dataset</label>
+                                </div>
+                                <button class="btn btn-link btn-sm p-0">Attributes</button>
+                                <button class="btn btn-link btn-sm p-0">Files</button>
+                                <button class="btn btn-link btn-sm p-0">Configure download</button>
+                                <button class="btn btn-link btn-sm p-0">Download file list</button>
+                                <button class="btn btn-link btn-sm p-0">Download all files</button>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="alert alert-info">
+                            No datasets found matching your criteria.
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
+
+<!-- Add custom styles -->
+{% block extra_css %}
+<style>
+    .btn-link {
+        text-decoration: none;
+        color: #0d6efd;
+    }
+    .btn-link:hover {
+        text-decoration: underline;
+    }
+    .dataset-item {
+        background-color: #fff;
+        transition: background-color 0.2s;
+    }
+    .dataset-item:hover {
+        background-color: #f8f9fa;
+    }
+    .badge {
+        font-weight: normal;
+        padding: 0.4em 0.6em;
+    }
+    
+    /* Tree View Styles */
+    .tree-item {
+        margin: 0.25rem 0;
+    }
+    .tree-content {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+    }
+    .tree-toggle {
+        display: inline-block;
+        width: 1rem;
+        text-align: center;
+        color: #6c757d;
+    }
+    .tree-label {
+        flex: 1;
+    }
+    .tree-children {
+        margin-left: 1.5rem;
+        border-left: 1px dashed #dee2e6;
+        padding-left: 0.5rem;
+    }
+    
+    /* Facets View Styles */
+    .facet-group {
+        border-bottom: 1px solid #dee2e6;
+        padding-bottom: 1rem;
+    }
+    .facet-group:last-child {
+        border-bottom: none;
+    }
+    .facet-title {
+        color: #495057;
+        font-weight: 600;
+    }
+    .form-check-label {
+        color: #212529;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
 {% endblock %} 

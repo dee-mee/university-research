@@ -25,10 +25,10 @@ urlpatterns = [
     path('', include('research.urls')),
     path('', include('profiles.urls')),
     path('', include('maps.urls')),
-    path('repository/', include('data_repository.urls')),
+    path('repository/', include('data_repository.urls', namespace='repository')),
     path('api-auth/', include('rest_framework.urls')),
     path('logout/', logout_view, name='logout'),
-]
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

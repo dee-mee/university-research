@@ -1,79 +1,107 @@
-{% extends "data_repository/base_repository.html" %}
+{% extends 'base.html' %}
 {% load static %}
 
-{% block repository_content %}
-<div class="dataset-detail">
-    <div class="dataset-header">
-        <h1>{{ dataset.title }}</h1>
-        <div class="dataset-meta">
-            <span class="category">{{ dataset.category.name }}</span>
-            <span class="version">v{{ current_version.version_number }}</span>
-            <span class="created-by">Created by {{ dataset.created_by.get_full_name }}</span>
-            <span class="date">Published {{ dataset.published_at|date:"F j, Y" }}</span>
+{% block content %}
+<div class="container mt-4">
+    <h1>{{ dataset.title }}</h1>
+    <p class="lead">{{ dataset.description }}</p>
+
+    <!-- Properties Section -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="h5 mb-0">Properties</h2>
         </div>
-    </div>
-
-    {% if dataset.thumbnail %}
-    <div class="dataset-thumbnail">
-        <img src="{{ dataset.thumbnail.url }}" alt="{{ dataset.title }}">
-    </div>
-    {% endif %}
-
-    <div class="dataset-description">
-        {{ dataset.description|linebreaks }}
-    </div>
-
-    {% if current_version %}
-    <div class="dataset-version">
-        <h2>Current Version</h2>
-        <div class="version-info">
-            <p><strong>Version:</strong> {{ current_version.version_number }}</p>
-            <p><strong>Uploaded:</strong> {{ current_version.created_at|date:"F j, Y" }}</p>
-            <p><strong>File Size:</strong> {{ current_version.file_size|filesizeformat }}</p>
-            {% if current_version.description %}
-            <p><strong>Changes:</strong> {{ current_version.description }}</p>
-            {% endif %}
-        </div>
-        {% if access.access_type == 'public' or user == dataset.created_by or user in access.allowed_users.all %}
-        <a href="{% url 'repository:dataset_download' dataset.id current_version.id %}" class="download-button">
-            Download Dataset
-        </a>
-        {% else %}
-        <p class="access-restricted">This dataset requires special access. Please contact the dataset owner.</p>
-        {% endif %}
-    </div>
-    {% endif %}
-
-    {% if versions.count > 1 %}
-    <div class="version-history">
-        <h2>Version History</h2>
-        <div class="versions-list">
-            {% for version in versions %}
-            {% if version != current_version %}
-            <div class="version-item">
-                <h3>Version {{ version.version_number }}</h3>
-                <p><strong>Uploaded:</strong> {{ version.created_at|date:"F j, Y" }}</p>
-                <p><strong>File Size:</strong> {{ version.file_size|filesizeformat }}</p>
-                {% if version.description %}
-                <p><strong>Changes:</strong> {{ version.description }}</p>
-                {% endif %}
-                {% if access.access_type == 'public' or user == dataset.created_by or user in access.allowed_users.all %}
-                <a href="{% url 'repository:dataset_download' dataset.id version.id %}" class="download-button">
-                    Download Version {{ version.version_number }}
-                </a>
-                {% endif %}
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Path:</strong> {{ dataset.path|default:"Not specified" }}</p>
+                    <p><strong>ISIMIP ID:</strong> {{ dataset.isimip_id|default:"Not specified" }}</p>
+                    <p><strong>Size:</strong> {% if dataset.versions.first.file_size %}{{ dataset.versions.first.file_size|filesizeformat }}{% else %}Not available{% endif %}</p>
+                    <p><strong>Version:</strong> {% if dataset.versions.first %}{{ dataset.versions.first.version_number }}{% else %}No versions{% endif %}</p>
+                </div>
             </div>
-            {% endif %}
-            {% endfor %}
         </div>
     </div>
-    {% endif %}
 
-    {% if user == dataset.created_by %}
-    <div class="dataset-actions">
-        <a href="{% url 'repository:dataset_edit' dataset.slug %}" class="edit-button">Edit Dataset</a>
-        <a href="{% url 'repository:version_create' dataset.id %}" class="upload-button">Upload New Version</a>
+    <!-- Specifiers Section -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="h5 mb-0">Specifiers</h2>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <p><strong>Simulation round:</strong> {{ dataset.simulation_round|default:"Not specified" }}</p>
+                    <p><strong>Data product:</strong> {{ dataset.data_product|default:"Not specified" }}</p>
+                    <p><strong>Publication:</strong> 
+                        {% if dataset.publication %}
+                            <a href="{{ dataset.publication }}" target="_blank">{{ dataset.publication }}</a>
+                        {% else %}
+                            Not specified
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="col-md-4">
+                    <p><strong>Impact model:</strong> {{ dataset.impact_model|default:"Not specified" }}</p>
+                    <p><strong>Climate forcing:</strong> {{ dataset.climate_forcing|default:"Not specified" }}</p>
+                    <p><strong>Period:</strong> {{ dataset.period|default:"Not specified" }}</p>
+                </div>
+                <div class="col-md-4">
+                    <p><strong>Bias adjustment:</strong> {{ dataset.bias_adjustment|default:"Not specified" }}</p>
+                    <p><strong>Climate scenario:</strong> {{ dataset.climate_scenario|default:"Not specified" }}</p>
+                    <p><strong>Time step:</strong> {{ dataset.time_step|default:"Not specified" }}</p>
+                </div>
+            </div>
+        </div>
     </div>
-    {% endif %}
+
+    <!-- Versions Section -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="h5 mb-0">Versions</h2>
+        </div>
+        <div class="card-body">
+            {% if dataset.versions.exists %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Version</th>
+                                <th>Description</th>
+                                <th>Size</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for version in dataset.versions.all %}
+                            <tr>
+                                <td>{{ version.version_number }}</td>
+                                <td>{{ version.description }}</td>
+                                <td>{{ version.file_size|filesizeformat }}</td>
+                                <td>{{ version.created_at|date:"M d, Y" }}</td>
+                                <td>
+                                    {% if version.file_path %}
+                                        <a href="{{ version.file_path.url }}" class="btn btn-primary btn-sm">
+                                            <i class="fas fa-download"></i> Download
+                                        </a>
+                                    {% else %}
+                                        <button class="btn btn-secondary btn-sm" disabled>
+                                            <i class="fas fa-exclamation-circle"></i> No file available
+                                        </button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    No versions available for this dataset.
+                </div>
+            {% endif %}
+        </div>
+    </div>
 </div>
 {% endblock %} 

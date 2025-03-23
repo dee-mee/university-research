@@ -35,11 +35,11 @@ class Dataset(models.Model):
         ('archived', 'Archived'),
     )
 
-    title = models.CharField(max_length=255)
+    title = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
     description = models.TextField()
-    category = models.ForeignKey(DatasetCategory, on_delete=models.PROTECT)
-    created_by = models.ForeignKey(User, on_delete=models.PROTECT)
+    category = models.ForeignKey(DatasetCategory, on_delete=models.CASCADE)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     published_at = models.DateTimeField(null=True, blank=True)
@@ -53,6 +53,19 @@ class Dataset(models.Model):
     simulation = models.CharField(max_length=50, blank=True, null=True)
     model = models.CharField(max_length=50, blank=True, null=True)
     variables = models.JSONField(default=list, blank=True)
+    
+    # ISIMIP specific fields
+    path = models.CharField(max_length=500, blank=True)
+    isimip_id = models.CharField(max_length=200, blank=True)
+    simulation_round = models.CharField(max_length=50, blank=True)
+    impact_model = models.CharField(max_length=100, blank=True)
+    climate_forcing = models.CharField(max_length=100, blank=True)
+    climate_scenario = models.CharField(max_length=100, blank=True)
+    data_product = models.CharField(max_length=100, blank=True)
+    bias_adjustment = models.CharField(max_length=50, blank=True)
+    time_step = models.CharField(max_length=50, blank=True)
+    period = models.CharField(max_length=50, blank=True)
+    publication = models.URLField(blank=True)
 
     class Meta:
         ordering = ['-created_at']
@@ -68,51 +81,45 @@ class Dataset(models.Model):
         super().save(*args, **kwargs)
 
     def get_absolute_url(self):
-        return reverse('repository:dataset_detail', kwargs={'slug': self.slug})
+        return reverse('repository:dataset_detail', kwargs={'pk': self.pk})
 
 class DatasetVersion(models.Model):
     dataset = models.ForeignKey(Dataset, related_name='versions', on_delete=models.CASCADE)
-    version_number = models.CharField(max_length=20)
-    description = models.TextField(blank=True)
-    file_path = models.FileField(upload_to='datasets/')
-    file_size = models.BigIntegerField(default=0)
-    created_by = models.ForeignKey(User, on_delete=models.PROTECT)
+    version_number = models.IntegerField()
+    description = models.TextField()
+    file_path = models.FileField(upload_to='dataset_versions/')
+    file_size = models.BigIntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
     is_current = models.BooleanField(default=False)
-    metadata = models.JSONField(default=dict, blank=True)
+    metadata = models.JSONField(default=dict)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
 
     class Meta:
-        ordering = ['-created_at']
+        ordering = ['-version_number']
+        unique_together = ['dataset', 'version_number']
 
     def __str__(self):
-        return f"{self.dataset.title} - v{self.version_number}"
+        return f"{self.dataset.title} - Version {self.version_number}"
 
     def save(self, *args, **kwargs):
         if self.file_path:
             self.file_size = self.file_path.size
-        if self.is_current:
-            # Set all other versions of this dataset to not current
-            DatasetVersion.objects.filter(dataset=self.dataset).update(is_current=False)
         super().save(*args, **kwargs)
 
 class DatasetAccess(models.Model):
-    ACCESS_CHOICES = (
-        ('public', 'Public'),
-        ('private', 'Private'),
-        ('restricted', 'Restricted'),
-    )
-
-    dataset = models.ForeignKey(Dataset, related_name='access', on_delete=models.CASCADE)
-    access_type = models.CharField(max_length=10, choices=ACCESS_CHOICES, default='public')
-    allowed_users = models.ManyToManyField(User, blank=True, related_name='accessible_datasets')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name='access_controls')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    can_edit = models.BooleanField(default=False)
+    can_delete = models.BooleanField(default=False)
+    can_share = models.BooleanField(default=False)
+    granted_at = models.DateTimeField(auto_now_add=True)
+    granted_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='granted_access')
 
     class Meta:
-        verbose_name_plural = 'Dataset Access'
+        unique_together = ['dataset', 'user']
 
     def __str__(self):
-        return f"{self.dataset.title} - {self.access_type}"
+        return f"{self.dataset.title} - {self.user.username}"
 
 class DatasetDownload(models.Model):
     dataset = models.ForeignKey(Dataset, related_name='downloads', on_delete=models.CASCADE)
@@ -127,3 +134,48 @@ class DatasetDownload(models.Model):
 
     def __str__(self):
         return f"{self.dataset.title} - {self.user} - {self.downloaded_at}"
+
+class StackedDataset(models.Model):
+    name = models.CharField(max_length=200)
+    slug = models.SlugField(unique=True)
+    description = models.TextField()
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_stacks')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_public = models.BooleanField(default=True)
+    datasets = models.ManyToManyField(Dataset, through='StackedDatasetItem', related_name='stacks')
+    stacking_order = models.JSONField(default=list)  # Store the order of datasets in the stack
+    variables = models.JSONField(default=list)  # Store selected variables for each dataset
+    time_period = models.JSONField(default=dict)  # Store time period settings for each dataset
+    spatial_resolution = models.CharField(max_length=50, blank=True)  # Target resolution for stacking
+    output_format = models.CharField(max_length=50, default='netCDF')  # Output format for stacked data
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
+    def get_absolute_url(self):
+        return reverse('repository:stacked_dataset_detail', kwargs={'slug': self.slug})
+
+class StackedDatasetItem(models.Model):
+    stacked_dataset = models.ForeignKey(StackedDataset, on_delete=models.CASCADE)
+    dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE)
+    order = models.IntegerField()  # Position in the stack
+    selected_variables = models.JSONField(default=list)  # Variables selected for this dataset
+    time_period = models.JSONField(default=dict)  # Time period settings for this dataset
+    spatial_resolution = models.CharField(max_length=50, blank=True)  # Resolution for this dataset
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order']
+        unique_together = ['stacked_dataset', 'dataset', 'order']
+
+    def __str__(self):
+        return f"{self.stacked_dataset.name} - {self.dataset.title} ({self.order})"

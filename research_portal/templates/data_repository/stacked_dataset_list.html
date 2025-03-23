@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Stacked Datasets</h1>
+        <a href="{% url 'repository:stacked_dataset_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Create New Stack
+        </a>
+    </div>
+
+    <div class="row">
+        {% for stacked_dataset in stacked_datasets %}
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">{{ stacked_dataset.name }}</h5>
+                    <p class="card-text">{{ stacked_dataset.description|truncatewords:30 }}</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="badge bg-info">{{ stacked_dataset.datasets.count }} datasets</span>
+                            <span class="badge bg-secondary">{{ stacked_dataset.output_format }}</span>
+                        </div>
+                        <a href="{% url 'repository:stacked_dataset_detail' stacked_dataset.slug %}" class="btn btn-outline-primary">
+                            View Details
+                        </a>
+                    </div>
+                </div>
+                <div class="card-footer text-muted">
+                    Created by {{ stacked_dataset.created_by.username }} on {{ stacked_dataset.created_at|date:"F j, Y" }}
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info">
+                No stacked datasets found. Create your first stack by clicking the button above.
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %} 

@@ -6,7 +6,7 @@ def index(request):
     return render(request, 'index.html', {'news_items': news_items})
 
 def homepage(request):
-    return render(request, 'index.html')
+    return render(request, 'inde.html')
 
 def contact(request):
     return render(request, 'contact/contact.html')
