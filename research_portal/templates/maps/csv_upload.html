@@ -179,118 +179,156 @@
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const form = document.getElementById('csv-upload-form');
-        const processingModal = new bootstrap.Modal(document.getElementById('processingModal'));
+    const form = document.getElementById('csv-upload-form');
+    const processingModal = new bootstrap.Modal(document.getElementById('processingModal'));
+    
+    // Create a function to display errors
+    function displayError(message, isWarning = false) {
+        // Find or create the alert container
+        let alertContainer = document.querySelector('.alert-container');
+        if (!alertContainer) {
+            alertContainer = document.createElement('div');
+            alertContainer.className = 'alert-container mb-4';
+            form.parentNode.insertBefore(alertContainer, form);
+        }
         
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            processingModal.show();
-            
-            // Get CSRF token from the form
-            const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-            
-            // Create FormData object and ensure all form fields are included
-            const formData = new FormData(this);
-            
-            // Make the AJAX request
-            fetch(window.location.href, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRFToken': csrftoken
-                },
-                credentials: 'same-origin'
-            })
-            .then(response => {
-                if (response.redirected) {
-                    window.location.href = response.url;
-                    return { redirected: true };
-                }
-                
-                // Check for HTTP errors
-                if (!response.ok) {
-                    if (response.status === 403) {
-                        throw new Error('CSRF verification failed. Please refresh the page and try again.');
-                    }
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                // Try to parse response as JSON
-                return response.json().catch(() => {
-                    // If parsing fails, this might not be JSON
-                    if (response.ok) {
-                        return { success: true };
-                    }
-                    throw new Error('Invalid server response');
-                });
-            })
-            .then(data => {
-                // Handle redirected responses
-                if (data.redirected) {
-                    return;
-                }
-                
-                // Handle success or error from JSON response
-                if (data.success) {
-                    window.location.href = data.redirect_url || '{% url "maps:import_success" %}';
-                } else if (data.error) {
-                    throw new Error(data.error);
-                }
-            })
-            .catch(error => {
-                processingModal.hide();
-                console.error('Error:', error);
-                
-                // Create an error message element
-                const alertContainer = document.querySelector('.alert-container') || 
-                      document.createElement('div');
-                
-                if (!document.querySelector('.alert-container')) {
-                    alertContainer.className = 'alert-container mb-4';
-                    form.parentNode.insertBefore(alertContainer, form);
-                }
-                
-                alertContainer.innerHTML = `
-                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        ${error.message || 'Error uploading file'}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                `;
-            });
-        });
+        // Add the error message
+        alertContainer.innerHTML += `
+            <div class="alert alert-${isWarning ? 'warning' : 'danger'} alert-dismissible fade show" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        
+        // Make sure it's visible
+        window.scrollTo(0, 0);
+    }
+    
+    // Function to display multiple errors/warnings
+    function displayMessages(messages, isWarning = false) {
+        if (!messages || messages.length === 0) return;
+        
+        // If there are multiple messages, group them in a list
+        if (messages.length === 1) {
+            displayError(messages[0], isWarning);
+        } else {
+            const messagesList = messages.map(msg => `<li>${msg}</li>`).join('');
+            displayError(`<strong>${isWarning ? 'Warnings' : 'Errors'}:</strong><ul>${messagesList}</ul>`, isWarning);
+        }
+    }
+    
+    // Function to save import results to session storage
+    function saveImportResults(results) {
+        try {
+            sessionStorage.setItem('importResults', JSON.stringify(results));
+            console.log('Import results saved to session storage');
+        } catch (e) {
+            console.warn('Failed to save results to session storage:', e);
+        }
+    }
+    
+    form.addEventListener('submit', function(e) {
+        // Prevent default form submission
+        e.preventDefault();
+        
+        // Clear previous alerts
+        const existingAlerts = document.querySelector('.alert-container');
+        if (existingAlerts) {
+            existingAlerts.innerHTML = '';
+        }
+        
+        // Validate form fields before submission
+        const importType = document.getElementById('id_import_type').value;
+        const fileInput = document.getElementById('id_csv_file');
+        
+        if (!importType) {
+            displayError('Please select an import type');
+            return;
+        }
+        
+        if (!fileInput.files || fileInput.files.length === 0) {
+            displayError('Please select a CSV file to upload');
+            return;
+        }
+        
+        const file = fileInput.files[0];
+        
+        // Validate file extension
+        if (!file.name.toLowerCase().endsWith('.csv') && !file.name.toLowerCase().endsWith('.txt')) {
+            displayError('Please upload a file with .csv or .txt extension');
+            return;
+        }
+        
+        // Validate file size (50MB max)
+        const maxSize = 50 * 1024 * 1024; // 50MB
+        if (file.size > maxSize) {
+            displayError(`File is too large. Maximum size is 50MB. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
+            return;
+        }
+        
+        // All validation passed, show processing modal
+        processingModal.show();
+        
+        // Use traditional form submission for more reliable redirects
+        this.submit();
+    });
 
-        // Get form and import type select element
-        const importTypeSelect = document.getElementById('id_import_type');
-        const submitButton = document.getElementById('submit-button');
+    // Get form and import type select element
+    const importTypeSelect = document.getElementById('id_import_type');
+    
+    // Update active tab when import type changes
+    importTypeSelect.addEventListener('change', function() {
+        // Get the currently selected value
+        const selectedValue = this.value;
         
-        // Update active tab when import type changes
-        importTypeSelect.addEventListener('change', function() {
-            // Get the currently selected value
-            const selectedValue = this.value;
-            
-            // Map import type values to tab IDs
-            const tabMap = {
-                'stations': 'stations-tab',
-                'climate_data': 'climate-tab',
-                'weather_data_types': 'datatypes-tab',
-                'countries': 'countries-tab'
-            };
-            
-            // If there's a mapping for this value, click the tab
-            if (tabMap[selectedValue]) {
-                const tab = document.getElementById(tabMap[selectedValue]);
-                if (tab) {
-                    tab.click();
+        // Map import type values to tab IDs
+        const tabMap = {
+            'stations': 'stations-tab',
+            'climate_data': 'climate-tab',
+            'weather_data_types': 'datatypes-tab',
+            'countries': 'countries-tab'
+        };
+        
+        // If there's a mapping for this value, click the tab
+        if (tabMap[selectedValue]) {
+            const tab = document.getElementById(tabMap[selectedValue]);
+            if (tab) {
+                tab.click();
+                
+                // Show format guides when import type is selected
+                const formatGuidesCollapse = document.getElementById('formatGuidesCollapse');
+                if (formatGuidesCollapse && !formatGuidesCollapse.classList.contains('show')) {
+                    new bootstrap.Collapse(formatGuidesCollapse).show();
                 }
             }
-        });
-        
-        // Initialize tooltips and popovers
-        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl);
-        });
+        }
     });
+    
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Check for import results in session storage when page loads
+    try {
+        const savedResults = sessionStorage.getItem('importResults');
+        if (savedResults) {
+            const results = JSON.parse(savedResults);
+            console.log('Found saved import results:', results);
+            
+            // Display a summary of the last import
+            const summary = `Previous import: ${results.success} records successfully imported`;
+            const errors = results.error > 0 ? `, ${results.error} records had errors` : '';
+            
+            displayError(`${summary}${errors}`, results.error === 0);
+            
+            // Clear the results to avoid showing them again on refresh
+            sessionStorage.removeItem('importResults');
+        }
+    } catch (e) {
+        console.warn('Error checking session storage:', e);
+    }
+});
 </script>
 {% endblock %}
