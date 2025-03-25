@@ -19,15 +19,21 @@ from django.urls import path, include
 from profiles.views import logout_view
 from django.conf import settings
 from django.conf.urls.static import static
+from maps.views import ImportSuccessView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('maps/', include('maps.urls', namespace='maps')),
+    # We should NOT include maps.urls at the root - that was causing the duplicate/confused URLs
+    # path('', include('maps.urls')), # Remove this line
     path('', include('research.urls')),
     path('', include('profiles.urls')),
-    path('maps/', include('maps.urls')),
     path('api-auth/', include('rest_framework.urls')),
     path('logout/', logout_view, name='logout'),
+    # Replace the include with a direct view reference to avoid namespace conflict
+    path('upload/success/', ImportSuccessView.as_view(), name='import_success_direct'),
 ]
 
+# Serve media files in development
 if settings.DEBUG:
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
