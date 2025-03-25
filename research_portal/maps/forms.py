@@ -143,6 +143,10 @@ class CSVUploadForm(BaseImportForm):
         import_type = cleaned_data.get('import_type')
         csv_file = cleaned_data.get('csv_file')
         
+        # Only show processing_mode for climate data
+        if import_type != 'climate_data':
+            cleaned_data['processing_mode'] = 'direct'
+        
         # Validate file is present
         if not csv_file:
             self.add_error('csv_file', _("Please select a file to upload."))
