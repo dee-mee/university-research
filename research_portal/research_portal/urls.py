@@ -28,11 +28,11 @@ urlpatterns = [
     # path('', include('maps.urls')), # Remove this line
     path('', include('research.urls')),
     path('', include('profiles.urls')),
+    path('', include('maps.urls')),
+    path('repository/', include('data_repository.urls', namespace='repository')),
     path('api-auth/', include('rest_framework.urls')),
     path('logout/', logout_view, name='logout'),
-    # Replace the include with a direct view reference to avoid namespace conflict
-    path('upload/success/', ImportSuccessView.as_view(), name='import_success_direct'),
-]
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 # Serve media files in development
 if settings.DEBUG:

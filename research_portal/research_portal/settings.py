@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'research',
     'profiles',
     'maps',
+    'data_repository',
     'rest_framework',
     'django.contrib.gis',
     'rest_framework_gis',

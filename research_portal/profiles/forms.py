@@ -6,6 +6,7 @@ from .models import Profile
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from django.contrib import messages
+from django.utils import timezone
 
 class UserRegistrationForm(forms.ModelForm):
     first_name = forms.CharField()
@@ -13,7 +14,14 @@ class UserRegistrationForm(forms.ModelForm):
     last_name = forms.CharField()
     phone_number = forms.CharField()
     id_number = forms.CharField()
-    dob = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
+    dob = forms.DateField(
+        widget=forms.DateInput(attrs={
+            'type': 'date',
+            'class': 'form-control',
+            'max': timezone.now().date().isoformat()
+        }),
+        label="Date of Birth"
+    )
     gender = forms.ChoiceField(choices=[('male', 'Male'), ('female', 'Female')])
     email = forms.EmailField()
     password = forms.CharField(widget=forms.PasswordInput)
@@ -47,6 +55,15 @@ class UserRegistrationForm(forms.ModelForm):
             raise forms.ValidationError("Passwords don't match.")
         return cd.get('password2')
 
+    def clean_dob(self):
+        dob = self.cleaned_data.get('dob')
+        if dob:
+            if dob > timezone.now().date():
+                raise forms.ValidationError("Date of birth cannot be in the future.")
+            if dob < timezone.now().date() - timezone.timedelta(days=365*100):
+                raise forms.ValidationError("Please enter a valid date of birth.")
+        return dob
+
     def save(self, commit=True):
         user = super().save(commit=False)
         user.username = self.cleaned_data['email']  # Set username to email
@@ -67,31 +84,32 @@ class CustomPasswordResetForm(PasswordResetForm):
     email = forms.EmailField(max_length=254)
 
 class LoginForm(forms.Form):
-    id_number = forms.CharField(max_length=20, label="ID Number")
+    username = forms.CharField(max_length=150, label="Email or ID Number")
     password = forms.CharField(widget=forms.PasswordInput)
     
     def clean(self):
         cleaned_data = super().clean()
-        id_number = cleaned_data.get('id_number')
+        username = cleaned_data.get('username')
         password = cleaned_data.get('password')
         
-        if id_number and password:
-            try:
-                # Find the user associated with this ID number
-                profile = Profile.objects.get(id_number=id_number)
-                # Then try to authenticate with their username (email)
-                user = authenticate(username=profile.user.username, password=password)
-                if not user:
-                    raise forms.ValidationError("Invalid ID number or password")
-                else:
-                    # Store the authenticated user in cleaned_data
-                    cleaned_data['user'] = user
-            except Profile.DoesNotExist:
-                raise forms.ValidationError("Invalid ID number or password")
+        if username and password:
+            # First try to authenticate with email
+            user = authenticate(username=username, password=password)
+            
+            # If that fails, try to find user by ID number
+            if not user:
+                try:
+                    profile = Profile.objects.get(id_number=username)
+                    user = authenticate(username=profile.user.username, password=password)
+                except Profile.DoesNotExist:
+                    pass
+            
+            if not user:
+                raise forms.ValidationError("Invalid email/ID number or password")
+            else:
+                cleaned_data['user'] = user
                 
         return cleaned_data
-
-
 
 class ProfileEditForm(forms.ModelForm):
     """

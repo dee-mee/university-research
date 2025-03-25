@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>{{ dataset.title }}</h1>
+    <p class="lead">{{ dataset.description }}</p>
+
+    <!-- Properties Section -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="h5 mb-0">Properties</h2>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Path:</strong> {{ dataset.path|default:"Not specified" }}</p>
+                    <p><strong>ISIMIP ID:</strong> {{ dataset.isimip_id|default:"Not specified" }}</p>
+                    <p><strong>Size:</strong> {% if dataset.versions.first.file_size %}{{ dataset.versions.first.file_size|filesizeformat }}{% else %}Not available{% endif %}</p>
+                    <p><strong>Version:</strong> {% if dataset.versions.first %}{{ dataset.versions.first.version_number }}{% else %}No versions{% endif %}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Specifiers Section -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="h5 mb-0">Specifiers</h2>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <p><strong>Simulation round:</strong> {{ dataset.simulation_round|default:"Not specified" }}</p>
+                    <p><strong>Data product:</strong> {{ dataset.data_product|default:"Not specified" }}</p>
+                    <p><strong>Publication:</strong> 
+                        {% if dataset.publication %}
+                            <a href="{{ dataset.publication }}" target="_blank">{{ dataset.publication }}</a>
+                        {% else %}
+                            Not specified
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="col-md-4">
+                    <p><strong>Impact model:</strong> {{ dataset.impact_model|default:"Not specified" }}</p>
+                    <p><strong>Climate forcing:</strong> {{ dataset.climate_forcing|default:"Not specified" }}</p>
+                    <p><strong>Period:</strong> {{ dataset.period|default:"Not specified" }}</p>
+                </div>
+                <div class="col-md-4">
+                    <p><strong>Bias adjustment:</strong> {{ dataset.bias_adjustment|default:"Not specified" }}</p>
+                    <p><strong>Climate scenario:</strong> {{ dataset.climate_scenario|default:"Not specified" }}</p>
+                    <p><strong>Time step:</strong> {{ dataset.time_step|default:"Not specified" }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Versions Section -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="h5 mb-0">Versions</h2>
+        </div>
+        <div class="card-body">
+            {% if dataset.versions.exists %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Version</th>
+                                <th>Description</th>
+                                <th>Size</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for version in dataset.versions.all %}
+                            <tr>
+                                <td>{{ version.version_number }}</td>
+                                <td>{{ version.description }}</td>
+                                <td>{{ version.file_size|filesizeformat }}</td>
+                                <td>{{ version.created_at|date:"M d, Y" }}</td>
+                                <td>
+                                    {% if version.file_path %}
+                                        <a href="{{ version.file_path.url }}" class="btn btn-primary btn-sm">
+                                            <i class="fas fa-download"></i> Download
+                                        </a>
+                                    {% else %}
+                                        <button class="btn btn-secondary btn-sm" disabled>
+                                            <i class="fas fa-exclamation-circle"></i> No file available
+                                        </button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    No versions available for this dataset.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %} 
