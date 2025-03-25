@@ -18,6 +18,30 @@
                 {% endfor %}
             </div>
             {% endif %}
+            
+            {% if no_valid_paths %}
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Warning:</strong> No valid flash drive paths were detected. The system checked:
+                <ul class="mb-0 mt-2">
+                    {% for path in form.drive_path.field.choices %}
+                    <li><code>{{ path.0 }}</code></li>
+                    {% endfor %}
+                </ul>
+                <hr>
+                <p class="mb-0">Please ensure a flash drive is properly connected to the system.</p>
+            </div>
+            {% elif valid_paths %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Valid flash drive paths detected:</strong>
+                <ul class="mb-0 mt-2">
+                    {% for path in valid_paths %}
+                    <li><code>{{ path }}</code></li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
 
             <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
                 {% csrf_token %}
@@ -169,6 +193,14 @@ document.addEventListener('DOMContentLoaded', function() {
     if (tab) {
         tab.click();
     }
+    
+    // Auto-refresh to check for flash drive connection
+    {% if no_valid_paths %}
+    // If no valid paths found, refresh the page every 30 seconds to check again
+    setTimeout(function() {
+        window.location.reload();
+    }, 30000);
+    {% endif %}
 });
 </script>
 {% endblock %}
