@@ -1,0 +1,219 @@
+<div class="graphs-container my-4">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">Weather Data Graphs</h5>
+            <div class="graph-controls">
+                <select id="dataTypeSelect" class="form-select form-select-sm" aria-label="Data type selection">
+                    {% for data_type in available_data_types %}
+                    <option value="{{ data_type.field }}" {% if forloop.first %}selected{% endif %}>
+                        {{ data_type.display_name }}{% if data_type.unit %} ({{ data_type.unit }}){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+                <select id="timeRangeSelect" class="form-select form-select-sm ms-2" aria-label="Time range selection">
+                    <option value="1">Last 24 hours</option>
+                    <option value="7">Last 7 days</option>
+                    <option value="30" selected>Last 30 days</option>
+                    <option value="90">Last 3 months</option>
+                    <option value="365">Last year</option>
+                </select>
+                <select id="intervalSelect" class="form-select form-select-sm ms-2" aria-label="Time interval selection">
+                    <option value="hour">Hourly</option>
+                    <option value="day" selected>Daily</option>
+                    <option value="week">Weekly</option>
+                    <option value="month">Monthly</option>
+                </select>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="chart-container" style="position: relative; height:400px; width:100%">
+                <canvas id="weatherChart"></canvas>
+                <div id="loadingIndicator" class="text-center py-5" style="display:none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading data...</p>
+                </div>
+                <div id="noDataMessage" class="text-center py-5" style="display:none;">
+                    <p class="text-muted">No data available for the selected parameters</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+    // Chart.js configuration
+    let weatherChart = null;
+    const chartColors = {
+        temperature: 'rgb(255, 99, 132)',
+        precipitation: 'rgb(54, 162, 235)',
+        humidity: 'rgb(75, 192, 192)',
+        wind_speed: 'rgb(153, 102, 255)',
+        barometric_pressure: 'rgb(255, 159, 64)',
+        air_quality_index: 'rgb(201, 203, 207)',
+        uv_index: 'rgb(255, 205, 86)',
+        default: 'rgb(75, 192, 192)'
+    };
+    
+    // Function to get color for data type
+    function getColorForDataType(dataType) {
+        return chartColors[dataType] || chartColors.default;
+    }
+    
+    // Initial chart setup
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get DOM elements
+        const dataTypeSelect = document.getElementById('dataTypeSelect');
+        const timeRangeSelect = document.getElementById('timeRangeSelect');
+        const intervalSelect = document.getElementById('intervalSelect');
+        const chartCanvas = document.getElementById('weatherChart');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const noDataMessage = document.getElementById('noDataMessage');
+        
+        // Chart context
+        const ctx = chartCanvas.getContext('2d');
+        
+        // Create chart configuration
+        weatherChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Loading data...',
+                    data: [],
+                    backgroundColor: getColorForDataType('temperature'),
+                    borderColor: getColorForDataType('temperature'),
+                    borderWidth: 2,
+                    tension: 0.2,
+                    pointRadius: 3,
+                    pointHoverRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        title: {
+                            display: true,
+                            text: 'Value'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Time'
+                        }
+                    }
+                },
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    tooltip: {
+                        enabled: true
+                    },
+                    legend: {
+                        position: 'top',
+                    }
+                }
+            }
+        });
+        
+        // Load initial data
+        loadChartData();
+        
+        // Event listeners for selection changes
+        dataTypeSelect.addEventListener('change', loadChartData);
+        timeRangeSelect.addEventListener('change', loadChartData);
+        intervalSelect.addEventListener('change', loadChartData);
+    });
+    
+    // Function to load chart data from API
+    function loadChartData() {
+        const dataType = document.getElementById('dataTypeSelect').value;
+        const days = document.getElementById('timeRangeSelect').value;
+        const interval = document.getElementById('intervalSelect').value;
+        const stationId = {{ station.id }};
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const noDataMessage = document.getElementById('noDataMessage');
+        
+        // Show loading indicator
+        loadingIndicator.style.display = 'block';
+        noDataMessage.style.display = 'none';
+        
+        // Clear chart data during loading
+        if (weatherChart) {
+            weatherChart.data.labels = [];
+            weatherChart.data.datasets[0].data = [];
+            weatherChart.update();
+        }
+        
+        // URL for API endpoint
+        const apiUrl = `{{ api_base_url }}/api/stations/${stationId}/graph-data/?data_type=${dataType}&days=${days}&interval=${interval}`;
+        
+        // Fetch data from API
+        fetch(apiUrl)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Hide loading indicator
+                loadingIndicator.style.display = 'none';
+                
+                // Check if we have data
+                if (data.error || !data.values || data.values.length === 0) {
+                    noDataMessage.style.display = 'block';
+                    noDataMessage.querySelector('p').textContent = data.error || 'No data available for the selected parameters';
+                    
+                    // Update chart to empty state
+                    weatherChart.data.labels = [];
+                    weatherChart.data.datasets[0].data = [];
+                    weatherChart.data.datasets[0].label = `No ${dataType} data available`;
+                    weatherChart.update();
+                    return;
+                }
+                
+                // Update chart with new data
+                weatherChart.data.labels = data.labels;
+                weatherChart.data.datasets[0].data = data.values;
+                
+                // Update chart appearance
+                const color = getColorForDataType(dataType);
+                weatherChart.data.datasets[0].backgroundColor = color;
+                weatherChart.data.datasets[0].borderColor = color;
+                
+                // Update labels and titles
+                const displayName = document.getElementById('dataTypeSelect').options[
+                    document.getElementById('dataTypeSelect').selectedIndex
+                ].text;
+                
+                weatherChart.data.datasets[0].label = displayName;
+                weatherChart.options.scales.y.title.text = data.unit || 'Value';
+                
+                // Update chart
+                weatherChart.update();
+            })
+            .catch(error => {
+                // Hide loading indicator and show error
+                loadingIndicator.style.display = 'none';
+                noDataMessage.style.display = 'block';
+                noDataMessage.querySelector('p').textContent = `Error loading data: ${error.message}`;
+                
+                console.error('Error fetching graph data:', error);
+                
+                // Update chart to error state
+                weatherChart.data.labels = [];
+                weatherChart.data.datasets[0].data = [];
+                weatherChart.data.datasets[0].label = `Error loading data`;
+                weatherChart.update();
+            });
+    }
+</script>

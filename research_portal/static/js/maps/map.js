@@ -71,8 +71,8 @@ class WeatherStationMap {
      * Load weather stations from the API
      */
     loadStations() {
-        // Fix URL path: Remove duplicate "api" in the path
-        fetch(`${this.apiBaseUrl}/weather-stations/`)
+        // Use correct path including API prefix
+        fetch(`${this.apiBaseUrl}/api/weather-stations/`)
             .then(response => {
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
@@ -132,17 +132,9 @@ class WeatherStationMap {
             .catch(error => {
                 console.error("Error loading stations:", error);
                 // Try the debug endpoint as fallback with corrected paths
-                fetch(`/maps/api/debug/stations/`)
+                fetch(`${this.apiBaseUrl}/api/map-data/`)
                     .then(response => {
                         if (!response.ok) {
-                            // Try another fallback path
-                            return fetch(`/maps/api/map-data/`);
-                        }
-                        return response;
-                    })
-                    .then(response => {
-                        if (!response.ok) {
-                            // Final fallback to just trying the debug_stations path directly
                             return fetch(`/debug_stations/`);
                         }
                         return response;
@@ -283,18 +275,18 @@ class WeatherStationMap {
         }
         
         // Try to access station data using the correct API endpoint path
-        fetch(`/maps/api/weather-stations/${stationId}/data/?days=7`)
+        fetch(`${this.apiBaseUrl}/api/stations/${stationId}/data/`)
             .then(response => {
                 if (!response.ok) {
                     // First fallback - try using DRF viewset endpoint directly
-                    return fetch(`/maps/api/climate-data/?station=${stationId}&days=7`);
+                    return fetch(`${this.apiBaseUrl}/api/climate-data/?station=${stationId}&days=7`);
                 }
                 return response;
             })
             .then(response => {
                 if (!response.ok) {
                     // Second fallback - try accessing the station directly via map-data
-                    return fetch(`/maps/api/map-data/?station=${stationId}`);
+                    return fetch(`${this.apiBaseUrl}/api/map-data/?station=${stationId}`);
                 }
                 return response;
             })
