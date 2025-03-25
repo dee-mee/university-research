@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from dateutil import parser
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, FileResponse, Http404
 from django.contrib import messages
 from django.utils import timezone
 from django.core.files.storage import FileSystemStorage
@@ -25,6 +25,7 @@ from django.contrib.gis.db.models.functions import Distance
 from django.db import models
 import operator
 from functools import reduce
+from django.core.signing import Signer, BadSignature
 from .utils import check_for_alerts, create_alert_from_detection, send_alert_notifications
 from rest_framework import viewsets, filters
 from rest_framework.decorators import action, api_view, permission_classes
@@ -91,10 +92,10 @@ class MapView(TemplateView):
             'has_alerts': active_alerts.exists(),
             'alerts_count': active_alerts.count(),
             'data_types': WeatherDataType.objects.all(),
-            'api_base_url': '/api',
+            'api_base_url': '/maps',  # Update API base URL to include maps prefix
             'map_title': 'Weather Stations Map',
             'map_description': 'Interactive map of all weather stations and their data',
-            'geojson_url': '/api/weather-stations/',
+            'geojson_url': '/maps/api/weather-stations/',  # Updated path
         })
         
         return context
@@ -394,57 +395,90 @@ class WeatherAlertViewSet(viewsets.ModelViewSet):
 @api_view(['GET'])
 def map_data(request):
     """API endpoint to get consolidated data for map display"""
-    # Get stations with related data
-    stations = WeatherStation.objects.select_related('country').all()
-    
-    # Get recent climate data for active stations
-    recent_data = []
-    active_stations = stations.filter(is_active=True)
-    
-    for station in active_stations:
-        latest_reading = ClimateData.objects.filter(
-            station=station
-        ).order_by('-timestamp').first()
+    try:
+        # Get stations with related data - use only fields we know exist
+        # Avoid using defer() or only() with Country as it might try to load the missing field
+        stations = WeatherStation.objects.all()
         
-        if latest_reading:
-            data = {
-                'station_id': station.id,
-                'station_name': station.name,
-                'timestamp': latest_reading.timestamp,
-                'data': {}
+        # Get recent climate data for active stations
+        recent_data = []
+        active_stations = stations.filter(is_active=True)
+        
+        for station in active_stations:
+            try:
+                # Use values() to explicitly select only existing fields
+                latest_reading = ClimateData.objects.filter(
+                    station=station
+                ).order_by('-timestamp').values(
+                    'id', 'timestamp', 'temperature', 'humidity', 'precipitation',
+                    'air_quality_index', 'wind_speed', 'wind_direction', 'barometric_pressure',
+                    'cloud_cover', 'soil_moisture', 'water_level', 'data_quality', 'uv_index',
+                    'year', 'month'
+                ).first()
+                
+                if latest_reading:
+                    data = {
+                        'station_id': station.id,
+                        'station_name': station.name,
+                        'timestamp': latest_reading['timestamp'],
+                        'data': {}
+                    }
+                    
+                    # Add available measurements
+                    for data_type in station.available_data_types():
+                        if data_type in latest_reading and latest_reading[data_type] is not None:
+                            data['data'][data_type] = latest_reading[data_type]
+                    
+                    data['is_recent'] = latest_reading['timestamp'] > (timezone.now() - timedelta(days=1))
+                    recent_data.append(data)
+            except Exception as e:
+                # Log the error but continue processing other stations
+                print(f"Error getting data for station {station.id}: {str(e)}")
+                continue
+        
+        # Get active alerts with related info - avoid using select_related with Country
+        active_alerts = WeatherAlert.objects.filter(status='active')
+        
+        # Safe feature collection creation - use a more direct approach to avoid model field access issues
+        features = []
+        for station in stations:
+            feature = {
+                'type': 'Feature',
+                'geometry': {
+                    'type': 'Point',
+                    'coordinates': [station.longitude, station.latitude]
+                },
+                'properties': {
+                    'id': station.id,
+                    'name': station.name,
+                    'is_active': station.is_active,
+                    'country': station.country.name if station.country else None,
+                }
             }
-            
-            # Add available measurements
-            for data_type in station.available_data_types():
-                if hasattr(latest_reading, data_type):
-                    value = getattr(latest_reading, data_type)
-                    if value is not None:
-                        data['data'][data_type] = value
-            
-            data['is_recent'] = latest_reading.timestamp > (timezone.now() - timedelta(days=1))
-            recent_data.append(data)
-    
-    # Get active alerts with related info
-    active_alerts = WeatherAlert.objects.select_related(
-        'station', 'country', 'data_type'
-    ).filter(status='active')
-    
-    return Response({
-        'stations': {
-            'type': 'FeatureCollection',
-            'features': [station.to_representation() for station in stations]
-        },
-        'recent_data': recent_data,
-        'alerts': WeatherAlertSerializer(active_alerts, many=True).data,
-        'stats': {
-            'total_stations': stations.count(),
-            'active_stations': active_stations.count(),
-            'stations_with_recent_data': len([d for d in recent_data if d['is_recent']]),
-            'active_alerts': active_alerts.count(),
-            'available_data_types': list(WeatherDataType.objects.values('name', 'display_name', 'unit'))
-        }
-    })
-
+            features.append(feature)
+        
+        # Return the consolidated data
+        return Response({
+            'stations': {
+                'type': 'FeatureCollection',
+                'features': features
+            },
+            'recent_data': recent_data,
+            'alerts': WeatherAlertSerializer(active_alerts, many=True).data,
+            'stats': {
+                'total_stations': stations.count(),
+                'active_stations': active_stations.count(),
+                'stations_with_recent_data': len([d for d in recent_data if d['is_recent']]),
+                'active_alerts': active_alerts.count(),
+                'available_data_types': list(WeatherDataType.objects.values('name', 'display_name', 'unit'))
+            }
+        })
+    except Exception as e:
+        # Return a meaningful error that won't expose sensitive information
+        return Response({
+            'error': f"Failed to load map data: {str(e)}",
+            'stations': {'type': 'FeatureCollection', 'features': []}
+        }, status=500)
 
 class CSVUploadView(FormView):
     template_name = 'maps/csv_upload.html'
@@ -464,29 +498,41 @@ class CSVUploadView(FormView):
         try:
             import_type = form.cleaned_data['import_type']
             csv_file = form.cleaned_data['csv_file']
+            processing_mode = form.cleaned_data.get('processing_mode', 'direct')
 
-            # Process the file and store results
+            # Enhanced logging
+            logging.info(f"Processing CSV import of type: {import_type}, file: {csv_file.name}, size: {csv_file.size} bytes, mode: {processing_mode}")
+            
+            # Check if file is empty
+            if csv_file.size == 0:
+                result = {
+                    'success': 0, 
+                    'error': 1, 
+                    'errors': ['The uploaded file is empty.'], 
+                    'type': import_type
+                }
+                self.request.session['import_results'] = result
+                messages.error(self.request, "The uploaded file is empty.")
+                return redirect(self.get_success_url())
+
+            # Process the file with the appropriate method based on import_type
             if import_type == 'stations':
                 result = self.process_stations_file(csv_file)
             elif import_type == 'climate_data':
-                result = self.process_climate_data_file(csv_file)
+                result = self.process_climate_data_file(csv_file, processing_mode)
             elif import_type == 'weather_data_types':
                 result = self.process_weather_data_types_file(csv_file)
             elif import_type == 'countries':
                 result = self.process_countries_file(csv_file)
             else:
-                result = {'success': 0, 'error': 1, 'errors': ['Invalid import type']}
+                # Default to the generic processor
+                result = self.process_csv_file(csv_file, import_type, processing_mode)
 
+            # Enhanced logging
+            logging.info(f"CSV import result: {result['success']} success, {result['error']} errors")
+            
             # Store results in session
             self.request.session['import_results'] = result
-
-            # If this is an AJAX request, return JSON response
-            if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({
-                    'success': True,
-                    'redirect_url': self.get_success_url(),
-                    'result': result
-                })
 
             # Add message for regular form submission
             if result['success'] > 0:
@@ -501,459 +547,341 @@ class CSVUploadView(FormView):
                     f"Import failed. Encountered {result['error']} errors."
                 )
 
-            return super().form_valid(form)
+            # Always redirect to success page for consistent behavior
+            return redirect(self.get_success_url())
 
         except Exception as e:
-            error_msg = str(e)
-            messages.error(self.request, f"An error occurred: {error_msg}")
+            # Enhanced error logging
+            logging.error(f"CSV import error: {str(e)}", exc_info=True)
             
-            # If AJAX request, return error response
-            if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({
-                    'success': False,
-                    'error': error_msg
-                }, status=400)
-                
-            return self.form_invalid(form)
+            error_msg = f"An error occurred: {str(e)}"
+            messages.error(self.request, error_msg)
+            
+            # Store minimal results in session to show on import_success page
+            self.request.session['import_results'] = {
+                'success': 0,
+                'error': 1,
+                'errors': [error_msg],
+                'type': form.cleaned_data.get('import_type', 'Unknown')
+            }
+            
+            # Always redirect to success page even on errors
+            return redirect(self.get_success_url())
 
+    # Add these new specific file processors
     def process_stations_file(self, csv_file):
         """Process a CSV file containing weather station data"""
-        result = {
-            'success': 0,
-            'error': 0,
-            'errors': [],
-            'type': 'Weather Stations'
-        }
+        from .utils import _process_station_row_enhanced
+        from .csv_utils import process_csv_in_batches
 
-        try:
-            decoded_file = csv_file.read().decode('utf-8')
-            io_string = io.StringIO(decoded_file)
-            reader = csv.DictReader(io_string)
-
-            # Check for required fields - either (name, latitude, longitude) OR (name, location)
-            if not ('name' in reader.fieldnames and
-                    (('latitude' in reader.fieldnames and 'longitude' in reader.fieldnames) or
-                     'location' in reader.fieldnames)):
-                result['errors'].append(
-                    "Missing required fields: 'name' and either ('latitude' and 'longitude') or 'location'")
-                return result
-
-            for row in reader:
-                try:
-                    # Check for station name
-                    if not row.get('name'):
-                        result['error'] += 1
-                        result['errors'].append(f"Missing name in row: {row}")
-                        continue
-
-                    # Parse location - now supporting multiple input formats
-                    location = None
-
-                    # Option 1: Separate latitude/longitude fields
-                    if 'latitude' in row and 'longitude' in row and row.get('latitude') and row.get('longitude'):
-                        try:
-                            latitude = float(row['latitude'])
-                            longitude = float(row['longitude'])
-                            location = Point(longitude, latitude, srid=4326)
-                        except (ValueError, TypeError) as e:
-                            result['error'] += 1
-                            result['errors'].append(f"Invalid coordinates in row: {row}. Error: {str(e)}")
-                            continue
-
-                    # Option 2: Combined location field (format: "POINT(longitude latitude)" or "longitude,latitude")
-                    elif 'location' in row and row.get('location'):
-                        try:
-                            location_str = row['location'].strip()
-
-                            # Check if in WKT format: "POINT(longitude latitude)"
-                            if location_str.upper().startswith('POINT'):
-                                # Extract coordinates from POINT(lon lat) format
-                                coords = location_str.strip('POINT()').split()
-                                longitude = float(coords[0])
-                                latitude = float(coords[1])
-                                location = Point(longitude, latitude, srid=4326)
-
-                            # Check if in simple format: "longitude,latitude"
-                            elif ',' in location_str:
-                                coords = location_str.split(',')
-                                longitude = float(coords[0].strip())
-                                latitude = float(coords[1].strip())
-                                location = Point(longitude, latitude, srid=4326)
-                            else:
-                                raise ValueError(f"Unrecognized location format: {location_str}")
-
-                        except (ValueError, TypeError, IndexError) as e:
-                            result['error'] += 1
-                            result['errors'].append(f"Invalid location format in row: {row}. Error: {str(e)}")
-                            continue
-
-                    # If no valid location data found
-                    if not location:
-                        result['error'] += 1
-                        result['errors'].append(f"Missing or invalid location data in row: {row}")
-                        continue
-
-                    # Parse date if present
-                    date_installed = None
-                    if 'date_installed' in row and row['date_installed']:
-                        try:
-                            date_installed = parser.parse(row['date_installed']).date()
-                        except ValueError:
-                            # If date parsing fails, leave as None but log the issue
-                            result['errors'].append(f"Invalid date format in row: {row}. Using null instead.")
-
-                    # Parse decommissioned date if present
-                    date_decommissioned = None
-                    if 'date_decommissioned' in row and row['date_decommissioned']:
-                        try:
-                            date_decommissioned = parser.parse(row['date_decommissioned']).date()
-                        except ValueError:
-                            # If date parsing fails, leave as None but log the issue
-                            result['errors'].append(
-                                f"Invalid decommissioned date format in row: {row}. Using null instead.")
-
-                    # Parse altitude if present
-                    altitude = None
-                    if 'altitude' in row and row['altitude']:
-                        try:
-                            altitude = float(row['altitude'])
-                        except ValueError:
-                            # If altitude parsing fails, leave as None but log the issue
-                            result['errors'].append(f"Invalid altitude format in row: {row}. Using null instead.")
-
-                    # Parse is_active if present
-                    is_active = True
-                    if 'is_active' in row and row['is_active']:
-                        is_active = row['is_active'].lower() in ('true', 'yes', '1', 't', 'y')
-
-                    # Get or create country if specified
-                    country = None
-                    if 'country' in row and row['country']:
-                        try:
-                            country = Country.objects.get(name=row['country'])
-                        except Country.DoesNotExist:
-                            try:
-                                country = Country.objects.get(code=row['country'])
-                            except Country.DoesNotExist:
-                                result['errors'].append(f"Country not found: {row['country']}. Using null instead.")
-
-                    # Parse data type flags
-                    data_type_flags = {
-                        'has_temperature': True,
-                        'has_precipitation': True,
-                        'has_humidity': True,
-                        'has_wind': True,
-                        'has_air_quality': False,
-                        'has_soil_moisture': False,
-                        'has_water_level': False
-                    }
-
-                    for flag_name in data_type_flags:
-                        if flag_name in row and row[flag_name]:
-                            data_type_flags[flag_name] = row[flag_name].lower() in ('true', 'yes', '1', 't', 'y')
-
-                    # Create station_id if not provided
-                    station_id = row.get('station_id')
-                    if not station_id:
-                        # Generate a station ID based on name and location
-                        station_id = f"{row['name'].lower().replace(' ', '_')}_{location.y:.2f}_{location.x:.2f}"
-
-                    # Create or update the station
-                    station, created = WeatherStation.objects.update_or_create(
-                        station_id=station_id,
-                        defaults={
-                            'name': row['name'],
-                            'location': location,
-                            'description': row.get('description', ''),
-                            'altitude': altitude,
-                            'is_active': is_active,
-                            'date_installed': date_installed,
-                            'date_decommissioned': date_decommissioned,
-                            'country': country,
-                            'region': row.get('region', ''),
-                            **data_type_flags
-                        }
-                    )
-
-                    result['success'] += 1
-
-                except Exception as e:
-                    result['error'] += 1
-                    result['errors'].append(f"Error processing row: {row}. Error: {str(e)}")
-
-        except Exception as e:
-            result['errors'].append(f"Error processing file: {str(e)}")
-
+        def row_processor(row, line_num, progress):
+            return _process_station_row_enhanced(
+                row, line_num, progress, update_existing=True,
+                required_fields=['name', 'latitude', 'longitude']
+            )
+            
+        result = process_csv_in_batches(csv_file, row_processor, batch_size=100)
+        result['type'] = 'Weather Stations'
+        
         return result
 
-    def process_climate_data_file(self, csv_file):
+    def process_climate_data_file(self, csv_file, processing_mode='direct'):
         """Process a CSV file containing climate data"""
-        result = {
-            'success': 0,
-            'error': 0,
-            'errors': [],
-            'type': 'Climate Data'
-        }
+        from .utils import _process_climate_data_row_enhanced
+        from .csv_utils import process_csv_in_batches
 
-        try:
-            decoded_file = csv_file.read().decode('utf-8')
-            io_string = io.StringIO(decoded_file)
-            reader = csv.DictReader(io_string)
-
-            # Check for required fields - now supporting multiple station identifier options
-            station_identifiers = ['station_name', 'station_id', 'station']
-            has_station_identifier = any(field in reader.fieldnames for field in station_identifiers)
-
-            if not (has_station_identifier and 'timestamp' in reader.fieldnames):
-                result['errors'].append(f"Missing required fields: 'timestamp' and one of {station_identifiers}")
-                return result
-
-            # Get timezone for timestamps
-            timezone = pytz.timezone('UTC')  # Default to UTC, adjust if needed
-
-            for row in reader:
-                try:
-                    # Handle multiple station identifier options
-                    station_identifier = None
-                    for field in station_identifiers:
-                        if field in row and row[field]:
-                            station_identifier = row[field]
-                            break
-
-                    # Check for required fields
-                    if not station_identifier or not row.get('timestamp'):
-                        result['error'] += 1
-                        result['errors'].append(f"Missing required data in row: {row}")
-                        continue
-
-                    # Find the station (try by station_id first, then by name)
-                    try:
-                        # First try getting by station_id
-                        station = WeatherStation.objects.get(station_id=station_identifier)
-                    except WeatherStation.DoesNotExist:
-                        try:
-                            # Then try by name
-                            station = WeatherStation.objects.get(name=station_identifier)
-                        except WeatherStation.DoesNotExist:
-                            try:
-                                # Finally try by ID if it looks like an integer
-                                if station_identifier.isdigit():
-                                    station = WeatherStation.objects.get(id=int(station_identifier))
-                                else:
-                                    raise WeatherStation.DoesNotExist()
-                            except WeatherStation.DoesNotExist:
-                                result['error'] += 1
-                                result['errors'].append(f"Station not found: {station_identifier}")
-                                continue
-
-                    # Parse timestamp
-                    try:
-                        timestamp = parser.parse(row['timestamp'])
-                        if timestamp.tzinfo is None:
-                            timestamp = timezone.localize(timestamp)
-                    except ValueError:
-                        result['error'] += 1
-                        result['errors'].append(f"Invalid timestamp in row: {row}")
-                        continue
-
-                    # Create climate data dictionary with defaults
-                    climate_data = {
-                        'station': station,
-                        'timestamp': timestamp,
-                        'year': timestamp.year,
-                        'month': timestamp.month,
-                        'data_quality': row.get('data_quality', 'medium'),
-                    }
-
-                    # Map numeric fields with proper conversion
-                    numeric_fields = [
-                        'temperature', 'humidity', 'precipitation', 'air_quality_index',
-                        'wind_speed', 'wind_direction', 'barometric_pressure', 'cloud_cover',
-                        'soil_moisture', 'water_level', 'uv_index'
-                    ]
-
-                    for field in numeric_fields:
-                        if field in row and row[field]:
-                            try:
-                                climate_data[field] = float(row[field])
-                            except ValueError:
-                                # Skip this field if conversion fails, but log the error
-                                result['errors'].append(f"Invalid {field} value in row: {row}. Skipping this field.")
-                                pass
-
-                    # Create or update the climate data
-                    data, created = ClimateData.objects.update_or_create(
-                        station=station,
-                        timestamp=timestamp,
-                        defaults=climate_data
-                    )
-
-                    result['success'] += 1
-
-                except Exception as e:
-                    result['error'] += 1
-                    result['errors'].append(f"Error processing row: {row}. Error: {str(e)}")
-
-        except Exception as e:
-            result['errors'].append(f"Error processing file: {str(e)}")
-
+        if processing_mode == 'stack':
+            def row_processor(row, line_num, progress):
+                return self._process_climate_data_to_stack(row, line_num, progress)
+        else:
+            def row_processor(row, line_num, progress):
+                return _process_climate_data_row_enhanced(
+                    row, line_num, progress, update_existing=True,
+                    required_fields=['station_name', 'timestamp']
+                )
+                
+        result = process_csv_in_batches(csv_file, row_processor, batch_size=100)
+        result['type'] = 'Climate Data'
+        
         return result
 
     def process_weather_data_types_file(self, csv_file):
-        """Process a CSV file containing weather data type definitions"""
-        result = {
-            'success': 0,
-            'error': 0,
-            'errors': [],
-            'type': 'Weather Data Types'
-        }
+        """Process a CSV file containing weather data types"""
+        from .csv_utils import process_csv_in_batches
 
-        try:
-            decoded_file = csv_file.read().decode('utf-8')
-            io_string = io.StringIO(decoded_file)
-            reader = csv.DictReader(io_string)
-
-            # Check for required fields
-            if 'name' not in reader.fieldnames:
-                result['errors'].append("Missing required field: 'name'")
-                return result
-
-            for row in reader:
-                try:
-                    # Check for required fields
-                    if not row.get('name'):
-                        result['error'] += 1
-                        result['errors'].append(f"Missing name in row: {row}")
-                        continue
-
-                    # Parse numeric fields
-                    min_value = None
-                    if 'min_value' in row and row['min_value']:
-                        try:
-                            min_value = float(row['min_value'])
-                        except ValueError:
-                            result['errors'].append(f"Invalid min_value in row: {row}. Using null instead.")
-
-                    max_value = None
-                    if 'max_value' in row and row['max_value']:
-                        try:
-                            max_value = float(row['max_value'])
-                        except ValueError:
-                            result['errors'].append(f"Invalid max_value in row: {row}. Using null instead.")
-
-                    # Create or update the weather data type
-                    data_type, created = WeatherDataType.objects.update_or_create(
-                        name=row['name'],
-                        defaults={
-                            'display_name': row.get('display_name', row['name']),
-                            'description': row.get('description', ''),
-                            'unit': row.get('unit', ''),
-                            'min_value': min_value,
-                            'max_value': max_value,
-                            'icon': row.get('icon', '')
-                        }
-                    )
-
-                    result['success'] += 1
-
-                except Exception as e:
-                    result['error'] += 1
-                    result['errors'].append(f"Error processing row: {row}. Error: {str(e)}")
-
-        except Exception as e:
-            result['errors'].append(f"Error processing file: {str(e)}")
-
+        def row_processor(row, line_num, progress):
+            return self._process_weather_data_type_row(row, line_num, progress)
+                
+        result = process_csv_in_batches(csv_file, row_processor, batch_size=100)
+        result['type'] = 'Weather Data Types'
+        
         return result
 
     def process_countries_file(self, csv_file):
-        """Process a CSV file containing country information"""
-        result = {
-            'success': 0,
-            'error': 0,
-            'errors': [],
-            'type': 'Countries'
-        }
+        """Process a CSV file containing country data"""
+        from .csv_utils import process_csv_in_batches
 
-        try:
-            decoded_file = csv_file.read().decode('utf-8')
-            io_string = io.StringIO(decoded_file)
-            reader = csv.DictReader(io_string)
-
-            # Check for required fields
-            if not ('name' in reader.fieldnames and 'code' in reader.fieldnames):
-                result['errors'].append("Missing required fields: 'name' and 'code'")
-                return result
-
-            for row in reader:
-                try:
-                    # Check for required fields
-                    if not row.get('name') or not row.get('code'):
-                        result['error'] += 1
-                        result['errors'].append(f"Missing name or code in row: {row}")
-                        continue
-
-                    # Create or update the country
-                    country, created = Country.objects.update_or_create(
-                        code=row['code'],
-                        defaults={
-                            'name': row['name']
-                        }
-                    )
-
-                    result['success'] += 1
-
-                except Exception as e:
-                    result['error'] += 1
-                    result['errors'].append(f"Error processing row: {row}. Error: {str(e)}")
-
-        except Exception as e:
-            result['errors'].append(f"Error processing file: {str(e)}")
-
+        def row_processor(row, line_num, progress):
+            return self._process_country_row(row, line_num, progress)
+                
+        result = process_csv_in_batches(csv_file, row_processor, batch_size=100)
+        result['type'] = 'Countries'
+        
         return result
 
-
-class ImportSuccessView(View):
-    template_name = 'maps/import_success.html'
-
-    def get(self, request):
-        # Get results from session
-        results = request.session.get('import_results', {})
+    # Keep existing process_csv_file and other methods
+    def process_csv_file(self, csv_file, import_type, processing_mode):
+        """
+        Process a CSV file using our improved CSV handling utilities
         
-        # Clear results from session after displaying
-        if 'import_results' in request.session:
-            del request.session['import_results']
+        Args:
+            csv_file: The uploaded file object
+            import_type: Type of data being imported
+            processing_mode: 'direct' or 'stack'
             
-        return render(request, self.template_name, {
-            'results': results,
-            'has_results': bool(results)
-        })
+        Returns:
+            Dictionary with processing results
+        """
+        from .csv_utils import process_csv_in_batches, CSVImportError
+        from .utils import (_process_station_row_enhanced, 
+                           _process_climate_data_row_enhanced)
+        
+        # Set up the appropriate row processor based on import type
+        if import_type == 'stations':
+            def row_processor(row, line_num, progress):
+                return _process_station_row_enhanced(
+                    row, line_num, progress, update_existing=True,
+                    required_fields=['name', 'latitude', 'longitude']
+                )
+            data_type = 'Weather Stations'
+            
+        elif import_type == 'climate_data':
+            # If stack mode is selected, use different processing
+            if processing_mode == 'stack':
+                def row_processor(row, line_num, progress):
+                    return self._process_climate_data_to_stack(row, line_num, progress)
+            else:
+                def row_processor(row, line_num, progress):
+                    return _process_climate_data_row_enhanced(
+                        row, line_num, progress, update_existing=True,
+                        required_fields=['station_name', 'timestamp']
+                    )
+            data_type = 'Climate Data'
+                
+        elif import_type == 'weather_data_types':
+            def row_processor(row, line_num, progress):
+                return self._process_weather_data_type_row(row, line_num, progress)
+            data_type = 'Weather Data Types'
+                
+        elif import_type == 'countries':
+            def row_processor(row, line_num, progress):
+                return self._process_country_row(row, line_num, progress)
+            data_type = 'Countries'
+                
+        else:
+            return {
+                'success': 0,
+                'error': 1,
+                'errors': [f"Invalid import type: {import_type}"],
+                'type': 'Unknown'
+            }
+            
+        # Process the file with our enhanced batched processor
+        result = process_csv_in_batches(csv_file, row_processor, batch_size=100)
+        
+        # Add import type to the result
+        result['type'] = data_type
+        
+        return result
+        
+    def _process_climate_data_to_stack(self, row, line_num, progress):
+        """Process climate data into a station's data stack"""
+        from .csv_utils import CSVImportError, parse_numeric, parse_date
+        from .models import WeatherStation
+        
+        # Find the station
+        station_identifier = None
+        station_id_fields = ['station_name', 'station_id', 'station']
+        
+        for field in station_id_fields:
+            if field in row and row[field]:
+                station_identifier = row[field]
+                break
+                
+        if not station_identifier:
+            raise CSVImportError(
+                f"Missing station identifier (one of {', '.join(station_id_fields)} is required)",
+                row=row, line_num=line_num
+            )
+        
+        # Find the station using multiple methods
+        try:
+            try:
+                # First try by station_id
+                station = WeatherStation.objects.get(station_id=station_identifier)
+            except WeatherStation.DoesNotExist:
+                try:
+                    # Then try by name
+                    station = WeatherStation.objects.get(name=station_identifier)
+                except WeatherStation.DoesNotExist:
+                    try:
+                        # Finally try by ID if numeric
+                        if station_identifier.isdigit():
+                            station = WeatherStation.objects.get(id=int(station_identifier))
+                        else:
+                            raise WeatherStation.DoesNotExist()
+                    except (WeatherStation.DoesNotExist, ValueError):
+                        raise CSVImportError(f"Station not found: {station_identifier}", 
+                                          row=row, line_num=line_num, field='station_name')
+        except Exception as e:
+            raise CSVImportError(f"Error finding station: {str(e)}", 
+                              row=row, line_num=line_num)
+        
+        # Create data dictionary for the stack
+        data_dict = {}
+        
+        # Add timestamp if present
+        if 'timestamp' in row and row['timestamp']:
+            try:
+                timestamp = parse_date(row['timestamp'], 'timestamp', line_num, allow_none=False)
+                data_dict['timestamp'] = timestamp.isoformat()
+            except Exception as e:
+                raise CSVImportError(f"Invalid timestamp: {str(e)}", 
+                                  row=row, line_num=line_num, field='timestamp')
+        else:
+            # Use current time if no timestamp provided
+            data_dict['timestamp'] = datetime.now().isoformat()
+        
+        # Parse numeric fields
+        numeric_fields = [
+            'temperature', 'humidity', 'precipitation', 'air_quality_index',
+            'wind_speed', 'wind_direction', 'barometric_pressure', 'cloud_cover',
+            'soil_moisture', 'water_level', 'uv_index'
+        ]
+        
+        for field in numeric_fields:
+            if field in row and row[field]:
+                try:
+                    data_dict[field] = parse_numeric(row[field], field, line_num)
+                except CSVImportError as e:
+                    # Log warning but continue
+                    progress.warning(e.message, row=row, line_num=line_num, field=field)
+        
+        # Push data to station's stack
+        try:
+            success = station.push_data(data_dict)
+            if success:
+                progress.success()
+            else:
+                progress.error(
+                    f"Failed to add data to stack for station {station.name}: Stack is full", 
+                    row=row, line_num=line_num
+                )
+        except Exception as e:
+            raise CSVImportError(f"Error adding data to stack: {str(e)}", 
+                              row=row, line_num=line_num)
+    
+    def _process_weather_data_type_row(self, row, line_num, progress):
+        """Process weather data type row with enhanced error handling"""
+        from .csv_utils import CSVImportError, parse_numeric
+        from .models import WeatherDataType
+        
+        # Check required fields
+        if not row.get('name'):
+            raise CSVImportError("Missing required field: 'name'", 
+                              row=row, line_num=line_num, field='name')
+        
+        # Parse numeric fields with validation
+        min_value = None
+        if 'min_value' in row and row['min_value']:
+            try:
+                min_value = parse_numeric(row['min_value'], 'min_value', line_num)
+            except CSVImportError as e:
+                progress.warning(e.message, row=row, line_num=line_num, field='min_value')
+        
+        max_value = None
+        if 'max_value' in row and row['max_value']:
+            try:
+                max_value = parse_numeric(row['max_value'], 'max_value', line_num)
+            except CSVImportError as e:
+                progress.warning(e.message, row=row, line_num=line_num, field='max_value')
+        
+        # Create or update data type record
+        try:
+            data_type, created = WeatherDataType.objects.update_or_create(
+                name=row['name'],
+                defaults={
+                    'display_name': row.get('display_name', row['name']),
+                    'description': row.get('description', ''),
+                    'unit': row.get('unit', ''),
+                    'min_value': min_value,
+                    'max_value': max_value,
+                    'icon': row.get('icon', '')
+                }
+            )
+            progress.success()
+        except Exception as e:
+            raise CSVImportError(f"Error creating weather data type: {str(e)}", 
+                              row=row, line_num=line_num)
+    
+    def _process_country_row(self, row, line_num, progress):
+        """Process country row with enhanced error handling"""
+        from .csv_utils import CSVImportError, get_bool_value
+        from .models import Country
+        
+        # Check required fields
+        if not row.get('name'):
+            raise CSVImportError("Missing required field: 'name'", 
+                              row=row, line_num=line_num, field='name')
+        if not row.get('code'):
+            raise CSVImportError("Missing required field: 'code'", 
+                              row=row, line_num=line_num, field='code')
+        
+        # Validate country code format (assume 2 or 3-letter code)
+        code = row['code'].strip()
+        if not (len(code) == 2 or len(code) == 3):
+            progress.warning(f"Country code '{code}' should be 2 or 3 letters", 
+                          row=row, line_num=line_num, field='code')
+        
+        # Parse hemisphere flag if present
+        is_southern = False
+        if 'is_southern_hemisphere' in row:
+            is_southern = get_bool_value(row['is_southern_hemisphere'])
+        
+        # Create or update country record
+        try:
+            country, created = Country.objects.update_or_create(
+                code=code.upper(),
+                defaults={
+                    'name': row['name'].strip(),
+                    'is_southern_hemisphere': is_southern
+                }
+            )
+            progress.success()
+        except Exception as e:
+            raise CSVImportError(f"Error creating country: {str(e)}", 
+                              row=row, line_num=line_num)
 
+# ... existing code ...
 
 @api_view(['POST'])
 # @permission_classes([IsAdminUser])
 def api_import_csv(request):
-    """API endpoint for importing CSV data"""
+    """API endpoint for importing CSV data with enhanced processing"""
     if 'file' not in request.FILES:
         return Response({'error': 'No file provided'}, status=400)
 
     import_type = request.data.get('import_type', 'stations')
+    processing_mode = request.data.get('processing_mode', 'direct')
     csv_file = request.FILES['file']
 
-    # Process the file
+    # Process the file with our improved functions
     view = CSVUploadView()
-    if import_type == 'stations':
-        result = view.process_stations_file(csv_file)
-    elif import_type == 'climate_data':
-        result = view.process_climate_data_file(csv_file)
-    elif import_type == 'weather_data_types':
-        result = view.process_weather_data_types_file(csv_file)
-    elif import_type == 'countries':
-        result = view.process_countries_file(csv_file)
-    else:
-        result = {'error': 'Invalid import type'}
+    result = view.process_csv_file(csv_file, import_type, processing_mode)
 
     return Response(result)
 
+# ... existing code ...
 
 def is_safe_path(base_dir, path):
     """
@@ -1279,6 +1207,42 @@ def station_statistics_view(request, station_id):
         station=station
     ).order_by('-timestamp')[:100]
     
+    # Get available data types for this station
+    available_data_types = []
+    data_type_fields = [
+        'temperature', 'humidity', 'precipitation', 'wind_speed', 
+        'barometric_pressure', 'air_quality_index', 'uv_index'
+    ]
+    
+    for field in data_type_fields:
+        if ClimateData.objects.filter(station=station).exclude(**{field: None}).exists():
+            # Get the display name
+            try:
+                data_type_obj = WeatherDataType.objects.get(name=field)
+                display_name = data_type_obj.display_name
+                unit = data_type_obj.unit or ""
+            except WeatherDataType.DoesNotExist:
+                display_name = field.replace('_', ' ').title()
+                
+                # Default units
+                unit = ""
+                if field == 'temperature':
+                    unit = '°C'
+                elif field == 'humidity':
+                    unit = '%'
+                elif field == 'precipitation':
+                    unit = 'mm'
+                elif field == 'wind_speed':
+                    unit = 'm/s'
+                elif field == 'barometric_pressure':
+                    unit = 'hPa'
+            
+            available_data_types.append({
+                'field': field,
+                'display_name': display_name,
+                'unit': unit
+            })
+    
     context = {
         'station': station,
         'stats_30': stats_30,
@@ -1286,6 +1250,8 @@ def station_statistics_view(request, station_id):
         'stats_365': stats_365,
         'recent_data': recent_data,
         'current_year': timezone.now().year,
+        'available_data_types': available_data_types,
+        'api_base_url': '/maps',
     }
     
     return render(request, 'maps/station_statistics.html', context)
@@ -1746,4 +1712,398 @@ def station_climate_data(request, station_id):
         return Response(serializer.data)
     except Exception as e:
         return Response({'error': str(e)}, status=500)
+
+def secure_export_download(request, export_id, signature):
+    """
+    Securely serve export files with signature verification
+    """
+    try:
+        # Verify the signature
+        signer = Signer()
+        expected_signature = signer.sign(str(export_id)).split(':')[1]
+        
+        if signature != expected_signature:
+            raise BadSignature("Invalid signature")
+        
+        # Get the export object
+        export = get_object_or_404(DataExport, pk=export_id)
+        
+        # Check if file exists
+        if not export.file or not os.path.exists(export.file.path):
+            raise Http404("Export file does not exist")
+        
+        # Check if user has permission to download this export
+        if request.user != export.user and not request.user.is_staff:
+            return HttpResponse("Permission denied", status=403)
+        
+        # Update download count
+        export.download_count += 1
+        export.last_downloaded = timezone.now()
+        export.save(update_fields=['download_count', 'last_downloaded'])
+        
+        # Serve the file
+        response = FileResponse(open(export.file.path, 'rb'))
+        response['Content-Disposition'] = f'attachment; filename="{os.path.basename(export.file.name)}"'
+        
+        # Set Content-Type based on file extension
+        file_ext = os.path.splitext(export.file.name)[1].lower()
+        if file_ext == '.csv':
+            response['Content-Type'] = 'text/csv'
+        elif file_ext == '.xlsx':
+            response['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        elif file_ext == '.json':
+            response['Content-Type'] = 'application/json'
+        elif file_ext == '.geojson':
+            response['Content-Type'] = 'application/geo+json'
+        
+        return response
+        
+    except BadSignature:
+        return HttpResponse("Invalid or expired download link", status=403)
+    except Exception as e:
+        logging.error(f"Error serving export file: {str(e)}")
+        return HttpResponse("Error serving file", status=500)
+
+class ImportSuccessView(TemplateView):
+    """View to display results of successful data imports"""
+    template_name = 'maps/import_success.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Get import results from session
+        import_results = self.request.session.get('import_results', {})
+        
+        context.update({
+            'import_results': import_results,
+            'success_count': import_results.get('success', 0),
+            'error_count': import_results.get('error', 0),
+            'import_type': import_results.get('type', 'Data'),
+            'has_errors': import_results.get('error', 0) > 0,
+            'errors': import_results.get('errors', [])[:10],  # Limit displayed errors
+            'has_more_errors': len(import_results.get('errors', [])) > 10,
+            'timestamp': timezone.now()
+        })
+        
+        return context
+
+# ...existing code...
+
+@api_view(['GET'])
+def station_graph_data(request, station_id):
+    """API endpoint to get time-series data for graphs"""
+    try:
+        station = get_object_or_404(WeatherStation, pk=station_id)
+        days = int(request.query_params.get('days', 30))
+        data_type = request.query_params.get('data_type', 'temperature')
+        interval = request.query_params.get('interval', 'day')
+        
+        # Calculate date range
+        end_date = timezone.now()
+        start_date = end_date - timedelta(days=days)
+        
+        # Get time-series data
+        query = ClimateData.objects.filter(
+            station=station,
+            timestamp__gte=start_date,
+            timestamp__lte=end_date
+        )
+        
+        # Check if there's data for the selected data_type
+        has_data = query.exclude(**{data_type: None}).exists()
+        if not has_data:
+            return Response({
+                'station_id': station_id,
+                'station_name': station.name,
+                'data_type': data_type,
+                'error': f"No {data_type} data available for this station",
+                'labels': [],
+                'values': []
+            })
+        
+        # Apply grouping based on interval
+        if interval == 'hour':
+            # Hourly data - no grouping needed for recent days
+            if days <= 2:
+                data_points = query.exclude(**{data_type: None}).order_by('timestamp')
+                data = [(item.timestamp, getattr(item, data_type)) for item in data_points]
+            else:
+                # For longer periods, group by hour to reduce data points
+                data = _group_by_hour(query, data_type)
+        elif interval == 'day':
+            # Daily aggregation
+            data = _group_by_day(query, data_type)
+        elif interval == 'week':
+            # Weekly aggregation
+            data = _group_by_week(query, data_type)
+        elif interval == 'month':
+            # Monthly aggregation
+            data = _group_by_month(query, data_type)
+        else:
+            # Default - get raw data with some limit
+            data_points = query.exclude(**{data_type: None}).order_by('timestamp')[:500]
+            data = [(item.timestamp, getattr(item, data_type)) for item in data_points]
+        
+        # Format data for charts
+        labels = []
+        values = []
+        
+        for timestamp, value in data:
+            if isinstance(timestamp, datetime):
+                # Format datetime for display
+                if interval == 'hour':
+                    labels.append(timestamp.strftime('%H:%M'))
+                elif interval == 'day':
+                    labels.append(timestamp.strftime('%b %d'))
+                elif interval == 'week':
+                    labels.append(timestamp.strftime('%b %d'))
+                elif interval == 'month':
+                    labels.append(timestamp.strftime('%b %Y'))
+                else:
+                    labels.append(timestamp.strftime('%b %d %H:%M'))
+            else:
+                # Handle string dates
+                labels.append(str(timestamp))
+            
+            values.append(float(value) if value is not None else None)
+            
+        # Get unit for this data type
+        unit = ""
+        try:
+            data_type_obj = WeatherDataType.objects.get(name=data_type)
+            unit = data_type_obj.unit or ""
+        except WeatherDataType.DoesNotExist:
+            # Use default units
+            if data_type == 'temperature':
+                unit = '°C'
+            elif data_type == 'humidity':
+                unit = '%'
+            elif data_type == 'precipitation':
+                unit = 'mm'
+            elif data_type == 'wind_speed':
+                unit = 'm/s'
+            elif data_type == 'barometric_pressure':
+                unit = 'hPa'
+        
+        return Response({
+            'station_id': station_id,
+            'station_name': station.name,
+            'data_type': data_type,
+            'unit': unit,
+            'interval': interval,
+            'days': days,
+            'labels': labels,
+            'values': values
+        })
+    
+    except Exception as e:
+        # Log the error for debugging
+        import traceback
+        logging.error(f"Graph data error: {str(e)}")
+        logging.error(traceback.format_exc())
+        
+        return Response({
+            'error': f"Error retrieving graph data: {str(e)}",
+            'station_id': station_id,
+            'data_type': request.query_params.get('data_type', 'temperature'),
+            'labels': [],
+            'values': []
+        }, status=500)
+
+def _group_by_hour(queryset, data_type):
+    """Group climate data by hour - fixed version"""
+    result = []
+    
+    # Use Django's built-in time truncation
+    from django.db.models.functions import TruncHour
+    
+    # Filter out None values for the data type
+    filtered_queryset = queryset.exclude(**{data_type: None})
+    
+    # Group by hour
+    aggregated = filtered_queryset.annotate(
+        hour=TruncHour('timestamp')
+    ).values('hour').annotate(
+        avg_value=Avg(data_type)
+    ).order_by('hour')
+    
+    # Convert to a list of (timestamp, value) tuples
+    for item in aggregated:
+        result.append((item['hour'], item['avg_value']))
+        
+    return result
+
+def _group_by_day(queryset, data_type):
+    """Group climate data by day - fixed version"""
+    result = []
+    
+    # Use Django's built-in time truncation
+    from django.db.models.functions import TruncDay
+    
+    # Filter out None values for the data type
+    filtered_queryset = queryset.exclude(**{data_type: None})
+    
+    # Group by day
+    aggregated = filtered_queryset.annotate(
+        day=TruncDay('timestamp')
+    ).values('day').annotate(
+        avg_value=Avg(data_type)
+    ).order_by('day')
+    
+    # Convert to a list of (timestamp, value) tuples
+    for item in aggregated:
+        result.append((item['day'], item['avg_value']))
+        
+    return result
+
+def _group_by_week(queryset, data_type):
+    """Group climate data by week - fixed version"""
+    result = []
+    
+    # Use Django's built-in time truncation
+    from django.db.models.functions import TruncWeek
+    
+    # Filter out None values for the data type
+    filtered_queryset = queryset.exclude(**{data_type: None})
+    
+    # Group by week
+    aggregated = filtered_queryset.annotate(
+        week=TruncWeek('timestamp')
+    ).values('week').annotate(
+        avg_value=Avg(data_type)
+    ).order_by('week')
+    
+    # Convert to a list of (timestamp, value) tuples
+    for item in aggregated:
+        result.append((item['week'], item['avg_value']))
+        
+    return result
+
+def _group_by_month(queryset, data_type):
+    """Group climate data by month - fixed version"""
+    result = []
+    
+    # Use Django's built-in time truncation
+    from django.db.models.functions import TruncMonth
+    
+    # Filter out None values for the data type
+    filtered_queryset = queryset.exclude(**{data_type: None})
+    
+    # Group by month
+    aggregated = filtered_queryset.annotate(
+        month=TruncMonth('timestamp')
+    ).values('month').annotate(
+        avg_value=Avg(data_type)
+    ).order_by('month')
+    
+    # Convert to a list of (timestamp, value) tuples
+    for item in aggregated:
+        result.append((item['month'], item['avg_value']))
+        
+    return result
+
+# Enhance the station_statistics_view function to include graph data
+def station_statistics_view(request, station_id):
+    """View for displaying station statistics in a template"""
+    try:
+        station = WeatherStation.objects.get(pk=station_id)
+    except WeatherStation.DoesNotExist:
+        messages.error(request, f"Weather station with ID {station_id} does not exist.")
+        return redirect('maps:map')
+    
+    # Calculate days for different time periods
+    days_30 = timezone.now() - timedelta(days=30)
+    days_90 = timezone.now() - timedelta(days=90)
+    days_365 = timezone.now() - timedelta(days=365)
+    
+    # Get statistics for different time periods
+    stats_30 = ClimateData.objects.filter(
+        station=station,
+        timestamp__gte=days_30
+    ).aggregate(
+        avg_temp=Avg('temperature'),
+        max_temp=Max('temperature'),
+        min_temp=Min('temperature'),
+        avg_humidity=Avg('humidity'),
+        total_precipitation=Sum('precipitation', default=0),
+        avg_wind_speed=Avg('wind_speed'),
+        max_wind_speed=Max('wind_speed'),
+        avg_pressure=Avg('barometric_pressure'),
+        max_uv=Max('uv_index')
+    )
+    
+    stats_90 = ClimateData.objects.filter(
+        station=station,
+        timestamp__gte=days_90
+    ).aggregate(
+        avg_temp=Avg('temperature'),
+        max_temp=Max('temperature'),
+        min_temp=Min('temperature'),
+        avg_humidity=Avg('humidity'),
+        total_precipitation=Sum('precipitation', default=0)
+    )
+    
+    stats_365 = ClimateData.objects.filter(
+        station=station,
+        timestamp__gte=days_365
+    ).aggregate(
+        avg_temp=Avg('temperature'),
+        total_precipitation=Sum('precipitation', default=0)
+    )
+    
+    # Get recent climate data points for this station
+    recent_data = ClimateData.objects.filter(
+        station=station
+    ).order_by('-timestamp')[:100]
+    
+    # Get available data types for this station
+    available_data_types = []
+    data_type_fields = [
+        'temperature', 'humidity', 'precipitation', 'wind_speed', 
+        'barometric_pressure', 'air_quality_index', 'uv_index'
+    ]
+    
+    for field in data_type_fields:
+        if ClimateData.objects.filter(station=station).exclude(**{field: None}).exists():
+            # Get the display name
+            try:
+                data_type_obj = WeatherDataType.objects.get(name=field)
+                display_name = data_type_obj.display_name
+                unit = data_type_obj.unit or ""
+            except WeatherDataType.DoesNotExist:
+                display_name = field.replace('_', ' ').title()
+                
+                # Default units
+                unit = ""
+                if field == 'temperature':
+                    unit = '°C'
+                elif field == 'humidity':
+                    unit = '%'
+                elif field == 'precipitation':
+                    unit = 'mm'
+                elif field == 'wind_speed':
+                    unit = 'm/s'
+                elif field == 'barometric_pressure':
+                    unit = 'hPa'
+            
+            available_data_types.append({
+                'field': field,
+                'display_name': display_name,
+                'unit': unit
+            })
+    
+    context = {
+        'station': station,
+        'stats_30': stats_30,
+        'stats_90': stats_90,
+        'stats_365': stats_365,
+        'recent_data': recent_data,
+        'current_year': timezone.now().year,
+        'available_data_types': available_data_types,
+        'api_base_url': '/maps',
+    }
+    
+    return render(request, 'maps/station_statistics.html', context)
+
+# ...existing code...
 
