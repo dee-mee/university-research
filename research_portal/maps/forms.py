@@ -1,7 +1,14 @@
 import os
 import csv
 import io
+import os
+import csv
+import io
 from django import forms
+from django.core.validators import FileExtensionValidator
+from django.utils.translation import gettext_lazy as _
+from .models import Country, WeatherStation, WeatherDataType, ClimateData
+
 from django.core.validators import FileExtensionValidator
 from django.utils.translation import gettext_lazy as _
 from .models import Country, WeatherStation, WeatherDataType, ClimateData
@@ -9,20 +16,107 @@ from .models import Country, WeatherStation, WeatherDataType, ClimateData
 
 class BaseImportForm(forms.Form):
     """Base form with common fields and methods for all import forms"""
+class BaseImportForm(forms.Form):
+    """Base form with common fields and methods for all import forms"""
     IMPORT_CHOICES = [
+        ('stations', _('Weather Stations')),
+        ('climate_data', _('Climate Data')),
+        ('weather_types', _('Weather Data Types')),
+        ('alerts', _('Weather Alerts')),
         ('stations', _('Weather Stations')),
         ('climate_data', _('Climate Data')),
         ('weather_types', _('Weather Data Types')),
         ('alerts', _('Weather Alerts')),
     ]
 
+
     import_type = forms.ChoiceField(
         choices=IMPORT_CHOICES,
+        label=_("Import Type"),
         label=_("Import Type"),
         widget=forms.RadioSelect,
         initial='stations',
         help_text=_("Select the type of data you want to import.")
+        help_text=_("Select the type of data you want to import.")
     )
+
+    country = forms.ModelChoiceField(
+        queryset=Country.objects.all(),
+        label=_("Country"),
+        required=False,
+        help_text=_("Optional: Specify the country for the data being imported."),
+        empty_label=_("All Countries")
+    )
+
+    overwrite_existing = forms.BooleanField(
+        required=False,
+        initial=False,
+        label=_("Overwrite Existing Records"),
+        help_text=_("If checked, existing records with the same ID will be updated.")
+    )
+
+    skip_errors = forms.BooleanField(
+        required=False,
+        initial=False,
+        label=_("Skip Errors"),
+        help_text=_("If checked, the import will continue even if some rows have errors.")
+    )
+
+    def get_required_headers(self):
+        """Return the required headers based on the import type"""
+        import_type = self.cleaned_data.get('import_type')
+
+        if import_type == 'stations':
+            return ['name', 'station_id', 'latitude', 'longitude']
+        elif import_type == 'climate_data':
+            return ['station_id', 'timestamp', 'temperature', 'humidity', 'precipitation']
+        elif import_type == 'weather_types':
+            return ['name', 'display_name', 'unit']
+        elif import_type == 'alerts':
+            return ['title', 'description', 'station_id', 'severity', 'data_type']
+
+        return []
+
+    def validate_headers(self, headers):
+        """Validate that the file has the required headers"""
+        required_headers = self.get_required_headers()
+        missing_headers = [h for h in required_headers if h not in headers]
+
+        if missing_headers:
+            raise forms.ValidationError(
+                _("Missing required headers: %(headers)s"),
+                params={'headers': ', '.join(missing_headers)}
+            )
+
+    def preview_data(self, file_obj, max_rows=5):
+        """Preview the first few rows of the file"""
+        if not file_obj:
+            return []
+
+        # Save current position to reset after preview
+        current_position = file_obj.tell()
+        file_obj.seek(0)
+
+        try:
+            # Try to read as CSV
+            reader = csv.DictReader(io.StringIO(file_obj.read().decode('utf-8')))
+            rows = [row for row in reader][:max_rows]
+
+            # Validate headers if we have rows
+            if rows and hasattr(reader, 'fieldnames'):
+                self.validate_headers(reader.fieldnames)
+
+            # Reset file pointer
+            file_obj.seek(current_position)
+            return rows
+        except Exception as e:
+            # Reset file pointer
+            file_obj.seek(current_position)
+            raise forms.ValidationError(f"Error previewing file: {str(e)}")
+
+
+class CSVUploadForm(BaseImportForm):
+    """Form for uploading CSV files"""
 
     country = forms.ModelChoiceField(
         queryset=Country.objects.all(),
@@ -111,13 +205,25 @@ class CSVUploadForm(BaseImportForm):
     PROCESSING_CHOICES = [
         ('direct', _('Direct Database Insert')),
         ('stack', _('Add to Data Stack')),
+        ('stations', _('Weather Stations')),
+        ('climate_data', _('Climate Data')),
+        ('weather_data_types', _('Weather Data Types')),
+        ('countries', _('Countries')),
+    ]
+    
+    PROCESSING_CHOICES = [
+        ('direct', _('Direct Database Insert')),
+        ('stack', _('Add to Data Stack')),
     ]
     
     import_type = forms.ChoiceField(
         choices=IMPORT_CHOICES,
         label=_("Import Type"),
         widget=forms.Select(attrs={'class': 'form-select'}),
+        label=_("Import Type"),
+        widget=forms.Select(attrs={'class': 'form-select'}),
         initial='stations',
+        help_text=_("Select the type of data you want to import.")
         help_text=_("Select the type of data you want to import.")
     )
     
@@ -142,6 +248,10 @@ class CSVUploadForm(BaseImportForm):
         # Get import_type and csv_file
         import_type = cleaned_data.get('import_type')
         csv_file = cleaned_data.get('csv_file')
+        
+        # Only show processing_mode for climate data
+        if import_type != 'climate_data':
+            cleaned_data['processing_mode'] = 'direct'
         
         # Validate file is present
         if not csv_file:
@@ -193,6 +303,7 @@ class ExcelUploadForm(BaseImportForm):
 class FlashDriveImportForm(BaseImportForm):
     """Form for importing data from a flash drive"""
     drive_path = forms.CharField(
+        label=_("Flash Drive Path"),
         label=_("Flash Drive Path"),
         initial="/media/usb",
         help_text=_("Enter the path where the flash drive is mounted.")
@@ -705,3 +816,185 @@ class DataStackSettingsForm(forms.ModelForm):
                 self.add_error('process_threshold', _("Process threshold cannot be greater than max stack size"))
                 
         return cleaned_data
+
+
+# Add a new form for adding data to a station's stack
+class StackDataEntryForm(forms.Form):
+    """Form for adding climate data directly to a station's data stack"""
+    
+    station = forms.ModelChoiceField(
+        queryset=WeatherStation.objects.filter(is_active=True),
+        label=_("Weather Station"),
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        help_text=_("Select the weather station to add data to.")
+    )
+    
+    timestamp = forms.DateTimeField(
+        label=_("Timestamp"),
+        widget=forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
+        help_text=_("Date and time of the measurement.")
+    )
+    
+    temperature = forms.FloatField(
+        required=False,
+        label=_("Temperature (°C)"),
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.1'}),
+        min_value=-100,
+        max_value=100,
+        help_text=_("Temperature in degrees Celsius.")
+    )
+    
+    humidity = forms.FloatField(
+        required=False,
+        label=_("Humidity (%)"),
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.1'}),
+        min_value=0,
+        max_value=100,
+        help_text=_("Relative humidity in percent.")
+    )
+    
+    precipitation = forms.FloatField(
+        required=False,
+        label=_("Precipitation (mm)"),
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.1'}),
+        min_value=0,
+        max_value=10000,
+        help_text=_("Precipitation in millimeters.")
+    )
+    
+    wind_speed = forms.FloatField(
+        required=False,
+        label=_("Wind Speed (m/s)"),
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.1'}),
+        min_value=0,
+        max_value=200,
+        help_text=_("Wind speed in meters per second.")
+    )
+    
+    wind_direction = forms.FloatField(
+        required=False,
+        label=_("Wind Direction (°)"),
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '1'}),
+        min_value=0,
+        max_value=360,
+        help_text=_("Wind direction in degrees (0-360).")
+    )
+    
+    air_quality_index = forms.IntegerField(
+        required=False,
+        label=_("Air Quality Index"),
+        widget=forms.NumberInput(attrs={'class': 'form-control'}),
+        min_value=0,
+        max_value=500,
+        help_text=_("Air quality index value.")
+    )
+    
+    barometric_pressure = forms.FloatField(
+        required=False,
+        label=_("Barometric Pressure (hPa)"),
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.1'}),
+        min_value=800,
+        max_value=1200,
+        help_text=_("Atmospheric pressure in hectopascals.")
+    )
+    
+    soil_moisture = forms.FloatField(
+        required=False,
+        label=_("Soil Moisture (%)"),
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.1'}),
+        min_value=0,
+        max_value=100,
+        help_text=_("Soil moisture in percent.")
+    )
+    
+    water_level = forms.FloatField(
+        required=False,
+        label=_("Water Level (m)"),
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+        min_value=-50,
+        max_value=100,
+        help_text=_("Water level in meters.")
+    )
+    
+    uv_index = forms.FloatField(
+        required=False,
+        label=_("UV Index"),
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.1'}),
+        min_value=0,
+        max_value=12,
+        help_text=_("UV index value.")
+    )
+    
+    cloud_cover = forms.FloatField(
+        required=False,
+        label=_("Cloud Cover (%)"),
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '1'}),
+        min_value=0,
+        max_value=100,
+        help_text=_("Cloud cover percentage.")
+    )
+    
+    data_quality = forms.ChoiceField(
+        choices=ClimateData.QUALITY_CHOICES,
+        initial='medium',
+        label=_("Data Quality"),
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        help_text=_("Quality level of the data being entered.")
+    )
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        
+        # Require at least one weather measurement field to be filled
+        has_data = any([
+            cleaned_data.get('temperature') is not None,
+            cleaned_data.get('humidity') is not None,
+            cleaned_data.get('precipitation') is not None,
+            cleaned_data.get('wind_speed') is not None,
+            cleaned_data.get('air_quality_index') is not None,
+            cleaned_data.get('soil_moisture') is not None,
+            cleaned_data.get('water_level') is not None
+        ])
+        
+        if not has_data:
+            raise forms.ValidationError(_("At least one weather measurement must be provided."))
+        
+        return cleaned_data
+    
+    def add_to_stack(self):
+        """
+        Add the form data to the selected station's data stack
+        
+        Returns:
+            tuple: (success, message)
+        """
+        station = self.cleaned_data.get('station')
+        if not station:
+            return False, _("No station selected")
+        
+        # Prepare data dictionary
+        data = {
+            'timestamp': self.cleaned_data.get('timestamp').isoformat(),
+        }
+        
+        # Add all provided measurement fields
+        for field in [
+            'temperature', 'humidity', 'precipitation', 'wind_speed', 
+            'wind_direction', 'air_quality_index', 'barometric_pressure',
+            'soil_moisture', 'water_level', 'uv_index', 'cloud_cover'
+        ]:
+            value = self.cleaned_data.get(field)
+            if value is not None:
+                data[field] = value
+        
+        # Add data quality if provided
+        if self.cleaned_data.get('data_quality'):
+            data['data_quality'] = self.cleaned_data.get('data_quality')
+        
+        # Push data to stack
+        success = station.push_data(data)
+        
+        if success:
+            return True, _("Data successfully added to station's stack")
+        else:
+            return False, _("Failed to add data. The stack may be full.")

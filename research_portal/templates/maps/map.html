@@ -223,8 +223,9 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   // Initialize the map with correct apiBaseUrl
+  // Initialize the map with correct apiBaseUrl
   const mapElement = 'map';
-  const apiBaseUrl = ''; // Set to empty string to use relative paths
+  const apiBaseUrl = '/maps'; // Set to /maps instead of empty string
   const map = new WeatherStationMap(mapElement, apiBaseUrl);
   
   // Navbar scroll effect
@@ -355,6 +356,17 @@ document.addEventListener('DOMContentLoaded', function() {
       // Call your map's method to refresh data
       if (map.refreshData) {
         map.refreshData();
+      }
+    });
+  }
+  
+  // Add station selection dropdown event listener
+  const stationSelect = document.getElementById('stationSelect');
+  if (stationSelect) {
+    stationSelect.addEventListener('change', function() {
+      // Call the map's zoomToStation method with the selected value
+      if (map.zoomToStation) {
+        map.zoomToStation(this.value);
       }
     });
   }

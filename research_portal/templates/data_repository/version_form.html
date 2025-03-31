@@ -1,0 +1,63 @@
+{% extends "data_repository/base_repository.html" %}
+{% load static %}
+
+
+{% block repository_content %}
+<div class="version-form">
+    <h1>Upload New Version</h1>
+    <p class="dataset-title">Dataset: {{ dataset.title }}</p>
+    
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger">
+            {% for error in form.non_field_errors %}
+            <p>{{ error }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <div class="form-group">
+            <label for="{{ form.version_number.id_for_label }}">Version Number</label>
+            {{ form.version_number }}
+            {% if form.version_number.errors %}
+            <div class="error-message">{{ form.version_number.errors }}</div>
+            {% endif %}
+            <p class="help-text">Use semantic versioning (e.g., 1.0.0, 1.0.1, 2.0.0)</p>
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.description.id_for_label }}">Version Description</label>
+            {{ form.description }}
+            {% if form.description.errors %}
+            <div class="error-message">{{ form.description.errors }}</div>
+            {% endif %}
+            <p class="help-text">Describe the changes in this version</p>
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.file_path.id_for_label }}">Dataset File</label>
+            {{ form.file_path }}
+            {% if form.file_path.errors %}
+            <div class="error-message">{{ form.file_path.errors }}</div>
+            {% endif %}
+            <p class="help-text">Upload the new version of your dataset file</p>
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.metadata.id_for_label }}">Version Metadata (JSON)</label>
+            {{ form.metadata }}
+            {% if form.metadata.errors %}
+            <div class="error-message">{{ form.metadata.errors }}</div>
+            {% endif %}
+            <p class="help-text">Optional metadata specific to this version</p>
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="submit-button">Upload Version</button>
+            <a href="{% url 'repository:dataset_detail' dataset.slug %}" class="cancel-button">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %} 

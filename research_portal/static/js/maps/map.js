@@ -71,8 +71,11 @@ class WeatherStationMap {
      * Load weather stations from the API
      */
     loadStations() {
-        // Fix URL path: Remove duplicate "api" in the path
-        fetch(`${this.apiBaseUrl}/weather-stations/`)
+        // Use correct path including API prefix
+        const url = `${this.apiBaseUrl}/api/weather-stations/`;
+        console.log("Fetching stations from:", url);
+        
+        fetch(url)
             .then(response => {
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
@@ -132,18 +135,15 @@ class WeatherStationMap {
             .catch(error => {
                 console.error("Error loading stations:", error);
                 // Try the debug endpoint as fallback with corrected paths
-                fetch(`/maps/api/debug/stations/`)
+                const debugUrl = `${this.apiBaseUrl}/api/debug/stations/`;
+                console.log("Trying debug endpoint:", debugUrl);
+                
+                fetch(debugUrl)
                     .then(response => {
                         if (!response.ok) {
-                            // Try another fallback path
-                            return fetch(`/maps/api/map-data/`);
-                        }
-                        return response;
-                    })
-                    .then(response => {
-                        if (!response.ok) {
-                            // Final fallback to just trying the debug_stations path directly
-                            return fetch(`/debug_stations/`);
+                            const mapDataUrl = `${this.apiBaseUrl}/api/map-data/`;
+                            console.log("Trying map-data endpoint:", mapDataUrl);
+                            return fetch(mapDataUrl);
                         }
                         return response;
                     })
@@ -153,6 +153,9 @@ class WeatherStationMap {
                         if (data && (data.features || data.results || Array.isArray(data))) {
                             if (data.features) {
                                 this.stations = data.features;
+                            } else if (data.stations && data.stations.features) {
+                                // Handle map_data response format
+                                this.stations = data.stations.features;
                             } else if (data.stations && data.stations.features) {
                                 // Handle map_data response format
                                 this.stations = data.stations.features;
@@ -283,18 +286,25 @@ class WeatherStationMap {
         }
         
         // Try to access station data using the correct API endpoint path
-        fetch(`/maps/api/weather-stations/${stationId}/data/?days=7`)
+        const url = `${this.apiBaseUrl}/api/stations/${stationId}/data/`;
+        console.log("Fetching station data from:", url);
+        
+        fetch(url)
             .then(response => {
                 if (!response.ok) {
                     // First fallback - try using DRF viewset endpoint directly
-                    return fetch(`/maps/api/climate-data/?station=${stationId}&days=7`);
+                    const fallbackUrl = `${this.apiBaseUrl}/api/climate-data/?station=${stationId}&days=7`;
+                    console.log("Trying fallback URL:", fallbackUrl);
+                    return fetch(fallbackUrl);
                 }
                 return response;
             })
             .then(response => {
                 if (!response.ok) {
                     // Second fallback - try accessing the station directly via map-data
-                    return fetch(`/maps/api/map-data/?station=${stationId}`);
+                    const mapDataUrl = `${this.apiBaseUrl}/api/map-data/?station=${stationId}`;
+                    console.log("Trying map-data endpoint:", mapDataUrl);
+                    return fetch(mapDataUrl);
                 }
                 return response;
             })
@@ -373,6 +383,7 @@ class WeatherStationMap {
                    ${latest.wind_direction !== null && latest.wind_direction !== undefined ? 'at ' + latest.wind_direction + '°' : ''}</p>
                 <p><strong>Air Quality:</strong> ${latest.air_quality_index !== null && latest.air_quality_index !== undefined ? latest.air_quality_index : 'N/A'}</p>
                 <p><strong>Data Quality:</strong> ${latest.data_quality || 'Good'}</p>
+                <button class="btn btn-sm btn-secondary" onclick="window.location.href='/maps/stations/${stationId}/statistics/'">View Statistics</button>
                 <button class="btn btn-sm btn-secondary" onclick="window.location.href='/maps/stations/${stationId}/statistics/'">View Statistics</button>
             </div>
         `;
@@ -479,25 +490,38 @@ class WeatherStationMap {
      */
     loadHeatmapData() {
         // Use correct API endpoint path for climate data
-        fetch(`/maps/api/climate-data/recent/?hours=24`)
+        const url = `${this.apiBaseUrl}/api/climate-data/recent/?hours=24`;
+        console.log("Fetching heatmap data from:", url);
+        
+        fetch(url)
             .then(response => {
                 if (!response.ok) {
                     // Try fallback path
-                    return fetch(`/maps/api/climate-data/?hours=24`);
+                    const fallbackUrl = `${this.apiBaseUrl}/api/climate-data/?hours=24`;
+                    console.log("Trying fallback URL:", fallbackUrl);
+                    return fetch(fallbackUrl);
                 }
                 return response;
             })
             .then(response => {
                 if (!response.ok) {
                     // Try the map-data endpoint as another fallback
-                    return fetch(`/maps/api/map-data/`);
+                    const mapDataUrl = `${this.apiBaseUrl}/api/map-data/`;
+                    console.log("Trying map-data endpoint:", mapDataUrl);
+                    return fetch(mapDataUrl);
                 }
                 return response;
+                return response;
             })
+            .then(response => response.json())
             .then(response => response.json())
             .then(data => {
                 // Handle different response formats
                 let results;
+                // Check for map-data response format
+                if (data.recent_data && Array.isArray(data.recent_data)) {
+                    results = data.recent_data;
+                } else if (data.results && Array.isArray(data.results)) {
                 // Check for map-data response format
                 if (data.recent_data && Array.isArray(data.recent_data)) {
                     results = data.recent_data;
@@ -513,6 +537,7 @@ class WeatherStationMap {
             })
             .catch(error => {
                 console.error("Error loading heatmap data:", error);
+                this.showError(`Failed to load heatmap data: ${error.message}`);
                 this.showError(`Failed to load heatmap data: ${error.message}`);
             });
     }

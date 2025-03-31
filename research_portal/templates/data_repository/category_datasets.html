@@ -1,0 +1,40 @@
+{% extends "data_repository/base_repository.html" %}
+{% load static %}
+
+
+{% block repository_content %}
+<div class="category-datasets">
+    <div class="category-header">
+        <h1>{{ category.name }}</h1>
+        <p class="category-description">{{ category.description }}</p>
+    </div>
+    
+    {% if datasets %}
+    <div class="dataset-grid">
+        {% for dataset in datasets %}
+        <div class="dataset-card">
+            {% if dataset.thumbnail %}
+            <img src="{{ dataset.thumbnail.url }}" alt="{{ dataset.title }}">
+            {% else %}
+            <div class="placeholder-image">
+                <i class="fas fa-database"></i>
+            </div>
+            {% endif %}
+            <div class="dataset-info">
+                <h3><a href="{% url 'repository:dataset_detail' dataset.slug %}">{{ dataset.title }}</a></h3>
+                <p>{{ dataset.description|truncatewords:20 }}</p>
+                <div class="dataset-meta">
+                    <span class="version">v{{ dataset.versions.first.version_number }}</span>
+                    <span class="created-by">by {{ dataset.created_by.get_full_name }}</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="no-datasets">
+        <p>No datasets found in this category.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %} 

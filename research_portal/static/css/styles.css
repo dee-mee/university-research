@@ -69,6 +69,33 @@ body, html {
         font-size: 1.5rem;
     }
 }
+
+/* Announcement Banner Styles */
+.announcement-banner {
+    background-color: #ffd700; /* Gold color */
+    color: #04114b; /* Dark blue - matches the site theme */
+    padding: 15px 0;
+    font-weight: 800; /* Extra bold */
+    text-align: center;
+    font-size: 24px; /* Increased from 18px */
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+    text-transform: uppercase; /* Makes all text uppercase */
+}
+
+.announcement-banner p {
+    margin-bottom: 0;
+    letter-spacing: 1px; /* Increased letter spacing */
+    font-weight: 800; /* Ensuring the paragraph text is also bold */
+}
+
+/* Responsive styles for the banner */
+@media (max-width: 768px) {
+    .announcement-banner {
+        font-size: 18px; /* Increased from 14px */
+        padding: 10px 0;
+    }
+}
+
 /* Custom Navbar Styling with Gradient */
 .custom-navbar {
     background: linear-gradient(to right, rgba(13, 93, 197, 0.95), rgba(4, 17, 75, 0.95));
@@ -466,6 +493,47 @@ footer a:hover {
     text-decoration: underline;
 }
 
+/* Enhanced Footer Styles */
+footer h4 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: 15px;
+    position: relative;
+    padding-bottom: 10px;
+}
+
+footer h4:after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 40px;
+    height: 2px;
+    background-color: #fdd835;
+}
+
+footer p {
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+}
+
+footer a {
+    color: #fdd835;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+footer a:hover {
+    color: #ffffff;
+    text-decoration: none;
+}
+
+@media (max-width: 768px) {
+    footer .col-md-3 {
+        margin-bottom: 30px;
+    }
+}
+
 /* Scroll to Top Button */
 #scrollToTopBtn {
     display: none;
@@ -484,7 +552,7 @@ footer a:hover {
 #scrollToTopBtn:hover {
     background-color: #555;
 }
-<<<<<<< HEAD
+
 .contact-header {
     background: linear-gradient(90deg, #000033 0%, #003366 50%, #0066CC 100%);
     color: white;
@@ -579,6 +647,101 @@ footer a:hover {
     cursor: pointer;
 }
 
+/* Weather Navigation Container */
+.weather-nav-container {
+    background: linear-gradient(to right, rgba(13, 93, 197, 0.95), rgba(4, 17, 75, 0.95));
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.weather-nav {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.weather-nav-item {
+    color: #ffffff;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 12px;
+    padding: 8px 16px;
+    margin: 0 4px;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.weather-nav-item:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: #ffd700;
+}
+
+.weather-nav-dropdown {
+    position: relative;
+}
+
+.weather-nav-dropdown .dropdown-toggle {
+    cursor: pointer;
+}
+
+.weather-dropdown-menu {
+    background: linear-gradient(to right, rgba(13, 93, 197, 0.95), rgba(4, 17, 75, 0.95));
+    border: none;
+    border-radius: 0 0 8px 8px;
+    margin-top: 0;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+    padding: 0;
+    min-width: 200px;
+    z-index: 1000;
+    display: none; /* Hide by default */
+    position: absolute;
+    top: 100%;
+    left: 0;
+}
+
+/* Show dropdown when the parent has the 'show' class */
+.weather-nav-dropdown.show .weather-dropdown-menu {
+    display: block;
+}
+
+.weather-dropdown-item {
+    color: #ffffff;
+    font-weight: 500;
+    padding: 12px 20px;
+    text-decoration: none;
+    display: block;
+    transition: all 0.3s ease;
+    font-size: 14px;
+}
+
+.weather-dropdown-item:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: #ffd700;
+}
+
+@media (max-width: 768px) {
+    .weather-nav {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .weather-nav-item {
+        text-align: center;
+        padding: 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .weather-dropdown-menu {
+        position: static;
+        border: none;
+        box-shadow: none;
+        background: rgba(4, 17, 75, 0.8);
+        margin-left: 16px;
+    }
+}
+
 @media (max-width: 768px) {
     .container {
         grid-template-columns: 1fr;
@@ -587,7 +750,6 @@ footer a:hover {
     .nav-links {
         display: none;
     }
-=======
 
 #map {
     height: 600px;
@@ -597,7 +759,7 @@ footer a:hover {
     max-width: 400px;
 }
 .environmental-data {
-    margin-top: 15px;
+    margin-top: 15px.
 }
 .data-card {
     margin-bottom: 15px;
@@ -613,5 +775,20 @@ main.container {
     margin: 0 auto;
     padding: 0;
     max-width: 1200px; /* Adjust as needed */
->>>>>>> ebf10c91d2b6a723cfb8c1484b97f956854e8cec
+}
+
+/* Announcement Banner Styles */
+.announcement-banner {
+    background-color: #0056b3;
+    color: white;
+    padding: 10px 0;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: background-color 0.3s ease;
+}
+
+.announcement-banner:hover {
+    background-color: #003d82;
 }
