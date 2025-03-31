@@ -88,10 +88,40 @@
                     </ul>
                 </div>
                 <a class="navbar-brand2" href="#">
-                    <img src="{% static 'images/vub-hydr-logo.png' %}" style=" margin-left: 35px;"alt="vun-hydr-logo" height="40">
+                    <img src="{% static 'images/vlirious.png' %}" style=" margin-left: 35px; border-radius: 12px; border: blue;"alt="vlirious logo" >
                 </a>
             </div>
         </nav>
+        
+        <!-- Announcement Banner -->
+        <div class="announcement-banner">
+            <div class="container">
+                <p class="text-center mb-0">DATA REPOSITORY FOR JOOUST IN COLLABORATION WITH VLIROUS</p>
+            </div>
+        </div>
+        
+        <!-- Weather Navigation Bar -->
+        <div class="weather-nav-container">
+            <div class="container">
+                <div class="weather-nav">
+                    <div class="weather-nav-dropdown">
+                        <a href="#" class="weather-nav-item dropdown-toggle">ACTIVE ALERTS</a>
+                        <ul class="weather-dropdown-menu">
+                            <li><a href="#" class="weather-dropdown-item">EXCESSIVE RAINFALL</a></li>
+                            <li><a href="#" class="weather-dropdown-item">RIVER LEVEL</a></li>
+                            <li><a href="#" class="weather-dropdown-item">LAKE LEVEL</a></li>
+                            <li><a href="#" class="weather-dropdown-item">LAKE LEVEL EXTENT</a></li>
+                        </ul>
+                    </div>
+                    <a href="#" class="weather-nav-item">FORECAST MAPS</a>
+                    <a href="#" class="weather-nav-item">RADAR</a>
+                    <a href="#" class="weather-nav-item">RIVERS, LAKES, RAINFALL</a>
+                    <a href="#" class="weather-nav-item">AIR QUALITY</a>
+                    <a href="#" class="weather-nav-item">SATELLITE</a>
+                    <a href="#" class="weather-nav-item">PAST WEATHER</a>
+                </div>
+            </div>
+        </div>
     </header>
     <!-- Main Content -->
     <main class="py-4">
@@ -103,7 +133,7 @@
         <div class="container">
             <div class="row">
                 <!-- Contact Info -->
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <h4>CONTACT US</h4>
                     <p><strong>Jaramogi Oginga Odinga University of Science and Technology (JOOUST)</strong></p>
                     <p>Bondo (Main) Campus</p>
@@ -118,10 +148,14 @@
                     </p>
                 </div>
                 <!-- Corporate Communication -->
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <h4>Corporate Communication</h4>
                     <p><a href="#" style="color: #fdd835;">Corporate Communication Page</a></p>
                     <p><a href="#" style="color: #fdd835;">Customer Complaints/Compliment Form</a></p>
+                    <h4 class="mt-4">Quick Links</h4>
+                    <p><a href="{% url 'research:index' %}" style="color: #fdd835;">Home</a></p>
+                    <p><a href="{% url 'research:vlirous' %}" style="color: #fdd835;">VLIR-OUS</a></p>
+                    <p><a href="{% url 'maps:map' %}" style="color: #fdd835;">Interactive Maps</a></p>
                 </div>
                 <!-- Quality & Staff Resources -->
                 <div class="col-md-3">
@@ -133,7 +167,23 @@
                     <p><a href="#" style="color: #fdd835;">Bunista SACCO</a></p>
                     <p><strong>Medical Cover - <a href="#" style="color: #fdd835;">AAR Provider Panel List</a></strong></p>
                 </div>
-                
+                <!-- Social Media & Repository Links -->
+                <div class="col-md-3">
+                    <h4>Connect With Us</h4>
+                    <p>
+                        <a href="#" style="color: #fdd835; font-size: 1.5rem; margin-right: 15px;"><i class="bi bi-facebook"></i></a>
+                        <a href="#" style="color: #fdd835; font-size: 1.5rem; margin-right: 15px;"><i class="bi bi-twitter"></i></a>
+                        <a href="#" style="color: #fdd835; font-size: 1.5rem; margin-right: 15px;"><i class="bi bi-linkedin"></i></a>
+                        <a href="#" style="color: #fdd835; font-size: 1.5rem;"><i class="bi bi-youtube"></i></a>
+                    </p>
+                    <h4 class="mt-4">Data Resources</h4>
+                    <p><a href="{% url 'repository:dataset_list' %}" style="color: #fdd835;">Data Repository</a></p>
+                    <p><a href="#" style="color: #fdd835;">Research Publications</a></p>
+                    <p><a href="#" style="color: #fdd835;">Climate Data</a></p>
+                    <p><a href="#" style="color: #fdd835;">Environmental Monitoring</a></p>
+                </div>
+            </div>
+            
             <!-- Copyright -->
             <div class="text-center mt-4">
                 <hr style="border-top: 1px solid white;">
@@ -178,6 +228,25 @@
                             window.location.href = '{% url "login" %}';
                         }
                     });
+                });
+            }
+            
+            // Weather dropdown functionality
+            const weatherDropdownToggle = document.querySelector('.weather-nav-dropdown .dropdown-toggle');
+            const weatherDropdown = document.querySelector('.weather-nav-dropdown');
+            
+            if (weatherDropdownToggle) {
+                // Toggle dropdown on click
+                weatherDropdownToggle.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    weatherDropdown.classList.toggle('show');
+                });
+                
+                // Close dropdown when clicking anywhere else on the page
+                document.addEventListener('click', function(event) {
+                    if (!weatherDropdown.contains(event.target)) {
+                        weatherDropdown.classList.remove('show');
+                    }
                 });
             }
         });
