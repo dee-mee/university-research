@@ -45,4 +45,6 @@ urlpatterns = [
     path('flash-drive-import/', views.flash_drive_import_view, name='flash_drive_import'),
     path('import-success/', views.ImportSuccessView.as_view(), name='import_success'),
     path('secure-export/<int:export_id>/<str:signature>/', views.secure_export_download, name='secure_export_download'),
+    path('data-entry/', views.stack_data_entry, name='stack_data_entry'),
+    path('process-stack/<int:station_id>/', views.process_station_stack, name='process_station_stack'),
 ]
