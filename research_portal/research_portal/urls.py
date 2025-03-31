@@ -20,6 +20,7 @@ from profiles.views import logout_view
 from django.conf import settings
 from django.conf.urls.static import static
 from maps.views import ImportSuccessView
+from django.views.generic import RedirectView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -28,10 +29,18 @@ urlpatterns = [
     # path('', include('maps.urls')), # Remove this line
     path('', include('research.urls')),
     path('', include('profiles.urls')),
-    path('', include('maps.urls')),
+    # Remove this duplicate include - it's already included with namespace above
+    # path('', include('maps.urls')),
     path('repository/', include('data_repository.urls', namespace='repository')),
     path('api-auth/', include('rest_framework.urls')),
     path('logout/', logout_view, name='logout'),
+    
+    # Add API fallback redirects to fix 404 errors
+    path('api/weather-stations/', RedirectView.as_view(url='/maps/api/weather-stations/', permanent=False)),
+    path('api/map-data/', RedirectView.as_view(url='/maps/api/map-data/', permanent=False)),
+    path('api/climate-data/', RedirectView.as_view(url='/maps/api/climate-data/', permanent=False)),
+    path('api/climate-data/recent/', RedirectView.as_view(url='/maps/api/climate-data/recent/', permanent=False)),
+    path('debug_stations/', RedirectView.as_view(url='/maps/debug_stations/', permanent=False)),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 # Serve media files in development
