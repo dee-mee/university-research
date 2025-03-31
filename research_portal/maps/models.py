@@ -554,87 +554,51 @@ class DataExport(models.Model):
         ('failed', _('Failed')),
     ]
     
+    # Existing fields - do not change these
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     stations = models.ManyToManyField(WeatherStation, blank=True, related_name='exports')
     country = models.ForeignKey(Country, on_delete=models.SET_NULL, null=True, blank=True)
     data_types = models.ManyToManyField(WeatherDataType, related_name='exports', help_text="Types of weather data to include")
-    
-    # Spatial filters
     bounding_box = models.PolygonField(srid=4326, null=True, blank=True, help_text="Geographic area for the export")
-    
-    # Temporal filters
     date_from = models.DateTimeField()
     date_to = models.DateTimeField()
     years = ArrayField(models.IntegerField(), blank=True, null=True, help_text="Specific years to include")
-    
-    # Other filters
     min_data_quality = models.CharField(max_length=10, choices=ClimateData.QUALITY_CHOICES, default='medium')
-    
-    # Export details - improve security by adding restrictions
     export_format = models.CharField(max_length=10, choices=FORMAT_CHOICES)
     include_metadata = models.BooleanField(default=True)
-    # Use FileField instead of URLField for better security
-    export_file = models.FileField(upload_to='exports/%Y/%m/%d/', blank=True, null=True)
-    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='pending')
-    # Avoid storing sensitive error details
+    created_at = models.DateTimeField(auto_now_add=True)
+    download_count = models.PositiveIntegerField(default=0, help_text="Number of times this export has been downloaded")
     error_message = models.TextField(blank=True, null=True)
     
-    # Tracking fields
-    created_at = models.DateTimeField(auto_now_add=True)
-    completed_at = models.DateTimeField(null=True, blank=True)
-    download_count = models.PositiveIntegerField(default=0, help_text="Number of times this export was downloaded")
+    # New fields we're adding
+    file = models.FileField(upload_to='exports/', null=True, blank=True, help_text="The exported data file")
+    updated_at = models.DateTimeField(auto_now=True)
+    last_downloaded = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     
     class Meta:
         verbose_name = _("Data Export")
         verbose_name_plural = _("Data Exports")
-        ordering = ["-created_at"]
-        # Add permission for downloading exports
-        permissions = [
-            ("download_export", "Can download data exports"),
-        ]
+        ordering = ['-created_at']
     
     def __str__(self):
-        return f"Export {self.export_format} - {self.created_at}"
+        return f"Export {self.id} - {self.get_export_format_display()} - {self.created_at}"
     
-    def get_secure_download_url(self):
-        """Get a secure, signed URL for downloading the export file"""
-        if not self.export_file:
+    def get_download_url(self):
+        """Generate a secure download URL with a signature"""
+        if not self.file:
             return None
             
-        # Use Django's built-in signed URLs if available, otherwise use the direct URL
-        if hasattr(self.export_file, 'url'):
-            from django.urls import reverse
-            from django.core.signing import Signer
-            signer = Signer()
-            signature = signer.sign(str(self.id))
-            return reverse('maps:secure_export_download', kwargs={
-                'export_id': self.id,
-                'signature': signature
-            })
-        return None
-    
-    def record_download(self):
-        """Record that this export was downloaded"""
-        self.download_count += 1
-        self.save(update_fields=['download_count'])
-    
-    def sanitize_error_message(self):
-        """Sanitize the error message to avoid exposing sensitive details"""
-        if not self.error_message:
-            return
-            
-        # Remove potentially sensitive information
-        sanitized = self.error_message
-        # Remove file paths
-        import re
-        sanitized = re.sub(r'(/[\w/\.-]+)+', '[PATH]', sanitized)
-        # Remove IP addresses
-        sanitized = re.sub(r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b', '[IP]', sanitized)
-        # Remove emails
-        sanitized = re.sub(r'[\w\.-]+@[\w\.-]+', '[EMAIL]', sanitized)
+        from django.core.signing import Signer
+        from django.urls import reverse
         
-        self.error_message = sanitized
-        self.save(update_fields=['error_message'])
+        signer = Signer()
+        signature = signer.sign(str(self.id)).split(':')[1]
+        
+        return reverse('maps:secure_export_download', kwargs={
+            'export_id': self.id,
+            'signature': signature
+        })
 
 
 class WeatherAlert(models.Model):
