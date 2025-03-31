@@ -2107,3 +2107,90 @@ def station_statistics_view(request, station_id):
 
 # ...existing code...
 
+from django.contrib.auth.decorators import login_required, permission_required
+from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
+from django.contrib import messages
+from .forms import StackDataEntryForm
+from .models import WeatherStation
+
+# ...existing code...
+
+class ImportSuccessView(TemplateView):
+    template_name = "maps/import_success.html"
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['import_count'] = self.request.session.get('import_count', 0)
+        context['import_type'] = self.request.session.get('import_type', 'data')
+        return context
+
+# ...existing code...
+
+@login_required
+@permission_required('maps.add_climatedata')
+def stack_data_entry(request):
+    """View for adding climate data to a station's stack"""
+    
+    stations = WeatherStation.objects.filter(is_active=True)
+    
+    if request.method == 'POST':
+        form = StackDataEntryForm(request.POST)
+        if form.is_valid():
+            success, message = form.add_to_stack()
+            if success:
+                messages.success(request, message)
+                # Redirect to the same page to clear the form
+                return redirect(reverse('maps:stack_data_entry'))
+            else:
+                messages.error(request, message)
+    else:
+        # Pre-select station if provided in query params
+        station_id = request.GET.get('station')
+        if station_id:
+            try:
+                station = stations.get(id=station_id)
+                form = StackDataEntryForm(initial={'station': station})
+            except WeatherStation.DoesNotExist:
+                form = StackDataEntryForm()
+        else:
+            form = StackDataEntryForm()
+    
+    # Get stack information for all stations
+    station_stacks = []
+    for station in stations:
+        stack_size = station.stack_size()
+        station_stacks.append({
+            'id': station.id,
+            'name': station.name,
+            'stack_size': stack_size,
+            'max_size': station.max_stack_size,
+            'auto_process': station.auto_process,
+            'threshold': station.process_threshold,
+            'percentage': (stack_size / station.max_stack_size * 100) if station.max_stack_size > 0 else 0,
+        })
+    
+    context = {
+        'form': form,
+        'stations': station_stacks,
+        'title': 'Daily Data Entry',
+    }
+    
+    return render(request, 'maps/stack_data_entry.html', context)
+
+@login_required
+@permission_required('maps.add_climatedata')
+def process_station_stack(request, station_id):
+    """Process the data stack for a specific station"""
+    station = get_object_or_404(WeatherStation, id=station_id)
+    
+    if request.method == 'POST':
+        records_processed = station.process_data_stack()
+        if records_processed > 0:
+            messages.success(request, f"Successfully processed {records_processed} readings from {station.name}.")
+        else:
+            messages.info(request, f"No data found to process for {station.name}.")
+    
+    # Redirect back to the data entry page
+    return redirect(reverse('maps:stack_data_entry'))
+
