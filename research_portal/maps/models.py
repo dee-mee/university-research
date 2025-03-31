@@ -37,13 +37,17 @@ class WeatherStation(models.Model):
     """Weather station or climate data collection point"""
     name = models.CharField(max_length=255)
     station_id = models.CharField(max_length=100, unique=True, null=True, blank=True)
+    station_id = models.CharField(max_length=100, unique=True, null=True, blank=True)
     description = models.TextField(blank=True, null=True)
     location = models.PointField(srid=4326, geography=True, spatial_index=True)  # Add spatial_index=True for better performance
     altitude = models.FloatField(help_text="Altitude in meters above sea level", null=True, blank=True)
     country = models.ForeignKey(Country, on_delete=models.SET_NULL, null=True, related_name='stations')
     region = models.CharField(max_length=100, blank=True, null=True, help_text="Administrative region within country")
+    country = models.ForeignKey(Country, on_delete=models.SET_NULL, null=True, related_name='stations')
+    region = models.CharField(max_length=100, blank=True, null=True, help_text="Administrative region within country")
     is_active = models.BooleanField(default=True)
     date_installed = models.DateField(null=True, blank=True)
+    date_decommissioned = models.DateField(null=True, blank=True)
     date_decommissioned = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -84,6 +88,7 @@ class WeatherStation(models.Model):
         ]
     
     def __str__(self):
+        return f"{self.name} ({self.station_id})"
         return f"{self.name} ({self.station_id})"
     
     @property
@@ -539,6 +544,7 @@ class ClimateData(models.Model):
 
 class DataExport(models.Model):
     """Tracks data exports by users with enhanced filtering capabilities"""
+    """Tracks data exports by users with enhanced filtering capabilities"""
     FORMAT_CHOICES = [
         ('csv', 'CSV'),
         ('json', 'JSON'),
@@ -620,8 +626,12 @@ class WeatherAlert(models.Model):
     country = models.ForeignKey(Country, on_delete=models.SET_NULL, null=True, blank=True)
     affected_area = models.PolygonField(srid=4326, null=True, blank=True, help_text="Geographic area affected by this alert")
     
+    country = models.ForeignKey(Country, on_delete=models.SET_NULL, null=True, blank=True)
+    affected_area = models.PolygonField(srid=4326, null=True, blank=True, help_text="Geographic area affected by this alert")
+    
     title = models.CharField(max_length=255)
     description = models.TextField()
+    data_type = models.ForeignKey(WeatherDataType, on_delete=models.CASCADE, related_name='alerts')
     data_type = models.ForeignKey(WeatherDataType, on_delete=models.CASCADE, related_name='alerts')
     threshold_value = models.FloatField()
     severity = models.CharField(max_length=10, choices=SEVERITY_CHOICES)

@@ -6,6 +6,8 @@ import logging
 import io
 import pandas as pd
 import xlsxwriter
+import pandas as pd
+import xlsxwriter
 from datetime import datetime, timedelta
 from pathlib import Path
 from dateutil import parser
@@ -18,6 +20,7 @@ from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.generic import FormView, TemplateView
+from django.db.models import Avg, Max, Min, Sum, OuterRef, Subquery
 from django.db.models import Avg, Max, Min, Sum, OuterRef, Subquery
 from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
@@ -34,6 +37,7 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from .utils import fetch_environmental_data, calculate_statistics
 from .models import DataExport, WeatherAlert, WeatherStation, ClimateData, Country, WeatherDataType
+from .models import DataExport, WeatherAlert, WeatherStation, ClimateData, Country, WeatherDataType
 from .forms import CSVUploadForm, FlashDriveImportForm
 from .serializers import (
     WeatherAlertSerializer,
@@ -42,8 +46,12 @@ from .serializers import (
     GeoJSONClimateDataSerializer,
     StackedDataSerializer,
     StackInfoSerializer
+    GeoJSONClimateDataSerializer,
+    StackedDataSerializer,
+    StackInfoSerializer
 )
 from .permissions import IsAdminOrReadOnly
+from django.urls import reverse_lazy, reverse
 from django.urls import reverse_lazy, reverse
 
 
@@ -52,13 +60,18 @@ def debug_stations(request):
     """Debug view to check GeoJSON output"""
     stations = WeatherStation.objects.all().select_related('country')
     features = [station.to_representation() for station in stations]
+    stations = WeatherStation.objects.all().select_related('country')
+    features = [station.to_representation() for station in stations]
     
     return JsonResponse({
         'type': 'FeatureCollection',
         'count': len(features),
         'features': features,
+        'count': len(features),
+        'features': features,
         'debug_info': {
             'fields_available': [field.name for field in WeatherStation._meta.fields],
+            'data_types': list(WeatherDataType.objects.values_list('name', flat=True))
             'data_types': list(WeatherDataType.objects.values_list('name', flat=True))
         }
     })
@@ -72,13 +85,21 @@ class MapView(TemplateView):
         
         # Get data for initial map rendering with optimized queries
         stations = WeatherStation.objects.select_related('country').all()
+        # Get data for initial map rendering with optimized queries
+        stations = WeatherStation.objects.select_related('country').all()
         active_stations = stations.filter(is_active=True)
         
+        # Get recent climate data with related station info
+        recent_data = ClimateData.objects.select_related('station').filter(
         # Get recent climate data with related station info
         recent_data = ClimateData.objects.select_related('station').filter(
             timestamp__gte=timezone.now() - timedelta(days=7)
         ).order_by('-timestamp')[:100]
         
+        # Get active alerts with related station and country info
+        active_alerts = WeatherAlert.objects.select_related('station', 'country', 'data_type').filter(
+            status='active'
+        ).order_by('-created_at')[:5]
         # Get active alerts with related station and country info
         active_alerts = WeatherAlert.objects.select_related('station', 'country', 'data_type').filter(
             status='active'
@@ -108,6 +129,8 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['is_active', 'country']
     search_fields = ['name', 'description', 'country__name']
+    filterset_fields = ['is_active', 'country']
+    search_fields = ['name', 'description', 'country__name']
     ordering_fields = ['name', 'date_installed']
     
     def list(self, request, *args, **kwargs):
@@ -135,7 +158,34 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
             features.append(feature)
         
         feature_collection = {
+        
+        # Manually create the GeoJSON feature collection
+        features = []
+        for station in queryset:
+            feature = {
+                'type': 'Feature',
+                'geometry': {
+                    'type': 'Point',
+                    'coordinates': [station.longitude, station.latitude]
+                },
+                'properties': {
+                    'id': station.id,
+                    'name': station.name,
+                    'description': station.description,
+                    'is_active': station.is_active,
+                    'altitude': station.altitude,
+                    'date_installed': station.date_installed.isoformat() if station.date_installed else None,
+                    'country': station.country.name if station.country else None
+                }
+            }
+            features.append(feature)
+        
+        feature_collection = {
             'type': 'FeatureCollection',
+            'features': features
+        }
+        
+        return Response(feature_collection)
             'features': features
         }
         
@@ -176,8 +226,11 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
         station = self.get_object()
         days = int(request.query_params.get('days', 7))
         data_types = request.query_params.getlist('data_types', [])
+        days = int(request.query_params.get('days', 7))
+        data_types = request.query_params.getlist('data_types', [])
         
         start_date = timezone.now() - timedelta(days=days)
+        query = ClimateData.objects.filter(
         query = ClimateData.objects.filter(
             station=station,
             timestamp__gte=start_date
@@ -193,10 +246,21 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
                 query = query.filter(reduce(operator.or_, conditions))
         
         page = self.paginate_queryset(query)
+        # Filter by data types if specified
+        if data_types:
+            conditions = []
+            for data_type in data_types:
+                if hasattr(ClimateData, data_type):
+                    conditions.append(~models.Q(**{data_type: None}))
+            if conditions:
+                query = query.filter(reduce(operator.or_, conditions))
+        
+        page = self.paginate_queryset(query)
         if page is not None:
             serializer = ClimateDataSerializer(page, many=True)
             return self.get_paginated_response(serializer.data)
         
+        serializer = ClimateDataSerializer(query, many=True)
         serializer = ClimateDataSerializer(query, many=True)
         return Response(serializer.data)
     
@@ -220,6 +284,7 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
         if request.user.is_authenticated:
             DataExport.objects.create(
                 user=request.user,
+                stations=[station],
                 stations=[station],
                 export_format=format_type,
                 date_from=start_date,
@@ -302,7 +367,58 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
         """Push weather data onto the station's stack"""
         station = self.get_object()
         serializer = StackedDataSerializer(data=request.data)
+    @action(detail=True, methods=['post'])
+    def push_data(self, request, pk=None):
+        """Push weather data onto the station's stack"""
+        station = self.get_object()
+        serializer = StackedDataSerializer(data=request.data)
         
+        if serializer.is_valid():
+            success = station.push_data(serializer.validated_data)
+            if success:
+                return Response({
+                    'success': True, 
+                    'stack_size': station.stack_size(),
+                    'message': 'Data added to stack successfully'
+                })
+            else:
+                return Response({
+                    'success': False,
+                    'message': 'Stack is full'
+                }, status=400)
+        else:
+            return Response(serializer.errors, status=400)
+    
+    @action(detail=True, methods=['post'])
+    def process_stack(self, request, pk=None):
+        """Process all data in the station's stack"""
+        station = self.get_object()
+        records_processed = station.process_data_stack()
+        
+        return Response({
+            'success': True,
+            'records_processed': records_processed,
+            'message': f'Successfully processed {records_processed} records'
+        })
+    
+    @action(detail=True, methods=['get'])
+    def stack_info(self, request, pk=None):
+        """Get information about the station's data stack"""
+        station = self.get_object()
+        latest_data = station.peek_data()
+        
+        data = {
+            'station_id': station.id,
+            'station_name': station.name,
+            'stack_size': station.stack_size(),
+            'max_stack_size': station.max_stack_size,
+            'last_data_feed': station.last_data_feed,
+            'auto_process': station.auto_process,
+            'process_threshold': station.process_threshold,
+            'latest_data': latest_data
+        }
+        
+        serializer = StackInfoSerializer(data)
         if serializer.is_valid():
             success = station.push_data(serializer.validated_data)
             if success:
@@ -486,8 +602,17 @@ class CSVUploadView(FormView):
     success_url = reverse_lazy('maps:import_success')
 
     # @method_decorator(login_required)
+    success_url = reverse_lazy('maps:import_success')
+
+    # @method_decorator(login_required)
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['current_datetime'] = timezone.now()
+        return context
+
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -866,10 +991,12 @@ class CSVUploadView(FormView):
 
 @api_view(['POST'])
 # @permission_classes([IsAdminUser])
+# @permission_classes([IsAdminUser])
 def api_import_csv(request):
     """API endpoint for importing CSV data with enhanced processing"""
     if 'file' not in request.FILES:
         return Response({'error': 'No file provided'}, status=400)
+
 
     import_type = request.data.get('import_type', 'stations')
     processing_mode = request.data.get('processing_mode', 'direct')
@@ -892,10 +1019,12 @@ def is_safe_path(base_dir, path):
     base_dir_abs = os.path.abspath(base_dir)
     path_abs = os.path.abspath(path)
 
+
     # Check if path is within base directory
     return os.path.commonpath([base_dir_abs]) == os.path.commonpath([base_dir_abs, path_abs])
 
 
+# @login_required
 # @login_required
 def flash_drive_import_view(request):
     """View to import data from a flash drive with improved security and error handling"""
@@ -905,15 +1034,18 @@ def flash_drive_import_view(request):
             import_type = form.cleaned_data['import_type']
             drive_path = form.cleaned_data['drive_path']
 
+
             # Security check: Validate the path is within acceptable boundaries
             if not is_safe_path('/media', drive_path):
                 messages.error(request, "Invalid drive path. Path must be within the media directory.")
                 return render(request, 'maps/flash_drive_import.html', {'form': form})
 
+
             # Verify the path exists
             if not os.path.exists(drive_path):
                 messages.error(request, f"The specified path does not exist: {drive_path}")
                 return render(request, 'maps/flash_drive_import.html', {'form': form})
+
 
             # Look for CSV files in the directory
             try:
@@ -925,9 +1057,11 @@ def flash_drive_import_view(request):
                 messages.error(request, f"Error accessing directory: {str(e)}")
                 return render(request, 'maps/flash_drive_import.html', {'form': form})
 
+
             if not csv_files:
                 messages.error(request, "No CSV files found in the specified directory.")
                 return render(request, 'maps/flash_drive_import.html', {'form': form})
+
 
             # Process all CSV files
             results = {
@@ -936,8 +1070,10 @@ def flash_drive_import_view(request):
                 'file_results': []
             }
 
+
             for csv_file_name in csv_files:
                 file_path = os.path.join(drive_path, csv_file_name)
+
 
                 # Process the file with multiple encoding attempts
                 try:
@@ -956,6 +1092,8 @@ def flash_drive_import_view(request):
                             'error': 1,
                             'errors': [
                                 "Could not decode file encoding. Please ensure it's properly encoded (UTF-8 or Latin-1)."]
+                            'errors': [
+                                "Could not decode file encoding. Please ensure it's properly encoded (UTF-8 or Latin-1)."]
                         }
                         results['error_total'] += 1
                         results['file_results'].append(result)
@@ -971,6 +1109,7 @@ def flash_drive_import_view(request):
                     results['error_total'] += 1
                     results['file_results'].append(result)
                     continue
+
 
                 # Create a file-like object
                 file_object = io.StringIO(file_content)
@@ -1003,15 +1142,46 @@ def flash_drive_import_view(request):
                         # Default to climate data
                         result = csv_view.process_climate_data_file(file_object)
 
+
+                # Process the file based on import type or filename prefix
+                csv_view = CSVUploadView()
+
+                if import_type != 'auto':
+                    # Use the specified import type
+                    if import_type == 'stations':
+                        result = csv_view.process_stations_file(file_object)
+                    elif import_type == 'climate_data':
+                        driveresult = csv_view.process_climate_data_file(file_object)
+                    elif import_type == 'weather_data_types':
+                        result = csv_view.process_weather_data_types_file(file_object)
+                    elif import_type == 'countries':
+                        result = csv_view.process_countries_file(file_object)
+                else:
+                    # Auto-detect based on filename prefix
+                    if csv_file_name.startswith('station_'):
+                        result = csv_view.process_stations_file(file_object)
+                    elif csv_file_name.startswith('climate_'):
+                        result = csv_view.process_climate_data_file(file_object)
+                    elif csv_file_name.startswith('datatype_'):
+                        result = csv_view.process_weather_data_types_file(file_object)
+                    elif csv_file_name.startswith('country_'):
+                        result = csv_view.process_countries_file(file_object)
+                    else:
+                        # Default to climate data
+                        result = csv_view.process_climate_data_file(file_object)
+
                 # Add file name to the result
                 result['file_name'] = csv_file_name
+
 
                 # Update totals
                 results['success_total'] += result['success']
                 results['error_total'] += result['error']
 
+
                 # Add to file results
                 results['file_results'].append(result)
+
 
                 # Option to move or rename processed files to avoid reimporting
                 try:
@@ -1024,12 +1194,15 @@ def flash_drive_import_view(request):
                     # Log but don't fail if we can't move the file
                     logging.warning(f"Could not mark file as processed: {str(e)}")
 
+
             # Store results in session for display
             request.session['import_results'] = results
+
 
             return redirect('maps:import_success')
     else:
         form = FlashDriveImportForm()
+
 
     return render(request, 'maps/flash_drive_import.html', {'form': form})
 
@@ -1038,8 +1211,10 @@ def setup_automated_imports(flash_drive_path=None, import_interval=3600):
     """
     Set up scheduled imports from a flash drive with improved configuration and error handling
 
+
     This function should be called from your app's AppConfig.ready() method
     to set up scheduled tasks when the application starts.
+
 
     Parameters:
     - flash_drive_path: Path to monitor for CSV files, defaults to environment variable or '/media/usb'
@@ -1050,13 +1225,16 @@ def setup_automated_imports(flash_drive_path=None, import_interval=3600):
         from apscheduler.triggers.interval import IntervalTrigger
         import logging
 
+
         # Use environment variables if path not provided
         if flash_drive_path is None:
             flash_drive_path = os.environ.get('FLASH_DRIVE_PATH', '/media/usb')
 
+
         # Use environment variable for interval if not provided
         if import_interval is None:
             import_interval = int(os.environ.get('IMPORT_INTERVAL', '3600'))
+
 
         def import_task():
             """Task to import CSV files from the flash drive path"""
@@ -1066,6 +1244,7 @@ def setup_automated_imports(flash_drive_path=None, import_interval=3600):
                 if not is_safe_path('/media', flash_drive_path):
                     logging.error(f"Unsafe path detected: {flash_drive_path}")
                     return
+
 
                 if os.path.exists(flash_drive_path):
                     # Look for CSV files
@@ -1078,7 +1257,10 @@ def setup_automated_imports(flash_drive_path=None, import_interval=3600):
                         logging.error(f"Error accessing directory {flash_drive_path}: {str(e)}")
                         return
 
+
                     # Process files in appropriate order
+                    process_files(flash_drive_path, 'country_', 'countries', csv_files)
+                    process_files(flash_drive_path, 'datatype_', 'weather_data_types', csv_files)
                     process_files(flash_drive_path, 'country_', 'countries', csv_files)
                     process_files(flash_drive_path, 'datatype_', 'weather_data_types', csv_files)
                     process_files(flash_drive_path, 'station_', 'stations', csv_files)
@@ -1088,14 +1270,17 @@ def setup_automated_imports(flash_drive_path=None, import_interval=3600):
             except Exception as e:
                 logging.error(f"Error in import task: {str(e)}")
 
+
         def process_files(path, prefix, import_type, all_files):
             """Process specific types of CSV files"""
             # Filter files by prefix
             filtered_files = [f for f in all_files if f.startswith(prefix)]
 
+
             for file_name in filtered_files:
                 try:
                     file_path = os.path.join(path, file_name)
+
 
                     # Try different encodings
                     try:
@@ -1109,9 +1294,13 @@ def setup_automated_imports(flash_drive_path=None, import_interval=3600):
                             logging.error(f"Cannot decode file {file_name}: Encoding issues")
                             continue
 
+
                     # Create a file-like object
                     file_object = io.StringIO(file_content)
                     file_object.name = file_name
+
+                    # Process the file based on import type
+                    csv_view = CSVUploadView()
 
                     # Process the file based on import type
                     csv_view = CSVUploadView()
@@ -1127,8 +1316,20 @@ def setup_automated_imports(flash_drive_path=None, import_interval=3600):
                         logging.error(f"Unknown import type: {import_type}")
                         continue
 
+                        result = csv_view.process_stations_file(file_object)
+                    elif import_type == 'climate_data':
+                        result = csv_view.process_climate_data_file(file_object)
+                    elif import_type == 'weather_data_types':
+                        result = csv_view.process_weather_data_types_file(file_object)
+                    elif import_type == 'countries':
+                        result = csv_view.process_countries_file(file_object)
+                    else:
+                        logging.error(f"Unknown import type: {import_type}")
+                        continue
+
                     # Log the result
                     logging.info(f"Imported {file_name}: {result['success']} success, {result['error']} errors")
+
 
                     # Move processed file to avoid reimporting
                     processed_path = file_path + '.processed'
@@ -1136,6 +1337,7 @@ def setup_automated_imports(flash_drive_path=None, import_interval=3600):
                         os.rename(file_path, processed_path)
                 except Exception as e:
                     logging.error(f"Error processing {file_name}: {str(e)}")
+
 
         # Create and start the scheduler
         scheduler = BackgroundScheduler()
@@ -1498,9 +1700,44 @@ class ClimateDataViewSet(viewsets.ModelViewSet):
                 'features': serializer.data
             })
         
+        serializer = self.get_serializer(queryset, many=True)
+        
+        # If GeoJSON format is requested, wrap in a FeatureCollection
+        if request.query_params.get('format') == 'geojson':
+            return Response({
+                'type': 'FeatureCollection',
+                'features': serializer.data
+            })
+        
         return Response(serializer.data)
     
     @action(detail=False, methods=['get'])
+    def recent(self, request):
+        """Get the most recent climate data for all stations"""
+        hours = int(request.query_params.get('hours', 24))
+        data_types = request.query_params.getlist('data_types', [])
+        since = timezone.now() - timedelta(hours=hours)
+        
+        # Get latest reading for each station
+        subquery = ClimateData.objects.filter(
+            station=OuterRef('station'),
+            timestamp__gte=since
+        ).order_by('-timestamp').values('id')[:1]
+        
+        query = ClimateData.objects.filter(
+            id__in=Subquery(subquery)
+        ).select_related('station')
+        
+        # Filter by data types if specified
+        if data_types:
+            conditions = []
+            for data_type in data_types:
+                if hasattr(ClimateData, data_type):
+                    conditions.append(~models.Q(**{data_type: None}))
+            if conditions:
+                query = query.filter(reduce(operator.or_, conditions))
+        
+        serializer = self.get_serializer(query, many=True)
     def recent(self, request):
         """Get the most recent climate data for all stations"""
         hours = int(request.query_params.get('hours', 24))

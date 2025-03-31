@@ -439,17 +439,17 @@ header {
     <form method="POST" id="loginForm">
         {% csrf_token %}
         <div class="input-group">
-            <input type="text" id="id_username" name="username" placeholder="Email or ID Number" required>
-            {% if form.username.errors %}
+            <input type="text" id="id_number" name="id_number" placeholder="ID Number" required>
+            {% if form.id_number.errors %}
             <div class="error-message">
-                {% for error in form.username.errors %}
+                {% for error in form.id_number.errors %}
                     {{ error }}
                 {% endfor %}
             </div>
             {% endif %}
         </div>
         <div class="input-group">
-            <input type="password" id="id_password" name="password" placeholder="Password" required>
+            <input type="password" id="password" name="password" placeholder="Password" required>
             {% if form.password.errors %}
             <div class="error-message">
                 {% for error in form.password.errors %}

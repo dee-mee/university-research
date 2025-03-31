@@ -156,6 +156,9 @@ class WeatherStationMap {
                             } else if (data.stations && data.stations.features) {
                                 // Handle map_data response format
                                 this.stations = data.stations.features;
+                            } else if (data.stations && data.stations.features) {
+                                // Handle map_data response format
+                                this.stations = data.stations.features;
                             } else if (data.results) {
                                 this.stations = data.results;
                             } else {
@@ -381,6 +384,7 @@ class WeatherStationMap {
                 <p><strong>Air Quality:</strong> ${latest.air_quality_index !== null && latest.air_quality_index !== undefined ? latest.air_quality_index : 'N/A'}</p>
                 <p><strong>Data Quality:</strong> ${latest.data_quality || 'Good'}</p>
                 <button class="btn btn-sm btn-secondary" onclick="window.location.href='/maps/stations/${stationId}/statistics/'">View Statistics</button>
+                <button class="btn btn-sm btn-secondary" onclick="window.location.href='/maps/stations/${stationId}/statistics/'">View Statistics</button>
             </div>
         `;
     }
@@ -507,11 +511,17 @@ class WeatherStationMap {
                     return fetch(mapDataUrl);
                 }
                 return response;
+                return response;
             })
+            .then(response => response.json())
             .then(response => response.json())
             .then(data => {
                 // Handle different response formats
                 let results;
+                // Check for map-data response format
+                if (data.recent_data && Array.isArray(data.recent_data)) {
+                    results = data.recent_data;
+                } else if (data.results && Array.isArray(data.results)) {
                 // Check for map-data response format
                 if (data.recent_data && Array.isArray(data.recent_data)) {
                     results = data.recent_data;
@@ -527,6 +537,7 @@ class WeatherStationMap {
             })
             .catch(error => {
                 console.error("Error loading heatmap data:", error);
+                this.showError(`Failed to load heatmap data: ${error.message}`);
                 this.showError(`Failed to load heatmap data: ${error.message}`);
             });
     }
