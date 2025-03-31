@@ -76,32 +76,22 @@ def login_view(request):
         form = LoginForm(request.POST)
         if form.is_valid():
             try:
+                # User is already authenticated in form.clean()
                 user = form.cleaned_data.get('user')
                 login(request, user)
                 
                 # Check if it's an AJAX request
                 if request.headers.get('x-requested-with') == 'XMLHttpRequest':
                     return JsonResponse({'success': True})
-                
-                # Check if user has a profile
-                try:
-                    profile = user.profile
-                except Profile.DoesNotExist:
-                    # If no profile exists, redirect to create profile
-                    return redirect('create_profile')
-                
-                return redirect('dashboard')  # Redirect to dashboard after login
+                return redirect('profile')  # Redirect to profile after login
             except Exception as e:
                 logger.error(f"Login error: {e}")
-                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-                    return JsonResponse({'success': False, 'message': str(e)}, status=500)
-                messages.error(request, "An error occurred during login. Please try again.")
+                return JsonResponse({'success': False, 'message': str(e)}, status=500)
         else:
             # Form is invalid, prepare error messages
             errors = form.errors
             if request.headers.get('x-requested-with') == 'XMLHttpRequest':
                 return JsonResponse({'success': False, 'message': errors})
-            messages.error(request, "Invalid email/ID number or password")
     else:
         form = LoginForm()
     
