@@ -1,10 +1,10 @@
 from django.contrib import admin
-from django.contrib.gis.admin import GISModelAdmin
+from django.contrib.gis.admin import GeoModelAdmin  # Changed from GISModelAdmin to GeoModelAdmin
 from django.utils.html import format_html
 from .models import WeatherStation, ClimateData, DataExport, Country, WeatherDataType, WeatherAlert
 
 @admin.register(Country)
-class CountryAdmin(GISModelAdmin):
+class CountryAdmin(GeoModelAdmin):  # Changed from GISModelAdmin to GeoModelAdmin
     list_display = ('name', 'code', 'station_count')
     search_fields = ('name', 'code')
     
@@ -21,7 +21,7 @@ class WeatherDataTypeAdmin(admin.ModelAdmin):
 
 
 @admin.register(WeatherStation)
-class WeatherStationAdmin(GISModelAdmin):
+class WeatherStationAdmin(GeoModelAdmin):  # Changed from GISModelAdmin to GeoModelAdmin
     list_display = ('name', 'station_id', 'country', 'is_active', 'date_installed', 'data_types_available', 'stack_info')
     list_filter = ('is_active', 'country', 'has_temperature', 'has_precipitation', 'has_humidity', 'has_wind', 'has_air_quality', 'auto_process')
     search_fields = ('name', 'station_id', 'description', 'country__name')
@@ -213,7 +213,7 @@ class ClimateDataAdmin(admin.ModelAdmin):
 class DataExportAdmin(admin.ModelAdmin):
     list_display = ('user', 'export_format', 'date_from', 'date_to', 'created_at', 'status', 'country_filter')
     list_filter = ('export_format', 'status', 'created_at', 'country')
-    readonly_fields = ('created_at', 'completed_at')
+    readonly_fields = ('created_at', 'updated_at', 'last_downloaded')
     filter_horizontal = ('stations', 'data_types')
     
     fieldsets = (
@@ -230,7 +230,7 @@ class DataExportAdmin(admin.ModelAdmin):
             'fields': ('date_from', 'date_to', 'years')
         }),
         ('Export Details', {
-            'fields': ('file_url', 'error_message', 'created_at', 'completed_at')
+            'fields': ('file', 'error_message', 'created_at', 'updated_at', 'last_downloaded', 'download_count')
         }),
     )
     
@@ -240,7 +240,7 @@ class DataExportAdmin(admin.ModelAdmin):
 
 
 @admin.register(WeatherAlert)
-class WeatherAlertAdmin(GISModelAdmin):
+class WeatherAlertAdmin(GeoModelAdmin):  # Changed from GISModelAdmin to GeoModelAdmin
     list_display = ('title', 'station', 'data_type', 'severity', 'status', 'created_at')
     list_filter = ('severity', 'status', 'data_type', 'country')
     search_fields = ('title', 'description', 'station__name')
