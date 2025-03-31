@@ -72,7 +72,10 @@ class WeatherStationMap {
      */
     loadStations() {
         // Use correct path including API prefix
-        fetch(`${this.apiBaseUrl}/api/weather-stations/`)
+        const url = `${this.apiBaseUrl}/api/weather-stations/`;
+        console.log("Fetching stations from:", url);
+        
+        fetch(url)
             .then(response => {
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
@@ -132,10 +135,15 @@ class WeatherStationMap {
             .catch(error => {
                 console.error("Error loading stations:", error);
                 // Try the debug endpoint as fallback with corrected paths
-                fetch(`${this.apiBaseUrl}/api/map-data/`)
+                const debugUrl = `${this.apiBaseUrl}/api/debug/stations/`;
+                console.log("Trying debug endpoint:", debugUrl);
+                
+                fetch(debugUrl)
                     .then(response => {
                         if (!response.ok) {
-                            return fetch(`/debug_stations/`);
+                            const mapDataUrl = `${this.apiBaseUrl}/api/map-data/`;
+                            console.log("Trying map-data endpoint:", mapDataUrl);
+                            return fetch(mapDataUrl);
                         }
                         return response;
                     })
@@ -275,18 +283,25 @@ class WeatherStationMap {
         }
         
         // Try to access station data using the correct API endpoint path
-        fetch(`${this.apiBaseUrl}/api/stations/${stationId}/data/`)
+        const url = `${this.apiBaseUrl}/api/stations/${stationId}/data/`;
+        console.log("Fetching station data from:", url);
+        
+        fetch(url)
             .then(response => {
                 if (!response.ok) {
                     // First fallback - try using DRF viewset endpoint directly
-                    return fetch(`${this.apiBaseUrl}/api/climate-data/?station=${stationId}&days=7`);
+                    const fallbackUrl = `${this.apiBaseUrl}/api/climate-data/?station=${stationId}&days=7`;
+                    console.log("Trying fallback URL:", fallbackUrl);
+                    return fetch(fallbackUrl);
                 }
                 return response;
             })
             .then(response => {
                 if (!response.ok) {
                     // Second fallback - try accessing the station directly via map-data
-                    return fetch(`${this.apiBaseUrl}/api/map-data/?station=${stationId}`);
+                    const mapDataUrl = `${this.apiBaseUrl}/api/map-data/?station=${stationId}`;
+                    console.log("Trying map-data endpoint:", mapDataUrl);
+                    return fetch(mapDataUrl);
                 }
                 return response;
             })
@@ -471,18 +486,25 @@ class WeatherStationMap {
      */
     loadHeatmapData() {
         // Use correct API endpoint path for climate data
-        fetch(`/maps/api/climate-data/recent/?hours=24`)
+        const url = `${this.apiBaseUrl}/api/climate-data/recent/?hours=24`;
+        console.log("Fetching heatmap data from:", url);
+        
+        fetch(url)
             .then(response => {
                 if (!response.ok) {
                     // Try fallback path
-                    return fetch(`/maps/api/climate-data/?hours=24`);
+                    const fallbackUrl = `${this.apiBaseUrl}/api/climate-data/?hours=24`;
+                    console.log("Trying fallback URL:", fallbackUrl);
+                    return fetch(fallbackUrl);
                 }
                 return response;
             })
             .then(response => {
                 if (!response.ok) {
                     // Try the map-data endpoint as another fallback
-                    return fetch(`/maps/api/map-data/`);
+                    const mapDataUrl = `${this.apiBaseUrl}/api/map-data/`;
+                    console.log("Trying map-data endpoint:", mapDataUrl);
+                    return fetch(mapDataUrl);
                 }
                 return response;
             })
