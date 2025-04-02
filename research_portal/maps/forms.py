@@ -14,8 +14,7 @@ from django.utils.translation import gettext_lazy as _
 from .models import Country, WeatherStation, WeatherDataType, ClimateData
 
 
-class BaseImportForm(forms.Form):
-    """Base form with common fields and methods for all import forms"""
+
 class BaseImportForm(forms.Form):
     """Base form with common fields and methods for all import forms"""
     IMPORT_CHOICES = [
@@ -32,12 +31,10 @@ class BaseImportForm(forms.Form):
 
     import_type = forms.ChoiceField(
         choices=IMPORT_CHOICES,
-        label=_("Import Type"),
         label=_("Import Type"),
         widget=forms.RadioSelect,
         initial='stations',
         help_text=_("Select the type of data you want to import.")
-        help_text=_("Select the type of data you want to import.")
     )
 
     country = forms.ModelChoiceField(
@@ -220,10 +217,7 @@ class CSVUploadForm(BaseImportForm):
         choices=IMPORT_CHOICES,
         label=_("Import Type"),
         widget=forms.Select(attrs={'class': 'form-select'}),
-        label=_("Import Type"),
-        widget=forms.Select(attrs={'class': 'form-select'}),
         initial='stations',
-        help_text=_("Select the type of data you want to import.")
         help_text=_("Select the type of data you want to import.")
     )
     
@@ -304,7 +298,6 @@ class FlashDriveImportForm(BaseImportForm):
     """Form for importing data from a flash drive"""
     drive_path = forms.CharField(
         label=_("Flash Drive Path"),
-        label=_("Flash Drive Path"),
         initial="/media/usb",
         help_text=_("Enter the path where the flash drive is mounted.")
     )
@@ -335,9 +328,7 @@ class FlashDriveImportForm(BaseImportForm):
                 params={'dirs': ', '.join(allowed_prefixes)}
             )
 
-        # Check if the path exists
-        if not os.path.exists(drive_path):
-            raise forms.ValidationError(_("The specified path does not exist."))
+        
 
         # Check if the path is a directory
         if not os.path.isdir(drive_path):
