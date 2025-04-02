@@ -45,8 +45,7 @@ from .serializers import (
     ClimateDataSerializer,
     GeoJSONClimateDataSerializer,
     StackedDataSerializer,
-    StackInfoSerializer
-    GeoJSONClimateDataSerializer,
+    StackInfoSerializer,
     StackedDataSerializer,
     StackInfoSerializer
 )
@@ -71,7 +70,7 @@ def debug_stations(request):
         'features': features,
         'debug_info': {
             'fields_available': [field.name for field in WeatherStation._meta.fields],
-            'data_types': list(WeatherDataType.objects.values_list('name', flat=True))
+            'data_types': list(WeatherDataType.objects.values_list('name', flat=True)),
             'data_types': list(WeatherDataType.objects.values_list('name', flat=True))
         }
     })
@@ -85,12 +84,9 @@ class MapView(TemplateView):
         
         # Get data for initial map rendering with optimized queries
         stations = WeatherStation.objects.select_related('country').all()
-        # Get data for initial map rendering with optimized queries
-        stations = WeatherStation.objects.select_related('country').all()
         active_stations = stations.filter(is_active=True)
         
-        # Get recent climate data with related station info
-        recent_data = ClimateData.objects.select_related('station').filter(
+        
         # Get recent climate data with related station info
         recent_data = ClimateData.objects.select_related('station').filter(
             timestamp__gte=timezone.now() - timedelta(days=7)
@@ -100,10 +96,7 @@ class MapView(TemplateView):
         active_alerts = WeatherAlert.objects.select_related('station', 'country', 'data_type').filter(
             status='active'
         ).order_by('-created_at')[:5]
-        # Get active alerts with related station and country info
-        active_alerts = WeatherAlert.objects.select_related('station', 'country', 'data_type').filter(
-            status='active'
-        ).order_by('-created_at')[:5]
+        
         
         context.update({
             'stations_count': stations.count(),
@@ -127,8 +120,6 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
     serializer_class = WeatherStationSerializer
     permission_classes = [IsAdminOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['is_active', 'country']
-    search_fields = ['name', 'description', 'country__name']
     filterset_fields = ['is_active', 'country']
     search_fields = ['name', 'description', 'country__name']
     ordering_fields = ['name', 'date_installed']
@@ -158,34 +149,7 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
             features.append(feature)
         
         feature_collection = {
-        
-        # Manually create the GeoJSON feature collection
-        features = []
-        for station in queryset:
-            feature = {
-                'type': 'Feature',
-                'geometry': {
-                    'type': 'Point',
-                    'coordinates': [station.longitude, station.latitude]
-                },
-                'properties': {
-                    'id': station.id,
-                    'name': station.name,
-                    'description': station.description,
-                    'is_active': station.is_active,
-                    'altitude': station.altitude,
-                    'date_installed': station.date_installed.isoformat() if station.date_installed else None,
-                    'country': station.country.name if station.country else None
-                }
-            }
-            features.append(feature)
-        
-        feature_collection = {
             'type': 'FeatureCollection',
-            'features': features
-        }
-        
-        return Response(feature_collection)
             'features': features
         }
         
@@ -230,7 +194,6 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
         data_types = request.query_params.getlist('data_types', [])
         
         start_date = timezone.now() - timedelta(days=days)
-        query = ClimateData.objects.filter(
         query = ClimateData.objects.filter(
             station=station,
             timestamp__gte=start_date
@@ -284,7 +247,6 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
         if request.user.is_authenticated:
             DataExport.objects.create(
                 user=request.user,
-                stations=[station],
                 stations=[station],
                 export_format=format_type,
                 date_from=start_date,
@@ -1092,8 +1054,6 @@ def flash_drive_import_view(request):
                             'error': 1,
                             'errors': [
                                 "Could not decode file encoding. Please ensure it's properly encoded (UTF-8 or Latin-1)."]
-                            'errors': [
-                                "Could not decode file encoding. Please ensure it's properly encoded (UTF-8 or Latin-1)."]
                         }
                         results['error_total'] += 1
                         results['file_results'].append(result)
@@ -1315,18 +1275,6 @@ def setup_automated_imports(flash_drive_path=None, import_interval=3600):
                     else:
                         logging.error(f"Unknown import type: {import_type}")
                         continue
-
-                        result = csv_view.process_stations_file(file_object)
-                    elif import_type == 'climate_data':
-                        result = csv_view.process_climate_data_file(file_object)
-                    elif import_type == 'weather_data_types':
-                        result = csv_view.process_weather_data_types_file(file_object)
-                    elif import_type == 'countries':
-                        result = csv_view.process_countries_file(file_object)
-                    else:
-                        logging.error(f"Unknown import type: {import_type}")
-                        continue
-
                     # Log the result
                     logging.info(f"Imported {file_name}: {result['success']} success, {result['error']} errors")
 
