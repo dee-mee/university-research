@@ -51,15 +51,15 @@
                             <i class="bi bi-person-circle"></i>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="{% url 'dashboard' %}">Dashboard</a></li>
-                            <li><a class="dropdown-item" href="{% url 'profile' %}">User Profile</a></li>
+                            <li><a class="dropdown-item" href="{% url 'profiles:dashboard' %}">Dashboard</a></li>
+                            <li><a class="dropdown-item" href="{% url 'profiles:profile' %}">User Profile</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{% url 'logout' %}" id="logout-link">Logout</a></li>
                         </ul>
                     </li>
                     {% else %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'login' %}">
+                        <a class="nav-link" href="{% url 'profiles:login' %}">
                             <i class="bi bi-person-circle"></i>
                             Login
                         </a>
@@ -80,40 +80,40 @@
         </div>
     </div>
 
-    <!-- Weather Navigation -->
-    <div class="weather-nav-container">
+     <!-- Weather Navigation -->
+     <div class="weather-nav-container">
         <div class="container">
             <nav class="navbar navbar-expand-lg navbar-dark">
                 <div class="navbar-collapse">
                     <ul class="navbar-nav">
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                ACTIVE ALERTS
-                            </a>
+                                Active alerts
+                         </a>
                             <div class="dropdown-menu dropdown-menu-dark">
-                                <a class="dropdown-item" href="#">EXCESSIVE RAINFALL</a>
-                                <a class="dropdown-item" href="#">RIVER LEVEL</a>
-                                <a class="dropdown-item" href="#">LAKE LEVEL</a>
-                                <a class="dropdown-item" href="#">LAKE LEVEL EXTENT</a>
+                                <a class="dropdown-item" href="#">Excessive rainfall</a>
+                                <a class="dropdown-item" href="#">River level</a>
+                                <a class="dropdown-item" href="#">Lake level</a>
+                                <a class="dropdown-item" href="#">Lake level extent</a>
                             </div>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="#">FORECAST MAPS</a>
+                            <a class="nav-link" href="#">Forecast</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="#">RADAR</a>
+                            <a class="nav-link" href="#">Radar</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="#">RIVERS, LAKES, RAINFALL</a>
+                            <a class="nav-link" href="#">Rivers,Lakes,Rainfall</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="#">AIR QUALITY</a>
+                            <a class="nav-link" href="#">Air quality</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="#">SATELLITE</a>
+                            <a class="nav-link" href="#">Satellite</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="#">PAST WEATHER</a>
+                            <a class="nav-link" href="#">Past Weather</a>
                         </li>
                     </ul>
                 </div>
@@ -185,7 +185,7 @@
         <!-- Copyright -->
         <div class="text-center mt-4">
             <hr style="border-top: 1px solid white;">
-            <p>© Jaramogi Oginga Odinga University of Science and Technology (JOOUST), 2025.</p>
+            <p> Jaramogi Oginga Odinga University of Science and Technology (JOOUST), 2025.</p>
         </div>
     </div>
 </footer>

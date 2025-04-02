@@ -97,40 +97,60 @@ class ProfileEditForm(forms.ModelForm):
     """
     Form for editing user profile details
     """
-    first_name = forms.CharField(
-        max_length=30, 
-        required=True,
-        widget=forms.TextInput(attrs={'class': 'form-control'})
-    )
-    last_name = forms.CharField(
-        max_length=30, 
-        required=True,
-        widget=forms.TextInput(attrs={'class': 'form-control'})
-    )
     email = forms.EmailField(
         required=True,
         widget=forms.EmailInput(attrs={'class': 'form-control'})
+    )
+    role = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    department = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    research_interests = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
+    )
+    phone = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    location = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    linkedin = forms.URLField(
+        required=False,
+        widget=forms.URLInput(attrs={'class': 'form-control'})
+    )
+    scholar = forms.URLField(
+        required=False,
+        widget=forms.URLInput(attrs={'class': 'form-control'})
+    )
+    profile_image = forms.ImageField(
+        required=False,
+        widget=forms.FileInput(attrs={'class': 'form-control'})
     )
 
     class Meta:
         model = Profile
         fields = [
-            'first_name',
-            'last_name',
-            'middle_name', 
-            'phone_number', 
-            'id_number', 
-            'dob', 
-            'gender', 
-            'location', 
-            'bio'
+            'email',
+            'role',
+            'department',
+            'research_interests',
+            'phone',
+            'location',
+            'linkedin',
+            'scholar',
+            'profile_image'
         ]
-        widgets = {
-            'middle_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'phone_number': forms.TextInput(attrs={'class': 'form-control'}),
-            'id_number': forms.TextInput(attrs={'class': 'form-control'}),
-            'dob': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'gender': forms.Select(attrs={'class': 'form-control'}),
-            'location': forms.TextInput(attrs={'class': 'form-control'}),
-            'bio': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
-        }
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if email and email != self.instance.user.email:
+            if User.objects.filter(email=email).exists():
+                raise forms.ValidationError("This email address is already in use.")
+        return email

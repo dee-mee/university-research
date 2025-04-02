@@ -169,10 +169,9 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Make sure you have these settings
-LOGIN_URL = '/login/'
-LOGIN_REDIRECT_URL = '/dashboard/'
-LOGOUT_REDIRECT_URL = '/login/'
-
+LOGIN_URL = 'profiles:login'
+LOGIN_REDIRECT_URL = 'profiles:dashboard'
+LOGOUT_REDIRECT_URL = 'profiles:login'
 
 
 # Email settings
@@ -182,7 +181,6 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
-
 
 
 # Static and media files settings for deployment

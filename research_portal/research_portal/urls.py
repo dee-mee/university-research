@@ -31,7 +31,7 @@ urlpatterns = [
     # We should NOT include maps.urls at the root - that was causing the duplicate/confused URLs
     # path('', include('maps.urls')), # Remove this line
     path('', include('research.urls')),
-    path('', include('profiles.urls')),
+    path('', include('profiles.urls', namespace='profiles')),
     # Remove this duplicate include - it's already included with namespace above
     # path('', include('maps.urls')),
     path('repository/', include('data_repository.urls', namespace='repository')),

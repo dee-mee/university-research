@@ -40,7 +40,7 @@ class RegisterView(generics.CreateAPIView):
                 user = form.save()
                 if request.headers.get('x-requested-with') == 'XMLHttpRequest':
                     return JsonResponse({'success': True})
-                return redirect('login')  # Redirect to login after successful registration
+                return redirect('profiles:login')  # Redirect to login after successful registration
             except Exception as e:
                 logger.error(f"Error during registration: {e}")
                 return JsonResponse({'success': False, 'message': str(e)}, status=500)
@@ -83,7 +83,7 @@ def login_view(request):
                 # Check if it's an AJAX request
                 if request.headers.get('x-requested-with') == 'XMLHttpRequest':
                     return JsonResponse({'success': True})
-                return redirect('profile')  # Redirect to profile after login
+                return redirect('profiles:profile')  # Redirect to profile after login
             except Exception as e:
                 logger.error(f"Login error: {e}")
                 return JsonResponse({'success': False, 'message': str(e)}, status=500)
@@ -97,13 +97,47 @@ def login_view(request):
     
     return render(request, 'profiles/login.html', {'form': form})
 
+@login_required
+def settings_view(request):
+    """
+    Render the user's settings page
+    """
+    return render(request, 'profiles/settings.html', {
+        'user': request.user
+    })
+
+@login_required
+def notifications_view(request):
+    """
+    Render the user's notifications settings page
+    """
+    return render(request, 'profiles/notifications.html', {
+        'user': request.user
+    })
+
+@login_required
+def privacy_view(request):
+    """
+    Render the user's privacy settings page
+    """
+    return render(request, 'profiles/privacy.html', {
+        'user': request.user
+    })
+
 def logout_view(request):
     logout(request)
-    return redirect('login')
+    return redirect('profiles:login')
 
 @login_required
 def dashboard_view(request):
-    return render(request, 'profiles/dashboard.html')
+    return render(request, 'profiles/dashboard.html', {
+        'dashboard_url': 'profiles:dashboard',
+        'profile_url': 'profiles:profile',
+        'maps_url': 'maps:map',
+        'repository_url': 'repository:dataset_list',
+        'edit_profile_url': 'profiles:edit_profile',
+        'logout_url': 'profiles:logout'
+    })
 
 def homepage_view(request):
     return render(request, 'index.html')
@@ -121,7 +155,7 @@ def profile_view(request):
         })
     except Profile.DoesNotExist:
         # Redirect to create profile if it doesn't exist
-        return redirect('create_profile')
+        return redirect('profiles:create_profile')
 
 @login_required
 def export_profile(request, export_format):
@@ -180,23 +214,23 @@ def edit_profile(request):
         # Get or create profile if it doesn't exist
         profile, created = Profile.objects.get_or_create(user=request.user)
     except Exception as e:
-        messages.error(request, f"Error accessing profile: {str(e)}")
-        return redirect('profile')
+        return JsonResponse({'success': False, 'message': f"Error accessing profile: {str(e)}"}, status=500)
 
     if request.method == 'POST':
-        form = ProfileEditForm(request.POST, request.FILES, instance=profile)
+        # Handle profile form
+        profile_form = ProfileEditForm(request.POST, request.FILES, instance=profile)
         
-        # Separate form for user model fields
+        # Handle user model fields
         user_form_data = {
             'first_name': request.POST.get('first_name'),
             'last_name': request.POST.get('last_name'),
             'email': request.POST.get('email')
         }
         
-        if form.is_valid():
+        if profile_form.is_valid():
             try:
                 # Update profile
-                profile = form.save(commit=False)
+                profile = profile_form.save(commit=False)
                 profile.user = request.user
                 profile.save()
 
@@ -207,24 +241,57 @@ def edit_profile(request):
                 user.email = user_form_data['email']
                 user.save()
 
-                messages.success(request, 'Profile updated successfully!')
-                return redirect('profile')
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({
+                        'success': True,
+                        'message': 'Profile updated successfully!'
+                    })
+                else:
+                    messages.success(request, 'Profile updated successfully!')
+                    return redirect('profiles:profile')
             
             except Exception as e:
-                messages.error(request, f"Error updating profile: {str(e)}")
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({
+                        'success': False,
+                        'message': f"Error updating profile: {str(e)}"
+                    }, status=500)
+                else:
+                    messages.error(request, f"Error updating profile: {str(e)}")
         else:
-            messages.error(request, 'Please correct the errors in the form.')
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Please correct the errors in the form.',
+                    'errors': profile_form.errors
+                }, status=400)
+            else:
+                messages.error(request, 'Please correct the errors in the form.')
+                return render(request, 'profiles/edit_profile.html', {
+                    'form': profile_form,
+                    'user_form_data': {
+                        'first_name': request.POST.get('first_name', request.user.first_name),
+                        'last_name': request.POST.get('last_name', request.user.last_name)
+                    }
+                })
 
     else:
         # Initial form load
-        form = ProfileEditForm(instance=profile, initial={
-            'first_name': request.user.first_name,
-            'last_name': request.user.last_name,
+        profile_form = ProfileEditForm(instance=profile, initial={
             'email': request.user.email,
             'location': profile.location,
-            'bio': profile.bio
+            'role': profile.role,
+            'department': profile.department,
+            'research_interests': profile.research_interests,
+            'phone': profile.phone,
+            'linkedin': profile.linkedin,
+            'scholar': profile.scholar
         })
 
     return render(request, 'profiles/edit_profile.html', {
-        'form': form,
+        'form': profile_form,
+        'user_form_data': {
+            'first_name': request.user.first_name,
+            'last_name': request.user.last_name
+        }
     })
