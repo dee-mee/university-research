@@ -22,6 +22,9 @@ from django.conf.urls.static import static
 from maps.views import ImportSuccessView
 from django.views.generic import RedirectView
 
+# Import custom admin settings
+import research_portal.admin
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('maps/', include('maps.urls', namespace='maps')),

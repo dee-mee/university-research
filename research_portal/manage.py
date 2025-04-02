@@ -2,6 +2,10 @@
 """Django's command-line utility for administrative tasks."""
 import os
 import sys
+import warnings
+
+# Suppress the cgi deprecation warning
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="cgi")
 
 # Add the Python 3.13 compatibility patch BEFORE anything else
 try:
