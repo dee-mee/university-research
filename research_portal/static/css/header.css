@@ -1,0 +1,204 @@
+/* Global Styles */
+body, html {
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    width: 100%;
+}
+
+/* Announcement Banner */
+.announcement-banner {
+    background-color: #ffd700;
+    padding: 10px 0;
+    text-align: center;
+    margin: 0;
+}
+
+.announcement-banner p {
+    color: #000000;
+    margin: 0;
+    font-size: 14px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+/* Main Navigation */
+.custom-navbar {
+    background: linear-gradient(to right, rgba(13, 93, 197, 0.95), rgba(4, 17, 75, 0.95));
+    padding: 15px 0;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    transition: all 0.5s ease;
+}
+
+.custom-navbar.scrolled {
+    background: rgba(13, 93, 197, 0.98);
+    padding: 8px 0;
+}
+
+.custom-navbar .navbar-brand img {
+    height: 40px;
+    transition: all 0.3s ease;
+}
+
+.navbar-brand2 {
+    margin-left: auto;
+}
+
+.navbar-brand2 img {
+    height: 40px;
+}
+
+.custom-navbar .navbar-nav .nav-item {
+    margin: 0 5px;
+}
+
+.custom-navbar .navbar-nav .nav-link {
+    font-weight: bold;
+    font-size: 16px;
+    color: #ffffff;
+    padding: 8px 16px;
+    margin: 0 4px;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.custom-navbar .navbar-nav .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: #ffd700;
+}
+
+.custom-navbar .navbar-nav .nav-item.active .nav-link {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: #ffd700;
+}
+
+/* Custom Dropdown Styling */
+.custom-navbar .dropdown-menu {
+    background: linear-gradient(to right, rgba(13, 93, 197, 0.95), rgba(4, 17, 75, 0.95));
+    border: none;
+    border-radius: 0 0 8px 8px;
+    margin-top: 0;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+    padding: 0;
+    min-width: 200px;
+}
+
+.custom-navbar .dropdown-item {
+    color: #ffffff;
+    font-weight: 500;
+    padding: 12px 20px;
+    transition: all 0.3s ease;
+    font-size: 14px;
+}
+
+.custom-navbar .dropdown-item:hover, 
+.custom-navbar .dropdown-item:focus {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: #ffd700;
+}
+
+.custom-navbar .dropdown-item.active {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: #ffd700;
+}
+
+/* Weather Navigation */
+.weather-nav-container {
+    background-color: #0d5dc5;
+    padding: 10px 0;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+    margin-top: 0;
+}
+
+.weather-nav-container .navbar {
+    padding: 0;
+}
+
+.weather-nav-container .nav-link {
+    color: white !important;
+    font-weight: bold;
+    padding: 8px 15px !important;
+    transition: all 0.3s ease;
+}
+
+.weather-nav-container .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    border-radius: 5px;
+    color: #ffd700 !important;
+}
+
+/* Weather Dropdown Styling */
+.weather-nav-container .dropdown-menu {
+    background-color: #04114b;
+    border: none;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    min-width: 220px;
+    margin-top: 4px;
+    padding: 8px 0;
+}
+
+.weather-nav-container .dropdown-menu .dropdown-item {
+    color: white !important;
+    font-size: 14px;
+    padding: 10px 15px;
+    transition: all 0.3s ease;
+}
+
+.weather-nav-container .dropdown-menu .dropdown-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #ffd700 !important;
+}
+
+/* Weather Dropdown Toggle Arrow */
+.weather-nav-container .dropdown-toggle::after {
+    border-top: 4px solid white;
+    border-right: 4px solid transparent;
+    border-left: 4px solid transparent;
+    margin-left: 8px;
+    vertical-align: middle;
+    transition: transform 0.3s ease;
+}
+
+.weather-nav-container .dropdown:hover .dropdown-toggle::after {
+    transform: rotate(180deg);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 991.98px) {
+    .custom-navbar .navbar-collapse {
+        background: linear-gradient(to bottom, rgba(13, 93, 197, 0.95), rgba(4, 17, 75, 0.95));
+        margin-top: 10px;
+        padding: 10px;
+        border-radius: 8px;
+    }
+    
+    .custom-navbar .navbar-nav .nav-link {
+        padding: 12px 16px;
+    }
+    
+    .custom-navbar .dropdown-menu {
+        background: rgba(4, 17, 75, 0.8);
+        margin-left: 16px;
+    }
+    
+    .weather-nav-container .navbar-nav {
+        justify-content: flex-start;
+    }
+    
+    .weather-nav-container .nav-item {
+        margin: 0;
+        width: 100%;
+        text-align: center;
+    }
+    
+    .weather-nav-container .nav-link {
+        margin: 5px 0;
+    }
+    
+    .weather-nav-container .dropdown-menu {
+        position: static;
+        width: 100%;
+        margin-top: 0;
+    }
+}

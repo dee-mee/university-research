@@ -57,7 +57,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'django.contrib.gis',
     'rest_framework_gis',
-    'django_filters'
+    'django_filters',
+    'data_repository'
 ]
 
 MIDDLEWARE = [
@@ -211,4 +212,3 @@ REST_FRAMEWORK = {
         'rest_framework.filters.OrderingFilter',
     ],
 }
-

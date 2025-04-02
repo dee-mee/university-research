@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% load static %}
+{% load static %}
 
+{% block title %}Import Results{% endblock %}
 {% block title %}Import Results{% endblock %}
 
 {% block content %}
@@ -13,7 +15,7 @@
         </div>
         <div class="card-body">
             {% if results %}
-                <div class="alert alert-info">
+                <div class="alert {% if results.error > 0 %}alert-warning{% else %}alert-success{% endif %}">
                     <h4 class="alert-heading">Import Summary</h4>
                     <p>Type: {{ results.type }}</p>
                     <p>Successfully processed: {{ results.success }}</p>
@@ -21,11 +23,11 @@
                 </div>
 
                 {% if results.errors %}
-                    <div class="alert alert-warning">
-                        <h4 class="alert-heading">Warnings/Errors</h4>
-                        <ul class="list-unstyled mb-0">
+                    <div class="alert alert-danger">
+                        <h4 class="alert-heading">Error Details</h4>
+                        <ul class="list-group mb-0">
                             {% for error in results.errors %}
-                                <li><i class="fas fa-exclamation-triangle me-2"></i>{{ error }}</li>
+                                <li class="list-group-item list-group-item-danger"><i class="fas fa-exclamation-triangle me-2"></i>{{ error }}</li>
                             {% endfor %}
                         </ul>
                     </div>
@@ -33,10 +35,42 @@
             {% else %}
                 <div class="alert alert-warning">
                     <h4 class="alert-heading">No Results Found</h4>
-                    <p>No import results were found in the session.</p>
+                    <p>No import results were found in the session. This could be due to:</p>
+                    <ul>
+                        <li>The upload failed before processing</li>
+                        <li>The file was empty or in an incorrect format</li>
+                        <li>A server-side error occurred</li>
+                    </ul>
+                    <p>Please check the following:</p>
+                    <ol>
+                        <li>Your CSV file follows the correct format (see format guidelines)</li>
+                        <li>The file is properly encoded (UTF-8 or Latin-1)</li>
+                        <li>The file contains all required fields for the selected import type</li>
+                        <li>The file is not empty or corrupted</li>
+                    </ol>
+                </div>
+            {% endif %}
+            
+            {% if messages %}
+                <div class="mt-4">
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
                 </div>
             {% endif %}
         </div>
+        <div class="card-footer">
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'maps:csv_upload' %}" class="btn btn-primary">
+                    <i class="fas fa-upload me-2"></i>Import Another File
+                </a>
+                <a href="{% url 'maps:map' %}" class="btn btn-secondary">
+                    <i class="fas fa-map me-2"></i>Return to Map
+                </a>
+            </div>
         <div class="card-footer">
             <div class="d-flex justify-content-between">
                 <a href="{% url 'maps:csv_upload' %}" class="btn btn-primary">

@@ -913,3 +913,445 @@ def setup_alert_checks(check_interval=300):
         
     except ImportError:
         logger.warning("APScheduler not installed. Automated alert checks will not run.")
+
+def create_secure_export_file(export, queryset, format_type):
+    """
+    Create an export file in the specified format
+    
+    Args:
+        export: DataExport model instance
+        queryset: QuerySet of ClimateData to export
+        format_type: Format of the export ('csv', 'json', etc.)
+    
+    Returns:
+        Path to the created file
+    """
+    import os
+    import tempfile
+    import shutil
+    from django.core.files import File
+    
+    # Create a temporary file
+    with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{format_type}') as temp_file:
+        temp_path = temp_file.name
+        
+        if format_type == 'csv':
+            _create_csv_export(temp_file, queryset, export.data_types.all())
+        elif format_type == 'json':
+            _create_json_export(temp_file, queryset, export.data_types.all())
+        elif format_type == 'geojson':
+            _create_geojson_export(temp_file, queryset)
+        elif format_type == 'excel':
+            _create_excel_export(temp_path, queryset, export.data_types.all())
+        else:
+            raise ValueError(f"Unsupported export format: {format_type}")
+    
+    # Save the file to the export model
+    timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+    stations_str = "all_stations" if not export.stations.exists() else f"{export.stations.count()}_stations"
+    filename = f"climate_data_{stations_str}_{timestamp}.{format_type}"
+    
+    with open(temp_path, 'rb') as f:
+        export.export_file.save(filename, File(f))
+    
+    # Clean up the temporary file
+    try:
+        os.unlink(temp_path)
+    except:
+        pass
+    
+    return export.export_file.path
+
+def _create_csv_export(file_obj, queryset, data_types):
+    """Create a CSV export file"""
+    writer = csv.writer(file_obj)
+    
+    # Write header
+    headers = ['Station', 'Station ID', 'Timestamp', 'Year', 'Month', 'Season']
+    
+    # Add data type fields
+    data_type_fields = [
+        'temperature', 'humidity', 'precipitation', 'air_quality_index',
+        'wind_speed', 'wind_direction', 'barometric_pressure', 'cloud_cover',
+        'soil_moisture', 'water_level', 'uv_index'
+    ]
+    
+    # Filter fields based on selected data types if provided
+    if data_types:
+        data_type_names = [dt.name for dt in data_types]
+        field_headers = [f for f in data_type_fields if f in data_type_names]
+    else:
+        field_headers = data_type_fields
+        
+    headers.extend(field_headers)
+    headers.append('Data Quality')
+    writer.writerow(headers)
+    
+    # Write data rows
+    for data in queryset:
+        row = [
+            data.station.name,
+            data.station.station_id,
+            data.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+            data.year,
+            data.month,
+            data.season
+        ]
+        
+        for field in field_headers:
+            row.append(getattr(data, field, ''))
+            
+        row.append(data.data_quality)
+        writer.writerow(row)
+
+def _create_json_export(file_obj, queryset, data_types):
+    """Create a JSON export file"""
+    result = []
+    
+    # Filter fields based on selected data types if provided
+    exclude_fields = []
+    if data_types:
+        data_type_names = [dt.name for dt in data_types]
+        exclude_fields = [
+            f for f in ['temperature', 'humidity', 'precipitation', 'air_quality_index',
+                       'wind_speed', 'wind_direction', 'barometric_pressure', 'cloud_cover',
+                       'soil_moisture', 'water_level', 'uv_index']
+            if f not in data_type_names
+        ]
+    
+    for data in queryset:
+        item = {
+            'station_name': data.station.name,
+            'station_id': data.station.station_id,
+            'timestamp': data.timestamp.isoformat(),
+            'year': data.year,
+            'month': data.month,
+            'season': data.season,
+            'data_quality': data.data_quality
+        }
+        
+        # Add all fields that are not in exclude_fields
+        for field in ['temperature', 'humidity', 'precipitation', 'air_quality_index',
+                     'wind_speed', 'wind_direction', 'barometric_pressure', 'cloud_cover',
+                     'soil_moisture', 'water_level', 'uv_index']:
+            if field not in exclude_fields:
+                value = getattr(data, field, None)
+                if value is not None:
+                    item[field] = value
+        
+        result.append(item)
+    
+    json.dump(result, file_obj, default=str)
+
+def _create_geojson_export(file_obj, queryset):
+    """Create a GeoJSON export file"""
+    features = []
+    
+    for data in queryset:
+        feature = {
+            'type': 'Feature',
+            'geometry': {
+                'type': 'Point',
+                'coordinates': [data.station.longitude, data.station.latitude]
+            },
+            'properties': {
+                'station_name': data.station.name,
+                'station_id': data.station.station_id,
+                'timestamp': data.timestamp.isoformat(),
+                'year': data.year,
+                'month': data.month,
+                'season': data.season,
+                'data_quality': data.data_quality
+            }
+        }
+        
+        # Add all available measurements
+        for field in ['temperature', 'humidity', 'precipitation', 'air_quality_index',
+                     'wind_speed', 'wind_direction', 'barometric_pressure', 'cloud_cover',
+                     'soil_moisture', 'water_level', 'uv_index']:
+            value = getattr(data, field, None)
+            if value is not None:
+                feature['properties'][field] = value
+        
+        features.append(feature)
+    
+    geojson = {
+        'type': 'FeatureCollection',
+        'features': features
+    }
+    
+    json.dump(geojson, file_obj, default=str)
+
+def _create_excel_export(file_path, queryset, data_types):
+    """Create an Excel export file"""
+    try:
+        import xlsxwriter
+        
+        workbook = xlsxwriter.Workbook(file_path)
+        worksheet = workbook.add_worksheet('Climate Data')
+        
+        # Add formatting
+        bold = workbook.add_format({'bold': True})
+        date_format = workbook.add_format({'num_format': 'yyyy-mm-dd hh:mm:ss'})
+        
+        # Headers
+        headers = ['Station', 'Station ID', 'Timestamp', 'Year', 'Month', 'Season']
+        
+        # Add data type fields
+        data_type_fields = [
+            'temperature', 'humidity', 'precipitation', 'air_quality_index',
+            'wind_speed', 'wind_direction', 'barometric_pressure', 'cloud_cover',
+            'soil_moisture', 'water_level', 'uv_index'
+        ]
+        
+        # Filter fields based on selected data types if provided
+        if data_types:
+            data_type_names = [dt.name for dt in data_types]
+            field_headers = [f for f in data_type_fields if f in data_type_names]
+        else:
+            field_headers = data_type_fields
+            
+        headers.extend(field_headers)
+        headers.append('Data Quality')
+        
+        for col, header in enumerate(headers):
+            worksheet.write(0, col, header, bold)
+        
+        # Write data rows
+        for row, data in enumerate(queryset, start=1):
+            worksheet.write(row, 0, data.station.name)
+            worksheet.write(row, 1, data.station.station_id)
+            worksheet.write_datetime(row, 2, data.timestamp, date_format)
+            worksheet.write(row, 3, data.year)
+            worksheet.write(row, 4, data.month)
+            worksheet.write(row, 5, data.season)
+            
+            col_offset = 6
+            for i, field in enumerate(field_headers):
+                value = getattr(data, field, None)
+                if value is not None:
+                    worksheet.write(row, col_offset + i, value)
+            
+            worksheet.write(row, len(headers) - 1, data.data_quality)
+        
+        # Add auto-filter
+        worksheet.autofilter(0, 0, len(queryset), len(headers) - 1)
+        
+        # Adjust column widths
+        worksheet.set_column(0, 0, 20)  # Station name
+        worksheet.set_column(1, 1, 15)  # Station ID
+        worksheet.set_column(2, 2, 20)  # Timestamp
+        worksheet.set_column(5, 5, 10)  # Season
+        
+        workbook.close()
+    
+    except ImportError:
+        # Fallback to CSV if xlsxwriter is not available
+        with open(file_path, 'w') as f:
+            _create_csv_export(f, queryset, data_types)
+
+# Add these enhanced processing functions if not already present
+def _process_station_row_enhanced(row, line_num, progress, update_existing=True, required_fields=None):
+    """
+    Enhanced version of station row processor for batch processing
+    
+    Args:
+        row: Dictionary containing row data
+        line_num: Line number in the CSV file
+        progress: Progress tracking object
+        update_existing: Whether to update existing records
+        required_fields: List of required fields
+    """
+    from .csv_utils import CSVImportError, parse_numeric
+    from .models import WeatherStation, Country
+    from django.contrib.gis.geos import Point
+    
+    required_fields = required_fields or ['name', 'latitude', 'longitude']
+    
+    # Check required fields
+    for field in required_fields:
+        if field not in row or not row[field]:
+            raise CSVImportError(f"Missing required field: {field}",
+                                row=row, line_num=line_num, field=field)
+    
+    try:
+        # Parse coordinates
+        lat = parse_numeric(row['latitude'], 'latitude', line_num)
+        lng = parse_numeric(row['longitude'], 'longitude', line_num)
+        
+        # Validate coordinate ranges
+        if not (-90 <= lat <= 90):
+            raise CSVImportError("Latitude must be between -90 and 90",
+                               row=row, line_num=line_num, field='latitude')
+        if not (-180 <= lng <= 180):
+            raise CSVImportError("Longitude must be between -180 and 180",
+                               row=row, line_num=line_num, field='longitude')
+        
+        # Create Point object
+        location = Point(lng, lat, srid=4326)
+        
+        # Parse optional fields
+        station_id = row.get('station_id', None)
+        name = row['name'].strip()
+        description = row.get('description', '')
+        
+        # Parse altitude if present
+        altitude = None
+        if 'altitude' in row and row['altitude']:
+            altitude = parse_numeric(row['altitude'], 'altitude', line_num)
+        
+        # Determine if active
+        is_active = True
+        if 'is_active' in row:
+            is_active = row['is_active'].lower() in ('true', 'yes', '1', 't', 'y')
+        
+        # Parse country if present
+        country = None
+        if 'country' in row and row['country']:
+            try:
+                country = Country.objects.get(name__iexact=row['country'].strip())
+            except Country.DoesNotExist:
+                try:
+                    country = Country.objects.get(code__iexact=row['country'].strip())
+                except Country.DoesNotExist:
+                    progress.warning(f"Country not found: {row['country']}",
+                                  row=row, line_num=line_num, field='country')
+        
+        # Create or update the station
+        if update_existing:
+            station, created = WeatherStation.objects.update_or_create(
+                name=name,
+                defaults={
+                    'station_id': station_id,
+                    'description': description,
+                    'location': location,
+                    'altitude': altitude,
+                    'country': country,
+                    'is_active': is_active
+                }
+            )
+        else:
+            # Check if a station with this name already exists
+            if WeatherStation.objects.filter(name=name).exists():
+                raise CSVImportError(f"Station with name '{name}' already exists",
+                                   row=row, line_num=line_num, field='name')
+            
+            # Create new station
+            station = WeatherStation.objects.create(
+                name=name,
+                station_id=station_id,
+                description=description,
+                location=location,
+                altitude=altitude,
+                country=country,
+                is_active=is_active
+            )
+        
+        # Record success
+        progress.success()
+        return station
+    
+    except Exception as e:
+        if isinstance(e, CSVImportError):
+            raise e
+        raise CSVImportError(str(e), row=row, line_num=line_num)
+
+
+def _process_climate_data_row_enhanced(row, line_num, progress, update_existing=True, required_fields=None):
+    """
+    Enhanced version of climate data row processor for batch processing
+    
+    Args:
+        row: Dictionary containing row data
+        line_num: Line number in the CSV file
+        progress: Progress tracking object
+        update_existing: Whether to update existing records
+        required_fields: List of required fields
+    """
+    from .csv_utils import CSVImportError, parse_numeric, parse_date
+    from .models import WeatherStation, ClimateData
+    
+    required_fields = required_fields or ['station_name', 'timestamp']
+    
+    # Check required fields
+    for field in required_fields:
+        if field not in row or not row[field]:
+            raise CSVImportError(f"Missing required field: {field}",
+                                row=row, line_num=line_num, field=field)
+    
+    try:
+        # Find the station
+        station_identifier = row['station_name']
+        station = None
+        
+        # First try by station_id
+        try:
+            station = WeatherStation.objects.get(station_id=station_identifier)
+        except WeatherStation.DoesNotExist:
+            # Then try by name
+            try:
+                station = WeatherStation.objects.get(name=station_identifier)
+            except WeatherStation.DoesNotExist:
+                # Finally try by ID if numeric
+                if station_identifier.isdigit():
+                    try:
+                        station = WeatherStation.objects.get(id=int(station_identifier))
+                    except WeatherStation.DoesNotExist:
+                        raise CSVImportError(f"Station not found: {station_identifier}",
+                                           row=row, line_num=line_num, field='station_name')
+                else:
+                    raise CSVImportError(f"Station not found: {station_identifier}",
+                                       row=row, line_num=line_num, field='station_name')
+        
+        # Parse timestamp
+        try:
+            timestamp = parse_date(row['timestamp'], 'timestamp', line_num, allow_none=False)
+        except Exception as e:
+            raise CSVImportError(f"Invalid timestamp: {str(e)}",
+                               row=row, line_num=line_num, field='timestamp')
+        
+        # Build climate data dictionary
+        climate_data = {
+            'station': station,
+            'timestamp': timestamp,
+            'data_quality': row.get('data_quality', 'medium'),
+        }
+        
+        # Parse numeric fields
+        numeric_fields = [
+            'temperature', 'humidity', 'precipitation', 'air_quality_index',
+            'wind_speed', 'wind_direction', 'barometric_pressure', 'cloud_cover',
+            'soil_moisture', 'water_level', 'uv_index'
+        ]
+        
+        for field in numeric_fields:
+            if field in row and row[field]:
+                try:
+                    climate_data[field] = parse_numeric(row[field], field, line_num)
+                except CSVImportError as e:
+                    progress.warning(e.message, row=row, line_num=line_num, field=field)
+        
+        # Create or update the climate data record
+        if update_existing:
+            obj, created = ClimateData.objects.update_or_create(
+                station=station,
+                timestamp=timestamp,
+                defaults=climate_data
+            )
+        else:
+            # Check if data already exists for this timestamp
+            if ClimateData.objects.filter(station=station, timestamp=timestamp).exists():
+                raise CSVImportError(f"Data already exists for {station.name} at {timestamp}",
+                                   row=row, line_num=line_num)
+            
+            # Create new climate data record
+            obj = ClimateData.objects.create(**climate_data)
+        
+        # Record success
+        progress.success()
+        return obj
+    
+    except Exception as e:
+        if isinstance(e, CSVImportError):
+            raise e
+        raise CSVImportError(str(e), row=row, line_num=line_num)

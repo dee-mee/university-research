@@ -177,6 +177,8 @@ class ClimateDataInline(admin.TabularInline):
     max_num = 10
 
 
+
+
 @admin.register(ClimateData)
 class ClimateDataAdmin(admin.ModelAdmin):
     list_display = ('station', 'timestamp', 'year', 'month', 'temperature', 'humidity', 'precipitation', 'data_quality')
@@ -213,7 +215,7 @@ class ClimateDataAdmin(admin.ModelAdmin):
 class DataExportAdmin(admin.ModelAdmin):
     list_display = ('user', 'export_format', 'date_from', 'date_to', 'created_at', 'status', 'country_filter')
     list_filter = ('export_format', 'status', 'created_at', 'country')
-    readonly_fields = ('created_at', 'completed_at')
+    readonly_fields = ('created_at', 'updated_at', 'last_downloaded')
     filter_horizontal = ('stations', 'data_types')
     
     fieldsets = (
@@ -230,7 +232,7 @@ class DataExportAdmin(admin.ModelAdmin):
             'fields': ('date_from', 'date_to', 'years')
         }),
         ('Export Details', {
-            'fields': ('file_url', 'error_message', 'created_at', 'completed_at')
+            'fields': ('file', 'error_message', 'created_at', 'updated_at', 'last_downloaded', 'download_count')
         }),
     )
     
