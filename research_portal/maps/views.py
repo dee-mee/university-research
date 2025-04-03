@@ -1976,319 +1976,129 @@ class ImportSuccessView(TemplateView):
 
 @api_view(['GET'])
 def station_graph_data(request, station_id):
-    """API endpoint to get time-series data for graphs"""
-    try:
-        station = get_object_or_404(WeatherStation, pk=station_id)
-        days = int(request.query_params.get('days', 30))
-        data_type = request.query_params.get('data_type', 'temperature')
-        interval = request.query_params.get('interval', 'day')
-        
-        # Calculate date range
-        end_date = timezone.now()
-        start_date = end_date - timedelta(days=days)
-        
-        # Get time-series data
-        query = ClimateData.objects.filter(
-            station=station,
-            timestamp__gte=start_date,
-            timestamp__lte=end_date
-        )
-        
-        # Check if there's data for the selected data_type
-        has_data = query.exclude(**{data_type: None}).exists()
-        if not has_data:
-            return Response({
-                'station_id': station_id,
-                'station_name': station.name,
-                'data_type': data_type,
-                'error': f"No {data_type} data available for this station",
-                'labels': [],
-                'values': []
-            })
-        
-        # Apply grouping based on interval
-        if interval == 'hour':
-            # Hourly data - no grouping needed for recent days
-            if days <= 2:
-                data_points = query.exclude(**{data_type: None}).order_by('timestamp')
-                data = [(item.timestamp, getattr(item, data_type)) for item in data_points]
-            else:
-                # For longer periods, group by hour to reduce data points
-                data = _group_by_hour(query, data_type)
-        elif interval == 'day':
-            # Daily aggregation
-            data = _group_by_day(query, data_type)
-        elif interval == 'week':
-            # Weekly aggregation
-            data = _group_by_week(query, data_type)
-        elif interval == 'month':
-            # Monthly aggregation
-            data = _group_by_month(query, data_type)
-        else:
-            # Default - get raw data with some limit
-            data_points = query.exclude(**{data_type: None}).order_by('timestamp')[:500]
-            data = [(item.timestamp, getattr(item, data_type)) for item in data_points]
-        
-        # Format data for charts
-        labels = []
-        values = []
-        
-        for timestamp, value in data:
-            if isinstance(timestamp, datetime):
-                # Format datetime for display
-                if interval == 'hour':
-                    labels.append(timestamp.strftime('%H:%M'))
-                elif interval == 'day':
-                    labels.append(timestamp.strftime('%b %d'))
-                elif interval == 'week':
-                    labels.append(timestamp.strftime('%b %d'))
-                elif interval == 'month':
-                    labels.append(timestamp.strftime('%b %Y'))
-                else:
-                    labels.append(timestamp.strftime('%b %d %H:%M'))
-            else:
-                # Handle string dates
-                labels.append(str(timestamp))
-            
-            values.append(float(value) if value is not None else None)
-            
-        # Get unit for this data type
-        unit = ""
-        try:
-            data_type_obj = WeatherDataType.objects.get(name=data_type)
-            unit = data_type_obj.unit or ""
-        except WeatherDataType.DoesNotExist:
-            # Use default units
-            if data_type == 'temperature':
-                unit = '°C'
-            elif data_type == 'humidity':
-                unit = '%'
-            elif data_type == 'precipitation':
-                unit = 'mm'
-            elif data_type == 'wind_speed':
-                unit = 'm/s'
-            elif data_type == 'barometric_pressure':
-                unit = 'hPa'
-        
-        return Response({
-            'station_id': station_id,
-            'station_name': station.name,
-            'data_type': data_type,
-            'unit': unit,
-            'interval': interval,
-            'days': days,
-            'labels': labels,
-            'values': values
-        })
-    
-    except Exception as e:
-        # Log the error for debugging
-        import traceback
-        logging.error(f"Graph data error: {str(e)}")
-        logging.error(traceback.format_exc())
-        
-        return Response({
-            'error': f"Error retrieving graph data: {str(e)}",
-            'station_id': station_id,
-            'data_type': request.query_params.get('data_type', 'temperature'),
-            'labels': [],
-            'values': []
-        }, status=500)
-
-def _group_by_hour(queryset, data_type):
-    """Group climate data by hour - fixed version"""
-    result = []
-    
-    # Use Django's built-in time truncation
-    from django.db.models.functions import TruncHour
-    
-    # Filter out None values for the data type
-    filtered_queryset = queryset.exclude(**{data_type: None})
-    
-    # Group by hour
-    aggregated = filtered_queryset.annotate(
-        hour=TruncHour('timestamp')
-    ).values('hour').annotate(
-        avg_value=Avg(data_type)
-    ).order_by('hour')
-    
-    # Convert to a list of (timestamp, value) tuples
-    for item in aggregated:
-        result.append((item['hour'], item['avg_value']))
-        
-    return result
-
-def _group_by_day(queryset, data_type):
-    """Group climate data by day - fixed version"""
-    result = []
-    
-    # Use Django's built-in time truncation
-    from django.db.models.functions import TruncDay
-    
-    # Filter out None values for the data type
-    filtered_queryset = queryset.exclude(**{data_type: None})
-    
-    # Group by day
-    aggregated = filtered_queryset.annotate(
-        day=TruncDay('timestamp')
-    ).values('day').annotate(
-        avg_value=Avg(data_type)
-    ).order_by('day')
-    
-    # Convert to a list of (timestamp, value) tuples
-    for item in aggregated:
-        result.append((item['day'], item['avg_value']))
-        
-    return result
-
-def _group_by_week(queryset, data_type):
-    """Group climate data by week - fixed version"""
-    result = []
-    
-    # Use Django's built-in time truncation
-    from django.db.models.functions import TruncWeek
-    
-    # Filter out None values for the data type
-    filtered_queryset = queryset.exclude(**{data_type: None})
-    
-    # Group by week
-    aggregated = filtered_queryset.annotate(
-        week=TruncWeek('timestamp')
-    ).values('week').annotate(
-        avg_value=Avg(data_type)
-    ).order_by('week')
-    
-    # Convert to a list of (timestamp, value) tuples
-    for item in aggregated:
-        result.append((item['week'], item['avg_value']))
-        
-    return result
-
-def _group_by_month(queryset, data_type):
-    """Group climate data by month - fixed version"""
-    result = []
-    
-    # Use Django's built-in time truncation
-    from django.db.models.functions import TruncMonth
-    
-    # Filter out None values for the data type
-    filtered_queryset = queryset.exclude(**{data_type: None})
-    
-    # Group by month
-    aggregated = filtered_queryset.annotate(
-        month=TruncMonth('timestamp')
-    ).values('month').annotate(
-        avg_value=Avg(data_type)
-    ).order_by('month')
-    
-    # Convert to a list of (timestamp, value) tuples
-    for item in aggregated:
-        result.append((item['month'], item['avg_value']))
-        
-    return result
-
-# Enhance the station_statistics_view function to include graph data
-def station_statistics_view(request, station_id):
-    """View for displaying station statistics in a template"""
+    """API endpoint for fetching station graph data in continuous time series format"""
     try:
         station = WeatherStation.objects.get(pk=station_id)
     except WeatherStation.DoesNotExist:
-        messages.error(request, f"Weather station with ID {station_id} does not exist.")
-        return redirect('maps:map')
+        return JsonResponse({'error': 'Station not found'}, status=404)
     
-    # Calculate days for different time periods
-    days_30 = timezone.now() - timedelta(days=30)
-    days_90 = timezone.now() - timedelta(days=90)
-    days_365 = timezone.now() - timedelta(days=365)
+    # Get query parameters
+    period = request.GET.get('period', 'week')  # day, week, month, year
+    data_type = request.GET.get('data_type', 'temperature')  # temperature, humidity, precipitation, etc.
+    resolution = request.GET.get('resolution', 'auto')  # hourly, daily, auto
     
-    # Get statistics for different time periods
-    stats_30 = ClimateData.objects.filter(
+    # Determine time range based on period
+    now = datetime.now()
+    if period == 'day':
+        start_date = now - timedelta(days=1)
+        date_trunc = TruncHour
+        date_format = '%H:%M'
+        if resolution == 'auto':
+            resolution = 'hourly'
+    elif period == 'week':
+        start_date = now - timedelta(days=7)
+        date_trunc = TruncDay if resolution in ['daily', 'auto'] else TruncHour
+        date_format = '%a %d' if resolution in ['daily', 'auto'] else '%m-%d %H:%M'
+    elif period == 'month':
+        start_date = now - timedelta(days=30)
+        date_trunc = TruncDay if resolution in ['daily', 'auto'] else TruncHour
+        date_format = '%b %d' if resolution in ['daily', 'auto'] else '%m-%d %H:%M'
+    elif period == 'year':
+        start_date = now - timedelta(days=365)
+        date_trunc = TruncDay
+        date_format = '%b %Y'
+    else:
+        start_date = now - timedelta(days=7)  # Default to week
+        date_trunc = TruncDay
+        date_format = '%a %d'
+    
+    # Query data with appropriate time grouping
+    queryset = ClimateData.objects.filter(
         station=station,
-        timestamp__gte=days_30
-    ).aggregate(
-        avg_temp=Avg('temperature'),
-        max_temp=Max('temperature'),
-        min_temp=Min('temperature'),
-        avg_humidity=Avg('humidity'),
-        total_precipitation=Sum('precipitation', default=0),
-        avg_wind_speed=Avg('wind_speed'),
-        max_wind_speed=Max('wind_speed'),
-        avg_pressure=Avg('barometric_pressure'),
-        max_uv=Max('uv_index')
-    )
+        timestamp__gte=start_date,
+        timestamp__lte=now
+    ).annotate(
+        date=date_trunc('timestamp')
+    ).values('date')
     
-    stats_90 = ClimateData.objects.filter(
-        station=station,
-        timestamp__gte=days_90
-    ).aggregate(
-        avg_temp=Avg('temperature'),
-        max_temp=Max('temperature'),
-        min_temp=Min('temperature'),
-        avg_humidity=Avg('humidity'),
-        total_precipitation=Sum('precipitation', default=0)
-    )
+    # Build aggregation based on data type
+    aggregation = {}
+    if data_type == 'temperature' or data_type == 'all':
+        aggregation.update({
+            'avg_temp': Avg('temperature'),
+            'min_temp': Min('temperature'),
+            'max_temp': Max('temperature'),
+        })
+    if data_type == 'humidity' or data_type == 'all':
+        aggregation.update({
+            'avg_humidity': Avg('humidity'),
+        })
+    if data_type == 'precipitation' or data_type == 'all':
+        aggregation.update({
+            'total_precipitation': Sum('precipitation'),
+        })
+    if data_type == 'wind' or data_type == 'all':
+        aggregation.update({
+            'avg_wind_speed': Avg('wind_speed'),
+            'max_wind_speed': Max('wind_speed'),
+        })
+    if data_type == 'pressure' or data_type == 'all':
+        aggregation.update({
+            'avg_pressure': Avg('barometric_pressure'),
+        })
     
-    stats_365 = ClimateData.objects.filter(
-        station=station,
-        timestamp__gte=days_365
-    ).aggregate(
-        avg_temp=Avg('temperature'),
-        total_precipitation=Sum('precipitation', default=0)
-    )
+    # If no specific data type is requested or invalid, return all
+    if not aggregation:
+        aggregation = {
+            'avg_temp': Avg('temperature'),
+            'avg_humidity': Avg('humidity'),
+            'total_precipitation': Sum('precipitation'),
+            'avg_wind_speed': Avg('wind_speed'),
+        }
     
-    # Get recent climate data points for this station
-    recent_data = ClimateData.objects.filter(
-        station=station
-    ).order_by('-timestamp')[:100]
+    data = queryset.order_by('date').annotate(**aggregation)
     
-    # Get available data types for this station
-    available_data_types = []
-    data_type_fields = [
-        'temperature', 'humidity', 'precipitation', 'wind_speed', 
-        'barometric_pressure', 'air_quality_index', 'uv_index'
-    ]
-    
-    for field in data_type_fields:
-        if ClimateData.objects.filter(station=station).exclude(**{field: None}).exists():
-            # Get the display name
-            try:
-                data_type_obj = WeatherDataType.objects.get(name=field)
-                display_name = data_type_obj.display_name
-                unit = data_type_obj.unit or ""
-            except WeatherDataType.DoesNotExist:
-                display_name = field.replace('_', ' ').title()
-                
-                # Default units
-                unit = ""
-                if field == 'temperature':
-                    unit = '°C'
-                elif field == 'humidity':
-                    unit = '%'
-                elif field == 'precipitation':
-                    unit = 'mm'
-                elif field == 'wind_speed':
-                    unit = 'm/s'
-                elif field == 'barometric_pressure':
-                    unit = 'hPa'
-            
-            available_data_types.append({
-                'field': field,
-                'display_name': display_name,
-                'unit': unit
-            })
-    
-    context = {
-        'station': station,
-        'stats_30': stats_30,
-        'stats_90': stats_90,
-        'stats_365': stats_365,
-        'recent_data': recent_data,
-        'current_year': timezone.now().year,
-        'available_data_types': available_data_types,
-        'api_base_url': '/maps',
+    # Format results for continuous time series
+    formatted_data = {
+        'station_name': station.name,
+        'station_id': station.id,
+        'period': period,
+        'resolution': resolution,
+        'timestamps': [],
+        'datasets': {}
     }
     
-    return render(request, 'maps/station_statistics.html', context)
+    # Initialize datasets based on aggregation keys
+    for key in aggregation.keys():
+        formatted_data['datasets'][key] = []
+    
+    # Populate datasets ensuring continuous time series
+    last_date = None
+    
+    for entry in data:
+        # Format the date
+        date_obj = entry['date']
+        if isinstance(date_obj, datetime):
+            date_str = date_obj.strftime(date_format)
+            timestamp = int(date_obj.timestamp() * 1000)  # Convert to milliseconds for JS
+        else:
+            date_str = str(date_obj)
+            timestamp = None
+        
+        formatted_data['timestamps'].append({
+            'display': date_str,
+            'timestamp': timestamp
+        })
+        
+        # Add values for each dataset
+        for key in aggregation.keys():
+            value = entry.get(key)
+            # Handle null values to maintain continuous graph
+            formatted_data['datasets'][key].append(
+                round(float(value), 2) if value is not None else None
+            )
+    
+    return JsonResponse(formatted_data)
 
 # ...existing code...
 
