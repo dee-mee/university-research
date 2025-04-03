@@ -7,6 +7,7 @@
 <title>Weather Stations Map</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="{% static 'css/map-markers.css' %}">
 <style>
  body, html {
  margin: 0;
@@ -123,6 +124,18 @@
     width: auto;
   }
 }
+.marker-label {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+}
 </style>
 <script src="{% static 'js/maps/map.js' %}"></script>
 </head>
@@ -180,38 +193,64 @@
 </div>
 
 <!-- Map container -->
-<div id="map"></div>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="my-4">Interactive Weather Map</h1>
+            <div class="card">
+                <div class="card-body">
+                    <div class="ratio ratio-16x9">
+                        <iframe id="windy-map" width="100%" height="100%" 
+                                src="https://embed.windy.com/embed.html?lat=-0.503&lon=34.847&detailLat=-0.503&detailLon=34.847&width=650&height=450&zoom=9&level=surface&overlay=rain&product=ecmwf&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=kt&metricTemp=%C2%B0C&radarRange=-1" 
+                                frameborder="0">
+                        </iframe>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
-<!-- Map controls -->
-<div class="map-controls">
-  <div class="form-check mb-2">
-    <input class="form-check-input" type="checkbox" id="showActiveStations" checked>
-    <label class="form-check-label" for="showActiveStations">
-      Active Stations
-    </label>
-  </div>
-  <div class="form-check mb-2">
-    <input class="form-check-input" type="checkbox" id="showInactiveStations" checked>
-    <label class="form-check-label" for="showInactiveStations">
-      Inactive Stations
-    </label>
-  </div>
-  <div class="form-check mb-2">
-    <input class="form-check-input" type="checkbox" id="showHeatmap">
-    <label class="form-check-label" for="showHeatmap">
-      Temperature Heatmap
-    </label>
-  </div>
-  <div class="mb-3">
-    <label for="dataSelect" class="form-label">Data View:</label>
-    <select class="form-select form-select-sm" id="dataSelect">
-      <option value="temperature">Temperature</option>
-      <option value="precipitation">Precipitation</option>
-      <option value="wind">Wind Speed</option>
-      <option value="humidity">Humidity</option>
-    </select>
-  </div>
-  <button class="btn btn-sm btn-primary" id="refreshData">Refresh Data</button>
+<!-- Information about locations -->
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-4 mb-3">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">JOOUST</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Coordinates:</strong> -0.503, 34.847</p>
+                    <p><strong>Description:</strong> Jaramogi Oginga Odinga University of Science and Technology</p>
+                    <button class="btn btn-sm btn-outline-primary" onclick="centerMap(-0.503, 34.847, 'JOOUST')">View on Map</button>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Mianthe</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Coordinates:</strong> -0.45, 34.8</p>
+                    <p><strong>Description:</strong> Mianthe Weather Station</p>
+                    <button class="btn btn-sm btn-outline-primary" onclick="centerMap(-0.45, 34.8, 'Mianthe')">View on Map</button>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Bondo</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Coordinates:</strong> -0.55, 34.9</p>
+                    <p><strong>Description:</strong> Bondo Weather Station</p>
+                    <button class="btn btn-sm btn-outline-primary" onclick="centerMap(-0.55, 34.9, 'Bondo')">View on Map</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Scroll to top button -->
@@ -222,12 +261,6 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  // Initialize the map with correct apiBaseUrl
-  // Initialize the map with correct apiBaseUrl
-  const mapElement = 'map';
-  const apiBaseUrl = '/maps'; // Set to /maps instead of empty string
-  const map = new WeatherStationMap(mapElement, apiBaseUrl);
-  
   // Navbar scroll effect
   const navbar = document.querySelector('.custom-navbar');
   const scrollToTopBtn = document.getElementById('scrollToTopBtn');
@@ -307,80 +340,29 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
   
-  // Map controls functionality
-  const showActiveStations = document.getElementById('showActiveStations');
-  const showInactiveStations = document.getElementById('showInactiveStations');
-  const showHeatmap = document.getElementById('showHeatmap');
-  const dataSelect = document.getElementById('dataSelect');
-  const refreshData = document.getElementById('refreshData');
-  
-  // Implement toggle functionality
-  if (showActiveStations) {
-    showActiveStations.addEventListener('change', function() {
-      // Call your map's method to toggle active stations
-      if (map.toggleActiveStations) {
-        map.toggleActiveStations(this.checked);
-      }
-    });
+  function centerMap(lat, lon, locationName) {
+    // Get the iframe element
+    const iframe = document.getElementById('windy-map');
+    
+    // Update the iframe src to center on the specified coordinates
+    const currentSrc = iframe.src;
+    const newSrc = currentSrc.replace(/lat=([^&]*)/, `lat=${lat}`)
+                           .replace(/lon=([^&]*)/, `lon=${lon}`)
+                           .replace(/detailLat=([^&]*)/, `detailLat=${lat}`)
+                           .replace(/detailLon=([^&]*)/, `detailLon=${lon}`)
+                           .replace(/marker=([^&]*)/, `marker=${lat},${lon}`)
+                           .replace(/message=([^&]*)/, `message=${locationName}`);
+    
+    iframe.src = newSrc;
+    
+    // Scroll to the map
+    iframe.scrollIntoView({ behavior: 'smooth' });
   }
-  
-  if (showInactiveStations) {
-    showInactiveStations.addEventListener('change', function() {
-      // Call your map's method to toggle inactive stations
-      if (map.toggleInactiveStations) {
-        map.toggleInactiveStations(this.checked);
-      }
-    });
-  }
-  
-  if (showHeatmap) {
-    showHeatmap.addEventListener('change', function() {
-      // Call your map's method to toggle heatmap
-      if (map.toggleHeatmap) {
-        map.toggleHeatmap(this.checked);
-      }
-    });
-  }
-  
-  if (dataSelect) {
-    dataSelect.addEventListener('change', function() {
-      // Call your map's method to change data view
-      if (map.changeDataView) {
-        map.changeDataView(this.value);
-      }
-    });
-  }
-  
-  if (refreshData) {
-    refreshData.addEventListener('click', function() {
-      // Call your map's method to refresh data
-      if (map.refreshData) {
-        map.refreshData();
-      }
-    });
-  }
-  
-  // Add station selection dropdown event listener
-  const stationSelect = document.getElementById('stationSelect');
-  if (stationSelect) {
-    stationSelect.addEventListener('change', function() {
-      // Call the map's zoomToStation method with the selected value
-      if (map.zoomToStation) {
-        map.zoomToStation(this.value);
-      }
-    });
-  }
-  
-  // Add station selection dropdown event listener
-  const stationSelect = document.getElementById('stationSelect');
-  if (stationSelect) {
-    stationSelect.addEventListener('change', function() {
-      // Call the map's zoomToStation method with the selected value
-      if (map.zoomToStation) {
-        map.zoomToStation(this.value);
-      }
-    });
-  }
+
+  // Initialize with JOOUST marker
+  setTimeout(() => {
+    centerMap(-0.503, 34.847, 'JOOUST');
+  }, 1000); // Slight delay to ensure map is loaded
 });
 </script>
 </body>

@@ -1,481 +1,451 @@
-{% extends "base.html" %}
-{% load static %}
-
-{% block title %}Edit Profile | Research Portal{% endblock %}
-
-{% block extra_css %}
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-<style>
-    :root {
-        --primary-color: #04114b;
-        --secondary-color: #596c00;
-        --accent-color: #fdd835;
-        --light-gray: #f8f9fa;
-        --medium-gray: #e9ecef;
-        --border-color: #dee2e6;
-        --text-dark: #343a40;
-        --text-muted: #6c757d;
-        --success-color: #28a745;
-        --error-color: #dc3545;
-        --box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-    }
-
-    .edit-profile-page {
-        background-color: var(--light-gray);
-        padding: 2rem 0;
-        min-height: calc(100vh - 200px);
-    }
-
-    .edit-profile-container {
-        max-width: 1000px;
-        margin: 0 auto;
-        background-color: white;
-        border-radius: 15px;
-        overflow: hidden;
-        box-shadow: var(--box-shadow);
-    }
-
-    .form-header {
-        background-color: var(--primary-color);
-        color: white;
-        padding: 2rem;
-        position: relative;
-    }
-
-    .form-header h2 {
-        font-size: 2rem;
-        margin-bottom: 0.5rem;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-
-    .form-header p {
-        color: var(--accent-color);
-        opacity: 0.9;
-        max-width: 600px;
-    }
-
-    .form-body {
-        padding: 2.5rem;
-    }
-
-    .section-title {
-        font-size: 1.25rem;
-        color: var(--primary-color);
-        margin-bottom: 1.5rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 2px solid var(--accent-color);
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .form-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1.5rem;
-        margin-bottom: 2rem;
-    }
-
-    .form-group {
-        position: relative;
-    }
-
-    .form-group.col-span-2 {
-        grid-column: span 2;
-    }
-
-    .form-group label {
-        display: block;
-        margin-bottom: 0.5rem;
-        color: var(--text-muted);
-        font-weight: 600;
-        font-size: 0.9rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .form-control {
-        width: 100%;
-        padding: 0.85rem 1rem;
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        font-size: 1rem;
-        transition: all 0.3s ease;
-        background-color: var(--light-gray);
-    }
-
-    .form-control:focus {
-        border-color: var(--secondary-color);
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(89, 108, 0, 0.25);
-    }
-
-    textarea.form-control {
-        min-height: 120px;
-        resize: vertical;
-    }
-
-    select.form-control {
-        appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23596c00' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 1rem center;
-        padding-right: 2.5rem;
-    }
-
-    .form-footer {
-        display: flex;
-        justify-content: space-between;
-        padding: 1.5rem 2.5rem;
-        background-color: var(--light-gray);
-        border-top: 1px solid var(--border-color);
-    }
-
-    .btn {
-        padding: 0.75rem 1.75rem;
-        border-radius: 50px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        border: none;
-        text-decoration: none;
-    }
-
-    .btn-primary {
-        background-color: var(--secondary-color);
-        color: white;
-    }
-
-    .btn-primary:hover {
-        background-color: #475600;
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-    }
-
-    .btn-outline {
-        background-color: transparent;
-        color: var(--text-dark);
-        border: 1px solid var(--border-color);
-    }
-
-    .btn-outline:hover {
-        background-color: var(--medium-gray);
-        transform: translateY(-2px);
-    }
-
-    .messages {
-        margin-bottom: 1.5rem;
-    }
-
-    .alert {
-        padding: 1rem 1.25rem;
-        margin-bottom: 1rem;
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-
-    .alert-success {
-        background-color: rgba(40, 167, 69, 0.15);
-        color: var(--success-color);
-        border-left: 4px solid var(--success-color);
-    }
-
-    .alert-error {
-        background-color: rgba(220, 53, 69, 0.15);
-        color: var(--error-color);
-        border-left: 4px solid var(--error-color);
-    }
-
-    .alert i {
-        font-size: 1.25rem;
-    }
-
-    .required-field::after {
-        content: '*';
-        color: var(--error-color);
-        margin-left: 4px;
-    }
-
-    .help-text {
-        display: block;
-        font-size: 0.8rem;
-        color: var(--text-muted);
-        margin-top: 0.5rem;
-    }
-
-    /* Tooltip error styles */
-    .field-error {
-        position: absolute;
-        right: 0;
-        top: 0;
-        color: var(--error-color);
-        font-size: 1.25rem;
-    }
-
-    .field-error:hover::after {
-        content: attr(data-error);
-        position: absolute;
-        top: 100%;
-        right: 0;
-        background-color: var(--error-color);
-        color: white;
-        padding: 0.5rem 0.75rem;
-        border-radius: 4px;
-        font-size: 0.85rem;
-        z-index: 1;
-        width: max-content;
-        max-width: 250px;
-    }
-
-    /* Form validation styles */
-    .form-control.is-invalid {
-        border-color: var(--error-color);
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23dc3545' viewBox='0 0 16 16'%3E%3Cpath d='M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right calc(0.375em + 0.5rem) center;
-        background-size: calc(0.75em + 0.5rem) calc(0.75em + 0.5rem);
-        padding-right: 2.5rem;
-    }
-
-    @media (max-width: 768px) {
-        .form-grid {
-            grid-template-columns: 1fr;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Research Portal - Edit Profile</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <style>
+        :root {
+            --primary-color: #0d5dc5;
+            --secondary-color: #6c757d;
+            --background-gradient: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
         }
-        
-        .form-group.col-span-2 {
-            grid-column: auto;
-        }
-        
-        .form-footer {
-            flex-direction: column-reverse;
-            gap: 1rem;
-        }
-        
-        .form-footer .btn {
-            width: 100%;
-            justify-content: center;
-        }
-    }
-</style>
-{% endblock %}
 
-{% block content %}
-<div class="content">
-<div class="container-fluid">
-    <div class="row">
-        <!-- Sidebar -->
-        <div class="col-md-2 sidebar">
-            <div class="text-center my-3">
-                <img src="{{ user.profile.profile_picture.url }}" class="rounded-circle" alt="User" width="50">
-                <h5 class="mt-2">{{ user.get_full_name }}</h5>
-                <p class="text-muted">{{ user.email }}</p>
-            </div>
-            <ul class="nav flex-column">
-                <li class="nav-item">
-                    <a href="{% url 'dashboard' %}" class="nav-link {% if request.path == '/dashboard/' %}active{% endif %}">
-                        <i class="fas fa-home"></i> Dashboard
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{% url 'profile' %}" class="nav-link {% if request.path == '/profile/' %}active{% endif %}">
-                        <i class="fas fa-user"></i> View Profile
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{% url 'edit_profile' %}" class="nav-link {% if request.path == '/edit-profile/' %}active{% endif %}">
-                        <i class="fas fa-edit"></i> Edit Profile
-                    </a>
-                </li>
+        body {
+            background: var(--background-gradient);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
 
-                <li class="nav-item">
-                    <form method="post" action="{% url 'logout' %}" style="display: inline;">
-                        {% csrf_token %}
-                        <button type="submit" class="nav-link text-danger" style="border: none; background: none; padding: 0; cursor: pointer;">
-                            <i class="fas fa-sign-out-alt"></i> Logout
-                        </button>
-                    </form>
-                </li>
-            </ul>
-        </div>
-</div>
-<div class="edit-profile-page">
-    <div class="edit-profile-container">
-        <div class="form-header">
-            <h2><i class="bi bi-person-gear"></i> Edit Your Profile</h2>
-            <p>Update your personal information and settings. Fields marked with an asterisk (*) are required.</p>
-        </div>
-        
-        {% if messages %}
-        <div class="messages" style="padding: 1.5rem 2.5rem 0;">
-            {% for message in messages %}
-            <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
-                {% if message.tags == 'success' %}
-                <i class="bi bi-check-circle-fill"></i>
-                {% elif message.tags == 'error' %}
-                <i class="bi bi-exclamation-triangle-fill"></i>
-                {% endif %}
-                {{ message }}
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
-        
-        <form method="POST" enctype="multipart/form-data" id="profileForm">
-            {% csrf_token %}
-            
-            <div class="form-body">
-                <h3 class="section-title"><i class="bi bi-card-list"></i> Personal Information</h3>
-                
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="id_first_name" class="required-field">First Name</label>
-                        {{ form.first_name }}
-                        {% if form.first_name.errors %}
-                        <div class="field-error" data-error="{{ form.first_name.errors.0 }}">
-                            <i class="bi bi-exclamation-circle-fill"></i>
-                        </div>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="id_middle_name">Middle Name</label>
-                        {{ form.middle_name }}
-                        {% if form.middle_name.errors %}
-                        <div class="field-error" data-error="{{ form.middle_name.errors.0 }}">
-                            <i class="bi bi-exclamation-circle-fill"></i>
-                        </div>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="id_last_name" class="required-field">Last Name</label>
-                        {{ form.last_name }}
-                        {% if form.last_name.errors %}
-                        <div class="field-error" data-error="{{ form.last_name.errors.0 }}">
-                            <i class="bi bi-exclamation-circle-fill"></i>
-                        </div>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="id_email" class="required-field">Email</label>
-                        {{ form.email }}
-                        {% if form.email.errors %}
-                        <div class="field-error" data-error="{{ form.email.errors.0 }}">
-                            <i class="bi bi-exclamation-circle-fill"></i>
-                        </div>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="id_phone_number">Phone Number</label>
-                        {{ form.phone_number }}
-                        {% if form.phone_number.errors %}
-                        <div class="field-error" data-error="{{ form.phone_number.errors.0 }}">
-                            <i class="bi bi-exclamation-circle-fill"></i>
-                        </div>
-                        {% endif %}
-                        <span class="help-text">Format: +254xxxxxxxxx</span>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="id_id_number">ID Number</label>
-                        {{ form.id_number }}
-                        {% if form.id_number.errors %}
-                        <div class="field-error" data-error="{{ form.id_number.errors.0 }}">
-                            <i class="bi bi-exclamation-circle-fill"></i>
-                        </div>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="id_dob">Date of Birth</label>
-                        {{ form.dob }}
-                        {% if form.dob.errors %}
-                        <div class="field-error" data-error="{{ form.dob.errors.0 }}">
-                            <i class="bi bi-exclamation-circle-fill"></i>
-                        </div>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="id_gender">Gender</label>
-                        {{ form.gender }}
-                        {% if form.gender.errors %}
-                        <div class="field-error" data-error="{{ form.gender.errors.0 }}">
-                            <i class="bi bi-exclamation-circle-fill"></i>
-                        </div>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="form-group col-span-2">
-                        <label for="id_location">Location</label>
-                        {{ form.location }}
-                        {% if form.location.errors %}
-                        <div class="field-error" data-error="{{ form.location.errors.0 }}">
-                            <i class="bi bi-exclamation-circle-fill"></i>
-                        </div>
-                        {% endif %}
-                        <span class="help-text">City, Country or specific address</span>
-                    </div>
-                </div>
-                
-                <h3 class="section-title"><i class="bi bi-file-text"></i> About You</h3>
-                
-                <div class="form-group">
-                    <label for="id_bio">Biography</label>
-                    {{ form.bio }}
-                    {% if form.bio.errors %}
-                    <div class="field-error" data-error="{{ form.bio.errors.0 }}">
-                        <i class="bi bi-exclamation-circle-fill"></i>
-                    </div>
+        .sidebar {
+            width: 280px;
+            background: #ffffff;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+            position: fixed;
+            height: 100vh;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .sidebar-header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .sidebar-header img {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: 15px;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-link:hover {
+            background: #f8f9fa;
+            color: var(--primary-color);
+        }
+
+        .nav-link i {
+            margin-right: 10px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .main-content {
+            margin-left: 280px;
+            padding: 20px;
+        }
+
+        .profile-section {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .profile-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .profile-header img {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: 20px;
+            border: 4px solid var(--primary-color);
+        }
+
+        .profile-info {
+            margin-top: 20px;
+        }
+
+        .edit-profile-form {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--secondary-color);
+        }
+
+        .form-control {
+            border: 1px solid #ddd;
+            padding: 12px;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(13, 93, 197, 0.1);
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            background: #0b4ea0;
+            transform: translateY(-2px);
+        }
+
+        .profile-image-upload {
+            position: relative;
+            display: inline-block;
+        }
+
+        .profile-image-upload input[type="file"] {
+            display: none;
+        }
+
+        .profile-image-upload label {
+            cursor: pointer;
+            background: var(--primary-color);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .profile-image-upload label:hover {
+            background: #0b4ea0;
+        }
+
+        .image-preview {
+            margin-top: 15px;
+            max-width: 200px;
+            border-radius: 50%;
+            border: 3px solid var(--primary-color);
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                position: static;
+                height: auto;
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% url 'research:index' %}">Research Portal</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'research:index' %}">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'research:about' %}">About</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'repository:dataset_list' %}">Datasets</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'maps:map' %}">Maps</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'research:contact' %}">Contact</a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    {% if user.is_authenticated %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'profiles:dashboard' %}">Dashboard</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'profiles:profile' %}">Profile</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'profiles:logout' %}">Logout</a>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'profiles:login' %}">Login</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'profiles:register' %}">Register</a>
+                        </li>
                     {% endif %}
-                    <span class="help-text">Tell us about yourself, your research interests, or your academic background.</span>
-                </div>
+                </ul>
             </div>
-            
-            <div class="form-footer">
-                <a href="{% url 'profile' %}" class="btn btn-outline">
-                    <i class="bi bi-arrow-left"></i> Cancel
-                </a>
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-check-lg"></i> Save Changes
-                </button>
-            </div>
-        </form>
+        </div>
+    </nav>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <img src="https://via.placeholder.com/120" alt="Profile Picture">
+            <h3>{{ user.get_full_name }}</h3>
+            <p>{{ user.email }}</p>
+        </div>
+
+        <div class="sidebar-menu">
+            <a href="{% url 'profiles:dashboard' %}" class="nav-link">
+                <i class="fas fa-tachometer-alt"></i>
+                Dashboard
+            </a>
+            <a href="{% url 'profiles:profile' %}" class="nav-link">
+                <i class="fas fa-user"></i>
+                Profile
+            </a>
+            <a href="{% url 'repository:dataset_list' %}" class="nav-link">
+                <i class="fas fa-database"></i>
+                Datasets
+            </a>
+            <a href="{% url 'maps:map' %}" class="nav-link">
+                <i class="fas fa-map"></i>
+                Maps
+            </a>
+            <a href="{% url 'profiles:settings' %}" class="nav-link">
+                <i class="fas fa-cog"></i>
+                Settings
+            </a>
+            <a href="{% url 'profiles:logout' %}" class="nav-link">
+                <i class="fas fa-sign-out-alt"></i>
+                Logout
+            </a>
+        </div>
     </div>
 
-</div>
-</div>
-
-</div>
-
-
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Add classes to form controls
-        const formControls = document.querySelectorAll('input, select, textarea');
-        formControls.forEach(function(element) {
-            if (!element.classList.contains('form-control') && element.type !== 'file' && element.type !== 'hidden') {
-                element.classList.add('form-control');
-            }
-        });
+    <!-- Main Content -->
+    <div class="main-content">
+        <h1 class="mb-4">Edit Profile</h1>
         
-        // Add error class to invalid fields
-        const errorFields = document.querySelectorAll('.field-error');
-        errorFields.forEach(function(field) {
-            const input = field.parentElement.querySelector('input, select, textarea');
-            if (input) {
-                input.classList.add('is-invalid');
-            }
+        <!-- Profile Header -->
+        <div class="profile-header">
+            <img src="https://via.placeholder.com/200" alt="Profile Picture">
+            <div class="profile-info">
+                <h2>{{ user.get_full_name }}</h2>
+                <p class="text-muted">{{ user.email }}</p>
+            </div>
+        </div>
+
+        <!-- Edit Profile Form -->
+        <div class="profile-section">
+            <form method="post" class="edit-profile-form" id="editProfileForm" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                {% if form.errors %}
+                    <div class="alert alert-danger">
+                        <ul>
+                            {% for field, errors in form.errors.items %}
+                                {% if field not in ['first_name', 'last_name'] %}
+                                    <li>{{ field }}: {{ errors|join:", " }}</li>
+                                {% endif %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+
+                <!-- Basic Information -->
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <input type="text" id="first_name" name="first_name" value="{{ user_form_data.first_name }}" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <input type="text" id="last_name" name="last_name" value="{{ user_form_data.last_name }}" class="form-control" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Email</label>
+                    {{ form.email }}
+                    {% if form.errors.email %}
+                        <div class="text-danger small">{{ form.errors.email|join:", " }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Academic Information -->
+                <div class="form-group">
+                    <label>Role</label>
+                    {{ form.role }}
+                    {% if form.errors.role %}
+                        <div class="text-danger small">{{ form.errors.role|join:", " }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label>Department</label>
+                    {{ form.department }}
+                    {% if form.errors.department %}
+                        <div class="text-danger small">{{ form.errors.department|join:", " }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Research Interests -->
+                <div class="form-group">
+                    <label>Research Interests</label>
+                    {{ form.research_interests }}
+                    {% if form.errors.research_interests %}
+                        <div class="text-danger small">{{ form.errors.research_interests|join:", " }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Contact Information -->
+                <div class="form-group">
+                    <label>Phone Number</label>
+                    {{ form.phone }}
+                    {% if form.errors.phone %}
+                        <div class="text-danger small">{{ form.errors.phone|join:", " }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label>Location</label>
+                    {{ form.location }}
+                    {% if form.errors.location %}
+                        <div class="text-danger small">{{ form.errors.location|join:", " }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Social Links -->
+                <div class="form-group">
+                    <label>LinkedIn Profile</label>
+                    {{ form.linkedin }}
+                    {% if form.errors.linkedin %}
+                        <div class="text-danger small">{{ form.errors.linkedin|join:", " }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label>Google Scholar</label>
+                    {{ form.scholar }}
+                    {% if form.errors.scholar %}
+                        <div class="text-danger small">{{ form.errors.scholar|join:", " }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Profile Picture -->
+                <div class="form-group">
+                    <label>Profile Picture</label>
+                    <div class="profile-image-upload">
+                        {{ form.profile_image }}
+                        <label for="profile_image">Upload Photo</label>
+                    </div>
+                    <div class="image-preview mt-3">
+                        <img id="previewImage" src="https://via.placeholder.com/200" alt="Preview" style="width: 100%; border-radius: 50%;">
+                    </div>
+                    {% if form.errors.profile_image %}
+                        <div class="text-danger small">{{ form.errors.profile_image|join:", " }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Profile image preview
+            const profileImage = document.getElementById('profile_image');
+            const previewImage = document.getElementById('previewImage');
+
+            profileImage.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        previewImage.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            // Form submission
+            const form = document.getElementById('editProfileForm');
+            
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(form);
+                
+                fetch("{% url 'profiles:edit_profile' %}", {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Profile updated successfully!');
+                        window.location.href = "{% url 'profiles:profile' %}";
+                    } else {
+                        alert(data.message || 'Failed to update profile');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while updating profile');
+                });
+            });
         });
-    });
-</script>
-{% endblock %}
+    </script>
+</body>
+</html>

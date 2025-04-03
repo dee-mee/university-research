@@ -417,7 +417,13 @@ class ClimateData(models.Model):
     timestamp = models.DateTimeField(db_index=True)
     year = models.IntegerField(db_index=True, help_text="Year of the measurement for easier filtering")
     month = models.IntegerField(db_index=True, help_text="Month of the measurement for easier filtering")
-    season = models.CharField(max_length=10, choices=SEASON_CHOICES, db_index=True, help_text="Season of the measurement")
+    season = models.CharField(
+        max_length=10, 
+        choices=SEASON_CHOICES, 
+        db_index=True, 
+        help_text="Season of the measurement",
+        default='summer'  # Default to summer for existing records
+    )
     
     # Weather measurements with enhanced validation
     temperature = models.FloatField(

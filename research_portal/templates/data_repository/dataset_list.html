@@ -3,28 +3,47 @@
 
 {% block extra_js %}
 <script src="{% static 'js/dataset_list.js' %}"></script>
-{% endblock %}
+{% endblock extra_js %}
 
 {% block content %}
-<div class="container mt-4">
-    <h1>Search the JOOUST Repository</h1>
-    
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex align-items-center">
+            <h1 class="mb-0 me-3">Research Data Repository</h1>
+            <div class="badge bg-primary">{{ dataset_count }} datasets</div>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                <i class="fas fa-upload me-2"></i>Upload Dataset
+            </button>
+            <button class="btn btn-primary" onclick="toggleViewMode()">
+                <i class="fas fa-th-large me-2"></i>Grid View
+            </button>
+        </div>
+    </div>
+
     <!-- Search Bar -->
-    <div class="card mb-3">
+    <div class="card mb-4">
         <div class="card-body">
             <form method="get" class="mb-0">
                 <div class="row g-3 align-items-center">
                     <div class="col">
-                        <input type="text" name="q" class="form-control" placeholder="Enter search query" value="{{ request.GET.q }}">
+                        <div class="input-group">
+                            <input type="text" name="q" class="form-control" placeholder="Search datasets..." value="{{ request.GET.q }}">
+                            <button class="btn btn-outline-secondary" type="button" id="searchOptionsBtn">
+                                <i class="fas fa-filter"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="col-auto">
                         <button type="submit" class="btn btn-primary">
-                            Search <i class="fas fa-search"></i>
+                            <i class="fas fa-search"></i> Search
                         </button>
                     </div>
                     <div class="col-auto">
                         <a href="{% url 'repository:dataset_list' %}" class="btn btn-outline-secondary">
-                            Reset <i class="fas fa-times"></i>
+                            <i class="fas fa-times"></i> Clear
                         </a>
                     </div>
                 </div>
@@ -32,187 +51,265 @@
         </div>
     </div>
 
-    <!-- View Options -->
-    <div class="row mb-3">
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body">
-                    <div class="mb-2">
-                        <strong>Sidebar view:</strong>
-                        <i class="fas fa-info-circle ms-1" data-bs-toggle="tooltip" title="Tree view shows a hierarchical structure of datasets. Facets view shows filterable categories."></i>
-                    </div>
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="view" id="treeView" checked>
-                        <label class="form-check-label" for="treeView">Tree</label>
-                    </div>
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="view" id="facetsView">
-                        <label class="form-check-label" for="facetsView">Facets</label>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-body">
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="version" id="latestVersion" checked>
-                        <label class="form-check-label" for="latestVersion">Show only the latest version</label>
-                    </div>
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="version" id="specificVersion">
-                        <label class="form-check-label" for="specificVersion">Show specific versions with date constraints</label>
-                    </div>
-                    <div class="form-check form-check-inline float-end">
-                        <input class="form-check-input" type="checkbox" id="showArchived">
-                        <label class="form-check-label" for="showArchived">Show archived files</label>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Main Content Area -->
-    <div class="row">
-        <!-- Sidebar -->
+    <!-- Dataset List -->
+    <div class="row g-4">
+        <!-- Filters Sidebar -->
         <div class="col-md-3">
-            <div class="card">
-                <div class="card-body sidebar-content">
-                    <!-- Content will be populated by JavaScript -->
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Filters</h5>
+                    
+                    <!-- Category Filter -->
+                    <div class="mb-3">
+                        <h6 class="mb-2">Categories</h6>
+                        <div class="list-group">
+                            {% for category in categories %}
+                            <a href="{% url 'repository:category_datasets' category.slug %}" class="list-group-item list-group-item-action">
+                                {{ category.name }}
+                                <span class="badge bg-primary rounded-pill float-end">{{ category.dataset_count }}</span>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Date Range Filter -->
+                    <div class="mb-3">
+                        <h6 class="mb-2">Date Range</h6>
+                        <div class="input-group">
+                            <input type="date" class="form-control" id="startDate">
+                            <span class="input-group-text">to</span>
+                            <input type="date" class="form-control" id="endDate">
+                        </div>
+                    </div>
+
+                    <!-- License Filter -->
+                    <div class="mb-3">
+                        <h6 class="mb-2">License</h6>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="openLicense">
+                            <label class="form-check-label" for="openLicense">Open License</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="restrictedLicense">
+                            <label class="form-check-label" for="restrictedLicense">Restricted Access</label>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Dataset List -->
+        <!-- Dataset Grid -->
         <div class="col-md-9">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <div class="selection-info">
-                            <strong>Selection:</strong> You selected {{ selected_count|default:"0" }} dataset of {{ total_size|default:"0" }} B size.
-                        </div>
-                        <div>
-                            More than {{ total_datasets|default:"1,000" }} datasets found.
-                        </div>
-                    </div>
-
-                    <div class="dataset-list">
-                        {% for dataset in datasets %}
-                        <div class="dataset-item mb-3 p-3 border rounded">
-                            <!-- Dataset Tags -->
-                            <div class="mb-2">
-                                <span class="badge bg-warning text-dark">{{ dataset.simulation_round|default:"JOOUST2a" }}</span>
-                                <span class="badge bg-secondary">{{ dataset.data_type|default:"DerivedOutputData" }}</span>
-                                <span class="badge bg-success">{{ dataset.author_year|default:"Research2023" }}</span>
-                                <span class="badge bg-info">{{ dataset.climate_forcing|default:"GSWP3" }}</span>
-                                <span class="badge bg-dark">{{ dataset.scenario|default:"historical" }}</span>
-                                <span class="badge bg-primary">{{ dataset.impact_model|default:"CLM4.0" }}</span>
-                                <span class="badge bg-dark">{{ dataset.variable|default:"dis" }}</span>
-                                <span class="float-end">
-                                    <span class="badge bg-secondary">Terms of use</span>
-                                    <span class="badge bg-info">CC0 1.0</span>
-                                    <span class="badge bg-dark">{{ dataset.created_at|date:"Ymd"|default:"20240619" }}</span>
-                                </span>
-                            </div>
-
-                            <!-- Dataset DOI -->
-                            <div class="small text-muted mb-1">
-                                {{ dataset.doi|default:"https://doi.org/10.48364/JOOUST.303619" }}
-                            </div>
-
-                            <!-- Dataset Title -->
-                            <h5 class="mb-2">
-                                <a href="{% url 'repository:dataset_detail' dataset.pk %}" class="text-decoration-none">{{ dataset.title }}</a>
-                            </h5>
-
-                            <!-- Dataset Actions -->
-                            <div class="d-flex gap-2">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="select-{{ dataset.id }}" data-size="{{ dataset.versions.first.file_size|default:0 }}">
-                                    <label class="form-check-label" for="select-{{ dataset.id }}">Select dataset</label>
+            <div class="row g-4" id="datasetGrid">
+                {% for dataset in datasets %}
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ dataset.title }}</h5>
+                            <p class="card-text text-muted small mb-3">{{ dataset.description|truncatewords:20 }}</p>
+                            
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div>
+                                    <span class="badge bg-primary">{{ dataset.category.name }}</span>
+                                    <span class="badge bg-secondary ms-2">{{ dataset.license_type }}</span>
                                 </div>
-                                <button class="btn btn-link btn-sm p-0">Attributes</button>
-                                <button class="btn btn-link btn-sm p-0">Files</button>
-                                <button class="btn btn-link btn-sm p-0">Configure download</button>
-                                <button class="btn btn-link btn-sm p-0">Download file list</button>
-                                <button class="btn btn-link btn-sm p-0">Download all files</button>
+                                <div>
+                                    <span class="text-muted small">{{ dataset.created_at|date:"M d, Y" }}</span>
+                                </div>
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'repository:dataset_detail' dataset.id %}" class="btn btn-outline-primary">
+                                    <i class="fas fa-info-circle me-2"></i>View Details
+                                </a>
+                                <button class="btn btn-outline-success" onclick="addToStack({{ dataset.id }})">
+                                    <i class="fas fa-plus me-2"></i>Add to Stack
+                                </button>
                             </div>
                         </div>
-                        {% empty %}
-                        <div class="alert alert-info">
-                            No datasets found matching your criteria.
-                        </div>
-                        {% endfor %}
                     </div>
                 </div>
+                {% endfor %}
             </div>
+
+            <!-- Pagination -->
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if datasets.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ datasets.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% for num in datasets.paginator.page_range %}
+                    {% if datasets.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num > datasets.number|add:'-3' and num < datasets.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+
+                    {% if datasets.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ datasets.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
         </div>
     </div>
 </div>
 
-<!-- Add custom styles -->
+<!-- Upload Dataset Modal -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Upload New Dataset</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form method="post" enctype="multipart/form-data" id="uploadForm">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Title *</label>
+                        <input type="text" class="form-control" id="title" name="title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description *</label>
+                        <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="category" class="form-label">Category *</label>
+                        <select class="form-select" id="category" name="category" required>
+                            <option value="">Select a category</option>
+                            {% for category in categories %}
+                            <option value="{{ category.id }}">{{ category.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Dataset File *</label>
+                        <input type="file" class="form-control" id="file" name="file" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="license" class="form-label">License *</label>
+                        <select class="form-select" id="license" name="license" required>
+                            <option value="">Select a license</option>
+                            <option value="open">Open License</option>
+                            <option value="restricted">Restricted Access</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="tags" class="form-label">Tags</label>
+                        <input type="text" class="form-control" id="tags" name="tags" placeholder="Enter tags separated by commas">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Upload Dataset</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
 {% block extra_css %}
 <style>
-    .btn-link {
-        text-decoration: none;
-        color: #0d6efd;
+    :root {
+        --primary: #2c3e50;
+        --secondary: #34495e;
+        --accent: #3498db;
+        --light: #ecf0f1;
+        --dark: #2c3e50;
+        --success: #2ecc71;
+        --danger: #e74c3c;
+        --warning: #f1c40f;
+        --info: #3498db;
     }
-    .btn-link:hover {
-        text-decoration: underline;
+
+    .card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        border: none;
     }
-    .dataset-item {
-        background-color: #fff;
-        transition: background-color 0.2s;
+
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
     }
-    .dataset-item:hover {
-        background-color: #f8f9fa;
+
+    .card-title {
+        font-size: 1.1rem;
+        color: var(--primary);
     }
+
+    .card-text {
+        color: var(--secondary);
+    }
+
     .badge {
-        font-weight: normal;
-        padding: 0.4em 0.6em;
+        padding: 0.5em 0.75em;
     }
-    
-    /* Tree View Styles */
-    .tree-item {
-        margin: 0.25rem 0;
+
+    .btn {
+        padding: 0.5rem 1rem;
+        border-radius: 5px;
     }
-    .tree-content {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        cursor: pointer;
+
+    .btn-primary {
+        background: linear-gradient(to right, var(--primary), var(--secondary));
+        border: none;
     }
-    .tree-toggle {
-        display: inline-block;
-        width: 1rem;
-        text-align: center;
-        color: #6c757d;
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
     }
-    .tree-label {
-        flex: 1;
+
+    .btn-outline-primary {
+        color: var(--primary);
+        border: 1px solid var(--primary);
     }
-    .tree-children {
-        margin-left: 1.5rem;
-        border-left: 1px dashed #dee2e6;
-        padding-left: 0.5rem;
+
+    .btn-outline-primary:hover {
+        background: var(--primary);
+        color: white;
     }
-    
-    /* Facets View Styles */
-    .facet-group {
-        border-bottom: 1px solid #dee2e6;
-        padding-bottom: 1rem;
+
+    .pagination .page-link {
+        color: var(--primary);
+        border: 1px solid var(--primary);
     }
-    .facet-group:last-child {
-        border-bottom: none;
+
+    .pagination .page-link:hover {
+        background-color: var(--primary);
+        border-color: var(--primary);
     }
-    .facet-title {
-        color: #495057;
-        font-weight: 600;
+
+    .pagination .page-item.active .page-link {
+        background-color: var(--primary);
+        border-color: var(--primary);
     }
-    .form-check-label {
-        color: #212529;
-        cursor: pointer;
+
+    @media (max-width: 768px) {
+        .card {
+            margin-bottom: 1rem;
+        }
+
+        .btn {
+            width: 100%;
+            margin-bottom: 0.5rem;
+        }
+
+        .modal-dialog {
+            margin: 1rem;
+        }
     }
 </style>
-{% endblock %}
-{% endblock %} 
+{% endblock extra_css %}
