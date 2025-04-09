@@ -67,7 +67,7 @@ class CustomPasswordResetForm(PasswordResetForm):
     email = forms.EmailField(max_length=254)
 
 class LoginForm(forms.Form):
-    id_number = forms.CharField(max_length=20, label="ID Number")
+    id_number = forms.CharField(max_length=50, label="ID Number")
     password = forms.CharField(widget=forms.PasswordInput)
     
     def clean(self):
@@ -81,56 +81,82 @@ class LoginForm(forms.Form):
                 profile = Profile.objects.get(id_number=id_number)
                 # Then try to authenticate with their username (email)
                 user = authenticate(username=profile.user.username, password=password)
+                
                 if not user:
-                    raise forms.ValidationError("Invalid ID number or password")
+                    raise forms.ValidationError("Invalid credentials. Please check your ID number and password.")
+                elif not user.is_active:
+                    raise forms.ValidationError("This account is inactive.")
                 else:
                     # Store the authenticated user in cleaned_data
                     cleaned_data['user'] = user
             except Profile.DoesNotExist:
-                raise forms.ValidationError("Invalid ID number or password")
+                raise forms.ValidationError(f"No user found with ID number: {id_number}")
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Authentication error: {str(e)}")
+                raise forms.ValidationError(f"Authentication error: {str(e)}")
                 
         return cleaned_data
-
-
 
 class ProfileEditForm(forms.ModelForm):
     """
     Form for editing user profile details
     """
-    first_name = forms.CharField(
-        max_length=30, 
-        required=True,
-        widget=forms.TextInput(attrs={'class': 'form-control'})
-    )
-    last_name = forms.CharField(
-        max_length=30, 
-        required=True,
-        widget=forms.TextInput(attrs={'class': 'form-control'})
-    )
     email = forms.EmailField(
         required=True,
         widget=forms.EmailInput(attrs={'class': 'form-control'})
+    )
+    role = forms.ChoiceField(
+        choices=Profile.ROLE_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+    department = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    research_interests = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
+    )
+    phone = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    location = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    linkedin = forms.URLField(
+        required=False,
+        widget=forms.URLInput(attrs={'class': 'form-control'})
+    )
+    scholar = forms.URLField(
+        required=False,
+        widget=forms.URLInput(attrs={'class': 'form-control'})
+    )
+    profile_image = forms.ImageField(
+        required=False,
+        widget=forms.FileInput(attrs={'class': 'form-control'})
     )
 
     class Meta:
         model = Profile
         fields = [
-            'first_name',
-            'last_name',
-            'middle_name', 
-            'phone_number', 
-            'id_number', 
-            'dob', 
-            'gender', 
-            'location', 
-            'bio'
+            'email',
+            'role',
+            'department',
+            'research_interests',
+            'phone',
+            'location',
+            'linkedin',
+            'scholar',
+            'profile_image'
         ]
-        widgets = {
-            'middle_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'phone_number': forms.TextInput(attrs={'class': 'form-control'}),
-            'id_number': forms.TextInput(attrs={'class': 'form-control'}),
-            'dob': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'gender': forms.Select(attrs={'class': 'form-control'}),
-            'location': forms.TextInput(attrs={'class': 'form-control'}),
-            'bio': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
-        }
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if email and email != self.instance.user.email:
+            if User.objects.filter(email=email).exists():
+                raise forms.ValidationError("This email address is already in use.")
+        return email

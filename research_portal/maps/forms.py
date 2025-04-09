@@ -32,7 +32,7 @@ class BaseImportForm(forms.Form):
     import_type = forms.ChoiceField(
         choices=IMPORT_CHOICES,
         label=_("Import Type"),
-        widget=forms.RadioSelect,
+        widget=forms.Select(attrs={'class': 'form-select'}),
         initial='stations',
         help_text=_("Select the type of data you want to import.")
     )

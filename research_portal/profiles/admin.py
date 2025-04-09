@@ -16,9 +16,31 @@ class CsvImportForm(forms.Form):
     )
 
 class ProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'first_name', 'last_name', 'phone_number', 'id_number', 'gender')
-    search_fields = ('user__username', 'first_name', 'last_name', 'phone_number', 'id_number')
-    list_filter = ('gender',)
+    list_display = ('user', 'phone', 'location', 'role', 'get_formatted_role')
+    search_fields = ('user__username', 'phone', 'location', 'role')
+    list_filter = ('role',)
+    fieldsets = (
+        (None, {
+            'fields': ('user',)
+        }),
+        ('Role Information', {
+            'fields': ('role', 'department'),
+            'description': 'Assign appropriate role to determine dashboard access',
+        }),
+        ('Contact Information', {
+            'fields': ('phone', 'location', 'linkedin', 'scholar'),
+        }),
+        ('Research Information', {
+            'fields': ('research_interests',),
+        }),
+        ('Profile Image', {
+            'fields': ('profile_image',),
+        }),
+    )
+    
+    def get_formatted_role(self, obj):
+        return obj.get_role_display_name()
+    get_formatted_role.short_description = 'Role Type'
     
     # Add CSV import functionality
     change_list_template = 'admin/profiles/profile/change_list.html'
@@ -47,79 +69,39 @@ class ProfileAdmin(admin.ModelAdmin):
                 
                 # Process each row
                 for row in csv.reader(io_string, delimiter=',', quotechar='"'):
-                    if len(row) < 8:  # Check basic length
+                    if len(row) < 5:  # Check basic length
                         continue
-                        
-                    email = row[0].strip()
-                    first_name = row[1].strip()
-                    last_name = row[2].strip()
-                    middle_name = row[3].strip() if row[3].strip() else None
-                    phone_number = row[4].strip()
-                    id_number = row[5].strip()
-                    dob = row[6].strip() or None
-                    gender = row[7].strip().lower()
-                    location = row[8].strip() if len(row) > 8 and row[8].strip() else None
-                    bio = row[9].strip() if len(row) > 9 and row[9].strip() else None
                     
-                    # Skip rows without critical data
-                    if not (email and first_name and last_name and phone_number and id_number):
-                        continue
+                    # Create or update profile
+                    try:
+                        user = User.objects.get(username=row[0])
+                        profile, created = Profile.objects.get_or_create(user=user)
                         
-                    # Check if user exists, create if not
-                    try:
-                        user = User.objects.get(username=email)
-                    except User.DoesNotExist:
-                        # Create new user
-                        user = User.objects.create_user(
-                            username=email,
-                            email=email,
-                            first_name=first_name,
-                            last_name=last_name,
-                            # Set a default password - should be changed
-                            password='changeme123'
-                        )
-                    
-                    # Check if profile exists
-                    try:
-                        profile = Profile.objects.get(user=user)
-                        # Update existing profile
-                        profile.first_name = first_name
-                        profile.last_name = last_name
-                        profile.middle_name = middle_name
-                        profile.phone_number = phone_number
-                        profile.id_number = id_number
-                        profile.dob = dob
-                        profile.gender = gender
-                        profile.location = location
-                        profile.bio = bio
+                        # Update profile fields
+                        profile.phone = row[1]
+                        profile.location = row[2]
+                        profile.role = row[3]
                         profile.save()
-                    except Profile.DoesNotExist:
-                        # Create new profile
-                        Profile.objects.create(
-                            user=user,
-                            first_name=first_name,
-                            last_name=last_name,
-                            middle_name=middle_name,
-                            phone_number=phone_number,
-                            id_number=id_number,
-                            dob=dob,
-                            gender=gender,
-                            location=location,
-                            bio=bio
-                        )
-                
-                messages.success(request, 'CSV file imported successfully')
+                        
+                        if created:
+                            messages.success(request, f'Created profile for {user.username}')
+                        else:
+                            messages.success(request, f'Updated profile for {user.username}')
+                    
+                    except User.DoesNotExist:
+                        messages.warning(request, f'User {row[0]} does not exist')
+                    except Exception as e:
+                        messages.error(request, f'Error processing row: {str(e)}')
+                        
             except Exception as e:
-                messages.error(request, f'Error importing CSV: {str(e)}')
-            
+                messages.error(request, f'Error processing CSV: {str(e)}')
+                
             return redirect('admin:profiles_profile_changelist')
-            
+        
         form = CsvImportForm()
-        context = {
-            'form': form,
-            'title': 'Import Profiles from CSV',
-            'opts': self.model._meta,
-        }
-        return render(request, 'admin/csv_form.html', context)
+        payload = {"form": form}
+        return render(
+            request, "admin/csv_form.html", payload
+        )
 
 admin.site.register(Profile, ProfileAdmin)

@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/settings.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+    <div class="settings-sidebar">
+        <nav class="nav flex-column">
+            <a href="{% url 'profiles:settings' %}" class="nav-link">
+                <i class="fas fa-user"></i> Account Settings
+            </a>
+            <a href="{% url 'profiles:notifications' %}" class="nav-link">
+                <i class="fas fa-bell"></i> Notifications
+            </a>
+            <a href="{% url 'profiles:privacy' %}" class="nav-link active">
+                <i class="fas fa-lock"></i> Privacy
+            </a>
+        </nav>
+    </div>
+    <div class="settings-content">
+        <h2>Privacy Settings</h2>
+        <form method="post" class="settings-form">
+            {% csrf_token %}
+            <div class="form-group">
+                <label>Profile Visibility</label>
+                <div class="privacy-options">
+                    <div class="form-check">
+                        <input type="radio" class="form-check-input" id="public" name="profile_visibility" value="public">
+                        <label class="form-check-label" for="public">Public - Anyone can see your profile</label>
+                    </div>
+                    <div class="form-check">
+                        <input type="radio" class="form-check-input" id="private" name="profile_visibility" value="private">
+                        <label class="form-check-label" for="private">Private - Only approved followers can see your profile</label>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Post Visibility</label>
+                <div class="privacy-options">
+                    <div class="form-check">
+                        <input type="radio" class="form-check-input" id="all_posts" name="post_visibility" value="all">
+                        <label class="form-check-label" for="all_posts">All Posts - Your posts are visible to everyone</label>
+                    </div>
+                    <div class="form-check">
+                        <input type="radio" class="form-check-input" id="followers_only" name="post_visibility" value="followers">
+                        <label class="form-check-label" for="followers_only">Followers Only - Only your followers can see your posts</label>
+                    </div>
+                    <div class="form-check">
+                        <input type="radio" class="form-check-input" id="private_posts" name="post_visibility" value="private">
+                        <label class="form-check-label" for="private_posts">Private - Only approved followers can see your posts</label>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Location Sharing</label>
+                <div class="privacy-options">
+                    <div class="form-check">
+                        <input type="radio" class="form-check-input" id="location_public" name="location_visibility" value="public">
+                        <label class="form-check-label" for="location_public">Public - Anyone can see your location</label>
+                    </div>
+                    <div class="form-check">
+                        <input type="radio" class="form-check-input" id="location_private" name="location_visibility" value="private">
+                        <label class="form-check-label" for="location_private">Private - Only approved followers can see your location</label>
+                    </div>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('.settings-form');
+        
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(form);
+            
+            fetch("{% url 'profiles:privacy' %}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Privacy settings updated successfully!');
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'Failed to update privacy settings');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while updating privacy settings');
+            });
+        });
+    });
+</script>
+{% endblock %}
