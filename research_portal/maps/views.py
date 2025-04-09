@@ -21,10 +21,10 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.generic import FormView, TemplateView
 from django.db.models import Avg, Max, Min, Sum, OuterRef, Subquery
-from django.db.models import Avg, Max, Min, Sum, OuterRef, Subquery
 from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
 from django.contrib.gis.db.models.functions import Distance
+from django.db.models.functions import TruncDay, TruncHour
 from django.db import models
 import operator
 from functools import reduce
