@@ -235,6 +235,16 @@ class DataExportAdmin(admin.ModelAdmin):
             'fields': ('file', 'error_message', 'created_at', 'updated_at', 'last_downloaded', 'download_count')
         }),
     )
+    
+    def country_filter(self, obj):
+        """
+        Display the country name for a DataExport object
+        """
+        if obj.country:
+            return obj.country.name
+        return "-"
+    
+    country_filter.short_description = "Country"
 
 @admin.register(WeatherAlert)
 class WeatherAlertAdmin(admin.ModelAdmin):
