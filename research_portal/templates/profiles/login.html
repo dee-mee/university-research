@@ -428,15 +428,18 @@ header {
 <div class="login-container">
     <h2>Login</h2>
 
+    <!-- Improved error message container with better styling -->
+    <div id="login-error-message" class="alert alert-danger" style="display: none; margin: 0 30px 20px 30px;"></div>
+
     {% if form.non_field_errors %}
-    <div class="error-message">
+    <div class="alert alert-danger" style="margin: 0 30px 20px 30px;">
         {% for error in form.non_field_errors %}
             {{ error }}
         {% endfor %}
     </div>
     {% endif %}
 
-    <form method="POST" id="loginForm">
+    <form method="POST" id="loginForm" action="{% url 'profiles:login' %}">
         {% csrf_token %}
         <div class="input-group">
             <input type="text" id="id_number" name="id_number" placeholder="ID Number" required>
@@ -463,13 +466,30 @@ header {
         </div>
         <button type="submit" class="login-button">LOGIN</button>
     </form>
+    
+    <!-- Contact admin section for login issues -->
+    <div style="padding: 20px; border-top: 1px solid #eee; margin-top: 30px; text-align: center;">
+        <p style="color: #666; font-size: 14px;">
+            Having trouble logging in? Please contact the administrator or use the correct ID number provided to you.
+        </p>
+    </div>
 </div>
+
 <script>
     document.getElementById('loginForm').addEventListener('submit', function(event) {
         // Only prevent default for AJAX submissions
         if (window.fetch) {
             event.preventDefault();
             const formData = new FormData(this);
+            
+            // Clear previous error messages
+            document.getElementById('login-error-message').style.display = 'none';
+            
+            // Show loading state
+            const loginButton = document.querySelector('.login-button');
+            const originalText = loginButton.textContent;
+            loginButton.textContent = 'LOGGING IN...';
+            loginButton.disabled = true;
             
             fetch("{% url 'profiles:login' %}", {
                 method: 'POST',
@@ -484,17 +504,29 @@ header {
                 if (data.success) {
                     window.location.href = "{% url 'profiles:dashboard' %}";
                 } else {
+                    // Reset button
+                    loginButton.textContent = originalText;
+                    loginButton.disabled = false;
+                    
                     // Display error message
                     let errorMessage = data.message;
                     if (typeof errorMessage === 'object') {
                         errorMessage = Object.values(errorMessage).flat().join('. ');
                     }
-                    alert('Login Failed: ' + errorMessage);
+                    const errorDiv = document.getElementById('login-error-message');
+                    errorDiv.textContent = 'Login Failed: ' + errorMessage;
+                    errorDiv.style.display = 'block';
                 }
             })
             .catch(error => {
+                // Reset button
+                loginButton.textContent = originalText;
+                loginButton.disabled = false;
+                
                 console.error('Error:', error);
-                alert('An error occurred during login. Please try again.');
+                const errorDiv = document.getElementById('login-error-message');
+                errorDiv.textContent = 'An error occurred during login. Please try again.';
+                errorDiv.style.display = 'block';
             });
         }
     });
