@@ -67,7 +67,7 @@ class CustomPasswordResetForm(PasswordResetForm):
     email = forms.EmailField(max_length=254)
 
 class LoginForm(forms.Form):
-    id_number = forms.CharField(max_length=20, label="ID Number")
+    id_number = forms.CharField(max_length=50, label="ID Number")
     password = forms.CharField(widget=forms.PasswordInput)
     
     def clean(self):
@@ -81,17 +81,22 @@ class LoginForm(forms.Form):
                 profile = Profile.objects.get(id_number=id_number)
                 # Then try to authenticate with their username (email)
                 user = authenticate(username=profile.user.username, password=password)
+                
                 if not user:
-                    raise forms.ValidationError("Invalid ID number or password")
+                    raise forms.ValidationError("Invalid credentials. Please check your ID number and password.")
+                elif not user.is_active:
+                    raise forms.ValidationError("This account is inactive.")
                 else:
                     # Store the authenticated user in cleaned_data
                     cleaned_data['user'] = user
             except Profile.DoesNotExist:
-                raise forms.ValidationError("Invalid ID number or password")
+                raise forms.ValidationError(f"No user found with ID number: {id_number}")
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Authentication error: {str(e)}")
+                raise forms.ValidationError(f"Authentication error: {str(e)}")
                 
         return cleaned_data
-
-
 
 class ProfileEditForm(forms.ModelForm):
     """
@@ -101,9 +106,10 @@ class ProfileEditForm(forms.ModelForm):
         required=True,
         widget=forms.EmailInput(attrs={'class': 'form-control'})
     )
-    role = forms.CharField(
+    role = forms.ChoiceField(
+        choices=Profile.ROLE_CHOICES,
         required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control'})
+        widget=forms.Select(attrs={'class': 'form-control'})
     )
     department = forms.CharField(
         required=False,
