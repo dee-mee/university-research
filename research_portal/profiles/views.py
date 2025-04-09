@@ -80,18 +80,23 @@ def login_view(request):
                 user = form.cleaned_data.get('user')
                 login(request, user)
                 
+                # Log successful login
+                logger.info(f"User logged in successfully: {user.username}")
+                
                 # Check if it's an AJAX request
                 if request.headers.get('x-requested-with') == 'XMLHttpRequest':
                     return JsonResponse({'success': True})
-                return redirect('profiles:profile')  # Redirect to profile after login
+                return redirect('profiles:dashboard')  # Redirect to dashboard after login
             except Exception as e:
                 logger.error(f"Login error: {e}")
                 return JsonResponse({'success': False, 'message': str(e)}, status=500)
         else:
             # Form is invalid, prepare error messages
             errors = form.errors
+            logger.warning(f"Login form validation failed: {errors}")
             if request.headers.get('x-requested-with') == 'XMLHttpRequest':
                 return JsonResponse({'success': False, 'message': errors})
+            # For non-AJAX requests, continue to render the form with errors
     else:
         form = LoginForm()
     
@@ -130,14 +135,46 @@ def logout_view(request):
 
 @login_required
 def dashboard_view(request):
-    return render(request, 'profiles/dashboard.html', {
+    """Display dashboard based on user role"""
+    user = request.user
+    try:
+        role = user.profile.role
+    except:
+        role = 'project_member'  # Default role if profile doesn't exist
+    
+    # Determine which dashboard template to use based on role
+    template_map = {
+        'phd_student': 'profiles/dashboards/phd_dashboard.html',
+        'local_coordinator': 'profiles/dashboards/coordinator_dashboard.html',
+        'project_leader': 'profiles/dashboards/leader_dashboard.html',
+        'project_member': 'profiles/dashboards/member_dashboard.html',
+        'admin': 'profiles/dashboards/admin_dashboard.html',
+    }
+    
+    template = template_map.get(role, 'profiles/dashboard.html')
+    
+    # Common context for all dashboards
+    context = {
+        'user': user,
+        'role': role,
+        'role_display': user.profile.get_role_display_name() if hasattr(user, 'profile') else '',
         'dashboard_url': 'profiles:dashboard',
         'profile_url': 'profiles:profile',
         'maps_url': 'maps:map',
         'repository_url': 'repository:dataset_list',
         'edit_profile_url': 'profiles:edit_profile',
         'logout_url': 'profiles:logout'
-    })
+    }
+    
+    # Add role-specific context
+    if role == 'project_leader':
+        # For project leaders, add project management info
+        context['managed_projects'] = []  # Add query for projects they manage
+    elif role == 'local_coordinator':
+        # For coordinators, add location-specific info
+        context['location_stats'] = []  # Add location statistics
+    
+    return render(request, template, context)
 
 def homepage_view(request):
     return render(request, 'index.html')
