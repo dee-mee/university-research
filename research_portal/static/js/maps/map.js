@@ -1,10 +1,10 @@
 /**
  * Weather Station Map JavaScript
  * Handles fetching and displaying weather station data on a Leaflet map
- * Focused on Kenya with ability to zoom to specific stations
+ * Works in standalone mode or as an overlay on top of Windy map
  */
 class WeatherStationMap {
-    constructor(mapElementId, apiBaseUrl) {
+    constructor(mapElementId, apiBaseUrl, options = {}) {
         this.mapElementId = mapElementId;
         this.apiBaseUrl = apiBaseUrl;
         this.map = null;
@@ -15,6 +15,13 @@ class WeatherStationMap {
         this.heatmapLayer = null;
         this.dataView = 'temperature';
         this.stations = [];
+        this.options = Object.assign({
+            useWindyOverlay: false,
+            windyMapId: 'windy-map',
+            mapContainerId: 'map-container',
+            initialView: [-0.9, 34.75],
+            initialZoom: 6
+        }, options);
         
         // Initialize the map
         this.initMap();
@@ -37,24 +44,37 @@ class WeatherStationMap {
                 this.loadStationData(stationId);
             }
         });
+
+        // Add listener for the custom centerMap function
+        window.centerMap = (lat, lon, locationName) => {
+            this.centerOnCoordinates(lat, lon, locationName);
+        };
+
+        // Listener for station selector dropdown
+        const stationSelect = document.getElementById('stationSelect');
+        if (stationSelect) {
+            stationSelect.addEventListener('change', (e) => {
+                const stationId = e.target.value;
+                if (stationId) {
+                    this.zoomToStation(stationId);
+                } else {
+                    // If "All Stations" is selected, zoom to show all stations
+                    this.zoomToAllStations();
+                }
+            });
+        }
     }
     
     /**
      * Initialize the Leaflet map
      */
     initMap() {
-        // Create the map centered on Kenya
-        this.map = L.map(this.mapElementId, {
-            center: [-0.9, 34.75], // Nyanza region's coordinates
-            zoom: 6,                   // Zoom level for Kenya
-            minZoom: 2,
-            maxZoom: 18
-        });
-        
-        // Add the tile layer (OpenStreetMap)
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(this.map);
+        // Check if we're in Windy overlay mode
+        if (this.options.useWindyOverlay) {
+            this.initOverlayMap();
+        } else {
+            this.initStandaloneMap();
+        }
         
         // Add the station layers to the map
         this.stationLayers.active.addTo(this.map);
@@ -65,6 +85,144 @@ class WeatherStationMap {
         
         // Add legend
         this.addLegend();
+    }
+
+    /**
+     * Initialize map as a standalone Leaflet map
+     */
+    initStandaloneMap() {
+        // Create the map centered on Kenya
+        this.map = L.map(this.mapElementId, {
+            center: this.options.initialView,
+            zoom: this.options.initialZoom,
+            minZoom: 2,
+            maxZoom: 18
+        });
+        
+        // Add the tile layer (OpenStreetMap)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(this.map);
+    }
+
+    /**
+     * Initialize map as an overlay on top of Windy iframe
+     */
+    initOverlayMap() {
+        // Get the Windy iframe container
+        const windyContainer = document.getElementById(this.options.windyMapId);
+        if (!windyContainer) {
+            console.error("Windy map container not found:", this.options.windyMapId);
+            return;
+        }
+
+        // Create a container for the overlay map if it doesn't exist
+        let mapContainer = document.getElementById(this.options.mapContainerId);
+        if (!mapContainer) {
+            mapContainer = document.createElement('div');
+            mapContainer.id = this.options.mapContainerId;
+            mapContainer.style.position = 'absolute';
+            mapContainer.style.top = '0';
+            mapContainer.style.left = '0';
+            mapContainer.style.width = '100%';
+            mapContainer.style.height = '100%';
+            mapContainer.style.pointerEvents = 'auto';
+            mapContainer.style.zIndex = '1000';
+            
+            // Insert the overlay container right after the Windy iframe
+            windyContainer.parentNode.insertBefore(mapContainer, windyContainer.nextSibling);
+        }
+
+        // Create the overlay map with transparent background
+        this.map = L.map(this.options.mapContainerId, {
+            center: this.options.initialView,
+            zoom: this.options.initialZoom,
+            zoomControl: true,
+            attributionControl: false,
+            layers: [],
+            scrollWheelZoom: true
+        });
+
+        // Make the map background transparent
+        document.querySelector(`#${this.options.mapContainerId} .leaflet-tile-pane`).style.opacity = '0';
+        document.querySelector(`#${this.options.mapContainerId} .leaflet-control-container`).style.zIndex = '2000';
+
+        // Sync view with Windy iframe (initial position)
+        this.syncWithWindyMap();
+    }
+
+    /**
+     * Sync the overlay map with Windy map iframe
+     */
+    syncWithWindyMap() {
+        try {
+            // Get the current Windy iframe src
+            const windyIframe = document.getElementById(this.options.windyMapId);
+            if (!windyIframe) return;
+
+            const src = windyIframe.src;
+            
+            // Extract coordinates and zoom from the iframe URL
+            const latMatch = src.match(/lat=([^&]*)/);
+            const lonMatch = src.match(/lon=([^&]*)/);
+            const zoomMatch = src.match(/zoom=([^&]*)/);
+            
+            if (latMatch && lonMatch) {
+                const lat = parseFloat(latMatch[1]);
+                const lon = parseFloat(lonMatch[1]);
+                const zoom = zoomMatch ? parseInt(zoomMatch[1]) : this.options.initialZoom;
+                
+                // Set the view of our overlay map to match Windy
+                if (!isNaN(lat) && !isNaN(lon)) {
+                    this.map.setView([lat, lon], zoom);
+                }
+            }
+        } catch (error) {
+            console.error('Error syncing with Windy map:', error);
+        }
+    }
+
+    /**
+     * Center the map on specific coordinates and add a marker
+     * This function can be called from outside (window.centerMap)
+     */
+    centerOnCoordinates(lat, lon, locationName) {
+        // Update map view
+        this.map.setView([lat, lon], 12);
+        
+        // If we're in overlay mode, also update the Windy iframe
+        if (this.options.useWindyOverlay) {
+            this.updateWindyIframe(lat, lon, locationName);
+        }
+        
+        // Optional: Add a temporary marker
+        const tempMarker = L.marker([lat, lon], {
+            title: locationName || 'Selected Location',
+            riseOnHover: true
+        }).addTo(this.map);
+        
+        tempMarker.bindPopup(`<b>${locationName || 'Selected Location'}</b><br>Coordinates: ${lat}, ${lon}`).openPopup();
+        
+        // Remove the marker after some time
+        setTimeout(() => {
+            this.map.removeLayer(tempMarker);
+        }, 5000);
+    }
+
+    /**
+     * Update the Windy iframe src to center on specific coordinates
+     */
+    updateWindyIframe(lat, lon, locationName) {
+        const iframe = document.getElementById(this.options.windyMapId);
+        if (!iframe) return;
+        
+        const currentSrc = iframe.src;
+        const newSrc = currentSrc.replace(/lat=([^&]*)/, `lat=${lat}`)
+                               .replace(/lon=([^&]*)/, `lon=${lon}`)
+                               .replace(/detailLat=([^&]*)/, `detailLat=${lat}`)
+                               .replace(/detailLon=([^&]*)/, `detailLon=${lon}`);
+        
+        iframe.src = newSrc;
     }
     
     /**
@@ -156,9 +314,6 @@ class WeatherStationMap {
                             } else if (data.stations && data.stations.features) {
                                 // Handle map_data response format
                                 this.stations = data.stations.features;
-                            } else if (data.stations && data.stations.features) {
-                                // Handle map_data response format
-                                this.stations = data.stations.features;
                             } else if (data.results) {
                                 this.stations = data.results;
                             } else {
@@ -219,8 +374,10 @@ class WeatherStationMap {
         // Populate station dropdown
         this.populateStationDropdown();
         
-        // Set map view to Kenya by default
-        this.map.setView([0.0236, 37.9062], 6);
+        // If we're in overlay mode, update station visibility
+        if (this.options.useWindyOverlay) {
+            this.updateStationVisibility();
+        }
     }
     
     /**
@@ -243,6 +400,18 @@ class WeatherStationMap {
         // Get station ID (could be in different formats)
         const stationId = props.id || props.station_id || '';
         
+        // Create custom icon for better visibility on Windy map
+        const markerIcon = L.divIcon({
+            className: 'custom-marker-icon',
+            html: `<div class="marker-content ${props.is_active || props.status === 'active' ? 'active' : 'inactive'}">
+                     <i class="fas fa-map-marker-alt"></i>
+                     <div class="marker-label">${props.name || props.station_name || 'Station'}</div>
+                   </div>`,
+            iconSize: [24, 36],
+            iconAnchor: [12, 36],
+            popupAnchor: [0, -36]
+        });
+        
         // Create marker
         const marker = L.marker([
             Array.isArray(coords) ? coords[1] : props.latitude, 
@@ -250,7 +419,8 @@ class WeatherStationMap {
         ], {
             title: props.name || props.station_name || 'Unnamed Station',
             alt: props.name || props.station_name || 'Unnamed Station',
-            riseOnHover: true
+            riseOnHover: true,
+            icon: markerIcon
         });
         
         // Create popup content
@@ -262,6 +432,9 @@ class WeatherStationMap {
                 <p><strong>Altitude:</strong> ${props.altitude ? props.altitude + ' m' : 'N/A'}</p>
                 <p><strong>Installed:</strong> ${props.date_installed || props.installation_date || 'N/A'}</p>
                 <button class="btn btn-sm btn-primary station-data-btn" data-station-id="${stationId}">View Data</button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="window.location.href='/maps/stations/${stationId}/statistics/'">
+                    Statistics
+                </button>
             </div>
         `;
         
@@ -274,6 +447,25 @@ class WeatherStationMap {
         });
         
         return marker;
+    }
+    
+    /**
+     * Update the visibility of stations based on zoom level
+     * For Windy overlay mode - hide station labels at lower zoom levels
+     */
+    updateStationVisibility() {
+        const currentZoom = this.map.getZoom();
+        const showLabels = currentZoom >= 9;
+        
+        // Update labels visibility
+        document.querySelectorAll('.marker-label').forEach(label => {
+            label.style.display = showLabels ? 'block' : 'none';
+        });
+        
+        // Update marker size based on zoom
+        document.querySelectorAll('.marker-content').forEach(marker => {
+            marker.style.fontSize = currentZoom <= 6 ? '12px' : (currentZoom <= 8 ? '14px' : '16px');
+        });
     }
     
     /**
@@ -799,4 +991,121 @@ class WeatherStationMap {
             });
         }
     }
+
+    /**
+     * Zoom to all stations
+     */
+    zoomToAllStations() {
+        const bounds = L.featureGroup([
+            this.stationLayers.active, 
+            this.stationLayers.inactive
+        ]).getBounds();
+        
+        if (bounds.isValid()) {
+            this.map.fitBounds(bounds);
+            
+            // If we're in overlay mode, also update the Windy iframe
+            if (this.options.useWindyOverlay) {
+                const center = bounds.getCenter();
+                const zoom = this.map.getBoundsZoom(bounds);
+                this.updateWindyIframe(center.lat, center.lng, 'All Stations');
+            }
+        } else {
+            // Default to Kenya view if no stations
+            this.map.setView(this.options.initialView, this.options.initialZoom);
+            
+            // Update Windy iframe if in overlay mode
+            if (this.options.useWindyOverlay) {
+                this.updateWindyIframe(this.options.initialView[0], this.options.initialView[1], 'Kenya');
+            }
+        }
+    }
+    
+    /**
+     * Add custom styles for markers on Windy map
+     */
+    addCustomStyles() {
+        // Add CSS if not already present
+        if (!document.getElementById('weather-station-map-styles')) {
+            const styleElement = document.createElement('style');
+            styleElement.id = 'weather-station-map-styles';
+            styleElement.textContent = `
+                .custom-marker-icon {
+                    background: transparent;
+                    border: none;
+                }
+                .marker-content {
+                    color: #E03616;
+                    font-size: 16px;
+                    text-align: center;
+                    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+                }
+                .marker-content.active {
+                    color: #E03616;
+                }
+                .marker-content.inactive {
+                    color: #999;
+                }
+                .marker-label {
+                    position: absolute;
+                    bottom: 100%;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: rgba(0, 0, 0, 0.7);
+                    color: white;
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    font-size: 12px;
+                    white-space: nowrap;
+                    pointer-events: none;
+                }
+                .info-container {
+                    padding: 6px 8px;
+                    background: white;
+                    background: rgba(255,255,255,0.9);
+                    box-shadow: 0 0 15px rgba(0,0,0,0.2);
+                    border-radius: 5px;
+                    max-width: 300px;
+                }
+                .info-container h4 {
+                    margin: 0 0 5px;
+                    color: #555;
+                }
+            `;
+            document.head.appendChild(styleElement);
+        }
+    }
 }
+
+// Initialize map when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if Windy map iframe exists
+    const windyMapElement = document.getElementById('windy-map');
+    const mapContainerElement = document.getElementById('map-container');
+    
+    // Configure the map based on the presence of Windy iframe
+    let mapOptions = {
+        useWindyOverlay: !!windyMapElement,
+        windyMapId: 'windy-map',
+        mapContainerId: 'map-container',
+        initialView: [-0.503, 34.847], // JOOUST coordinates
+        initialZoom: 9
+    };
+    
+    // Create the map instance
+    const targetElementId = mapOptions.useWindyOverlay ? 'map-container' : 'map';
+    window.weatherMap = new WeatherStationMap(targetElementId, '/maps', mapOptions);
+    
+    // If the map is in overlay mode, add event listeners for the Windy iframe
+    if (mapOptions.useWindyOverlay && windyMapElement) {
+        // We can't directly listen to iframe content, but we can track when it loads
+        windyMapElement.addEventListener('load', function() {
+            window.weatherMap.syncWithWindyMap();
+        });
+        
+        // Listen to map zoom events
+        window.weatherMap.map.on('zoomend', function() {
+            window.weatherMap.updateStationVisibility();
+        });
+    }
+});
