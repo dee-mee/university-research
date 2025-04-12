@@ -1040,13 +1040,8 @@ def flash_drive_import_view(request):
 
 def setup_automated_imports(flash_drive_path=None, import_interval=3600):
     """
-    Set up scheduled imports from a flash drive with improved configuration and error handling
-
-
-    This function should be called from your app's AppConfig.ready() method
-    to set up scheduled tasks when the application starts.
-
-
+    Sets up an automated background job to import CSV files from a flash drive.
+    
     Parameters:
     - flash_drive_path: Path to monitor for CSV files, defaults to environment variable or '/media/usb'
     - import_interval: How often to check for new files (in seconds), defaults to environment variable or 3600
@@ -1169,9 +1164,9 @@ def setup_automated_imports(flash_drive_path=None, import_interval=3600):
         logging.info(f"Scheduled automated CSV imports from {flash_drive_path} every {import_interval} seconds")
         
     except ImportError:
-        logging.warning("APScheduler not installed. Automated imports will not run.")
+        print("APScheduler not installed. Automated imports will not run.")
     except Exception as e:
-        logging.error(f"Error setting up automated imports: {str(e)}")
+        print(f"Error setting up automated imports: {str(e)}")
 
 
 def station_statistics_view(request, station_id):
