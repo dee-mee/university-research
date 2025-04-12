@@ -1,71 +1,56 @@
 from django.contrib import admin
-from django.contrib.gis.admin import GISModelAdmin
-from django.utils.html import format_html
-from .models import WeatherStation, ClimateData, DataExport, Country, WeatherDataType, WeatherAlert
+from django.contrib.gis.admin import OSMGeoAdmin
+from .models import (
+    Country, WeatherStation, ClimateData, WeatherDataType,
+    DataExport, WeatherAlert
+)
 
 @admin.register(Country)
-class CountryAdmin(GISModelAdmin):
-    list_display = ('name', 'code', 'station_count')
+class CountryAdmin(OSMGeoAdmin):
+    list_display = ('name', 'code', 'is_southern_hemisphere')
     search_fields = ('name', 'code')
-    
-    def station_count(self, obj):
-        return obj.stations.count()
-    station_count.short_description = 'Number of Stations'
-
-
-@admin.register(WeatherDataType)
-class WeatherDataTypeAdmin(admin.ModelAdmin):
-    list_display = ('name', 'display_name', 'unit', 'min_value', 'max_value')
-    search_fields = ('name', 'display_name')
-    list_filter = ('unit',)
-
+    list_filter = ('is_southern_hemisphere',)
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'code', 'is_southern_hemisphere')
+        }),
+        ('Geography', {
+            'fields': ('boundary',),
+            'classes': ('collapse',),
+        }),
+    )
 
 @admin.register(WeatherStation)
-class WeatherStationAdmin(GISModelAdmin):
-    list_display = ('name', 'station_id', 'country', 'is_active', 'date_installed', 'data_types_available', 'stack_info')
-    list_filter = ('is_active', 'country', 'has_temperature', 'has_precipitation', 'has_humidity', 'has_wind', 'has_air_quality', 'auto_process')
-    search_fields = ('name', 'station_id', 'description', 'country__name')
-    readonly_fields = ('created_at', 'updated_at', 'map_preview', 'stack_size', 'last_data_feed', 'stack_preview')
-    actions = ['process_data_stacks', 'clear_data_stacks']
+class WeatherStationAdmin(OSMGeoAdmin):
+    list_display = ('name', 'station_id', 'country', 'is_active', 'date_installed')
+    list_filter = ('is_active', 'country', 'date_installed')
+    search_fields = ('name', 'station_id', 'description')
+    readonly_fields = ('created_at', 'updated_at', 'stack_size')
     
     fieldsets = (
         (None, {
-            'fields': ('name', 'station_id', 'description', 'is_active')
+            'fields': ('name', 'station_id', 'description')
         }),
-        ('Geographic Information', {
-            'fields': ('location', 'map_preview', 'altitude', 'country', 'region')
+        ('Location', {
+            'fields': ('location', 'altitude', 'country', 'region')
         }),
-        ('Station Timeline', {
-            'fields': ('date_installed', 'date_decommissioned')
+        ('Status', {
+            'fields': ('is_active', 'date_installed', 'date_decommissioned')
         }),
-        ('Available Data Types', {
-            'fields': ('has_temperature', 'has_precipitation', 'has_humidity', 'has_wind', 
-                      'has_air_quality', 'has_soil_moisture', 'has_water_level')
+        ('Data Types Available', {
+            'fields': (
+                'has_temperature', 'has_precipitation', 'has_humidity',
+                'has_wind', 'has_air_quality', 'has_soil_moisture', 'has_water_level'
+            )
         }),
         ('Data Stack Configuration', {
-            'fields': ('max_stack_size', 'auto_process', 'process_threshold', 'stack_size', 'last_data_feed', 'stack_preview'),
-            'classes': ('collapse',),
-            'description': 'Configure how the station handles stacked data readings.'
+            'fields': ('max_stack_size', 'auto_process', 'process_threshold', 'stack_size')
         }),
-        ('Metadata', {
-            'fields': ('created_at', 'updated_at'),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at', 'last_data_feed'),
             'classes': ('collapse',)
         }),
     )
-    
-    def map_preview(self, obj):
-        if obj and obj.location:
-            return format_html(
-                '<img src="https://maps.googleapis.com/maps/api/staticmap?center={},{}&zoom=12&size=400x300&maptype=roadmap'
-                '&markers=color:red%7C{},{}&key=YOUR_API_KEY" width="400" height="300"/>',
-                obj.latitude, obj.longitude, obj.latitude, obj.longitude
-            )
-        return "No location data"
-    map_preview.short_description = "Map Preview"
-    
-    def data_types_available(self, obj):
-        return ", ".join(obj.available_data_types())
-    data_types_available.short_description = "Available Data"
     
     def stack_size(self, obj):
         """Display the current size of the data stack"""
@@ -181,35 +166,53 @@ class ClimateDataInline(admin.TabularInline):
 
 @admin.register(ClimateData)
 class ClimateDataAdmin(admin.ModelAdmin):
-    list_display = ('station', 'timestamp', 'year', 'month', 'temperature', 'humidity', 'precipitation', 'data_quality')
-    list_filter = ('data_quality', 'station', 'year', 'month', 'station__country')
-    search_fields = ('station__name', 'station__station_id')
+    list_display = ('station', 'timestamp', 'temperature', 'precipitation', 'data_quality')
+    list_filter = ('station', 'year', 'month', 'season', 'data_quality')
     date_hierarchy = 'timestamp'
-    readonly_fields = ('created_at', 'updated_at', 'year', 'month')
+    search_fields = ('station__name',)
+    readonly_fields = ('created_at', 'updated_at', 'year', 'month', 'season')
     
     fieldsets = (
         (None, {
-            'fields': ('station', 'timestamp', 'year', 'month', 'data_quality')
+            'fields': ('station', 'timestamp', 'data_quality')
         }),
-        ('Atmospheric Conditions', {
-            'fields': ('temperature', 'humidity', 'precipitation', 'air_quality_index', 'uv_index')
+        ('Auto-calculated Fields', {
+            'fields': ('year', 'month', 'season'),
+            'classes': ('collapse',)
         }),
-        ('Wind Data', {
-            'fields': ('wind_speed', 'wind_direction', 'barometric_pressure', 'cloud_cover')
+        ('Temperature & Humidity', {
+            'fields': ('temperature', 'humidity'),
         }),
-        ('Ground Conditions', {
-            'fields': ('soil_moisture', 'water_level')
+        ('Precipitation', {
+            'fields': ('precipitation',),
+        }),
+        ('Wind', {
+            'fields': ('wind_speed', 'wind_direction'),
+        }),
+        ('Air & Pressure', {
+            'fields': ('air_quality_index', 'barometric_pressure', 'uv_index'),
+        }),
+        ('Surface Conditions', {
+            'fields': ('cloud_cover', 'soil_moisture', 'water_level'),
         }),
         ('Metadata', {
             'fields': ('created_at', 'updated_at'),
             'classes': ('collapse',)
         }),
     )
-    
-    def get_queryset(self, request):
-        # Optimize queryset by prefetching related objects
-        return super().get_queryset(request).select_related('station', 'station__country')
 
+@admin.register(WeatherDataType)
+class WeatherDataTypeAdmin(admin.ModelAdmin):
+    list_display = ('name', 'display_name', 'unit')
+    search_fields = ('name', 'display_name')
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'display_name', 'description', 'icon')
+        }),
+        ('Validation', {
+            'fields': ('unit', 'min_value', 'max_value'),
+        }),
+    )
 
 @admin.register(DataExport)
 class DataExportAdmin(admin.ModelAdmin):
@@ -220,16 +223,13 @@ class DataExportAdmin(admin.ModelAdmin):
     
     fieldsets = (
         (None, {
-            'fields': ('user', 'export_format', 'status', 'include_metadata')
+            'fields': ('user', 'status', 'export_format', 'include_metadata')
         }),
-        ('Data Selection Filters', {
-            'fields': ('stations', 'country', 'data_types', 'min_data_quality')
+        ('Data Selection', {
+            'fields': ('stations', 'country', 'data_types', 'bounding_box')
         }),
-        ('Geographic Filters', {
-            'fields': ('bounding_box',),
-        }),
-        ('Time Filters', {
-            'fields': ('date_from', 'date_to', 'years')
+        ('Time Period', {
+            'fields': ('date_from', 'date_to', 'years', 'min_data_quality')
         }),
         ('Export Details', {
             'fields': ('file', 'error_message', 'created_at', 'updated_at', 'last_downloaded', 'download_count')
@@ -237,29 +237,34 @@ class DataExportAdmin(admin.ModelAdmin):
     )
     
     def country_filter(self, obj):
-        return obj.country.name if obj.country else "All Countries"
-    country_filter.short_description = "Country Filter"
-
+        """
+        Display the country name for a DataExport object
+        """
+        if obj.country:
+            return obj.country.name
+        return "-"
+    
+    country_filter.short_description = "Country"
 
 @admin.register(WeatherAlert)
-class WeatherAlertAdmin(GISModelAdmin):
+class WeatherAlertAdmin(admin.ModelAdmin):
     list_display = ('title', 'station', 'data_type', 'severity', 'status', 'created_at')
-    list_filter = ('severity', 'status', 'data_type', 'country')
+    list_filter = ('severity', 'status', 'data_type')
     search_fields = ('title', 'description', 'station__name')
     readonly_fields = ('created_at', 'updated_at')
     
     fieldsets = (
         (None, {
-            'fields': ('title', 'description', 'severity', 'status')
+            'fields': ('title', 'description', 'station', 'country', 'data_type')
         }),
         ('Alert Details', {
-            'fields': ('station', 'country', 'data_type', 'threshold_value', 'affected_area')
-        }),
-        ('Timing', {
-            'fields': ('created_at', 'updated_at', 'resolved_at')
+            'fields': ('threshold_value', 'severity', 'status', 'affected_area')
         }),
         ('Notifications', {
-            'fields': ('notify_email', 'notify_sms', 'notify_push'),
+            'fields': ('notify_email', 'notify_sms', 'notify_push')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at', 'resolved_at'),
             'classes': ('collapse',)
         }),
     )

@@ -16,9 +16,31 @@ class CsvImportForm(forms.Form):
     )
 
 class ProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'phone', 'location', 'role')
+    list_display = ('user', 'phone', 'location', 'role', 'get_formatted_role')
     search_fields = ('user__username', 'phone', 'location', 'role')
     list_filter = ('role',)
+    fieldsets = (
+        (None, {
+            'fields': ('user',)
+        }),
+        ('Role Information', {
+            'fields': ('role', 'department'),
+            'description': 'Assign appropriate role to determine dashboard access',
+        }),
+        ('Contact Information', {
+            'fields': ('phone', 'location', 'linkedin', 'scholar'),
+        }),
+        ('Research Information', {
+            'fields': ('research_interests',),
+        }),
+        ('Profile Image', {
+            'fields': ('profile_image',),
+        }),
+    )
+    
+    def get_formatted_role(self, obj):
+        return obj.get_role_display_name()
+    get_formatted_role.short_description = 'Role Type'
     
     # Add CSV import functionality
     change_list_template = 'admin/profiles/profile/change_list.html'

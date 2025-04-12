@@ -1,15 +1,27 @@
 import os
 import csv
 import io
+import os
+import csv
+import io
 from django import forms
 from django.core.validators import FileExtensionValidator
 from django.utils.translation import gettext_lazy as _
 from .models import Country, WeatherStation, WeatherDataType, ClimateData
 
+from django.core.validators import FileExtensionValidator
+from django.utils.translation import gettext_lazy as _
+from .models import Country, WeatherStation, WeatherDataType, ClimateData
+
+
 
 class BaseImportForm(forms.Form):
     """Base form with common fields and methods for all import forms"""
     IMPORT_CHOICES = [
+        ('stations', _('Weather Stations')),
+        ('climate_data', _('Climate Data')),
+        ('weather_types', _('Weather Data Types')),
+        ('alerts', _('Weather Alerts')),
         ('stations', _('Weather Stations')),
         ('climate_data', _('Climate Data')),
         ('weather_types', _('Weather Data Types')),
@@ -102,7 +114,94 @@ class BaseImportForm(forms.Form):
 
 class CSVUploadForm(BaseImportForm):
     """Form for uploading CSV files"""
+
+    country = forms.ModelChoiceField(
+        queryset=Country.objects.all(),
+        label=_("Country"),
+        required=False,
+        help_text=_("Optional: Specify the country for the data being imported."),
+        empty_label=_("All Countries")
+    )
+
+    overwrite_existing = forms.BooleanField(
+        required=False,
+        initial=False,
+        label=_("Overwrite Existing Records"),
+        help_text=_("If checked, existing records with the same ID will be updated.")
+    )
+
+    skip_errors = forms.BooleanField(
+        required=False,
+        initial=False,
+        label=_("Skip Errors"),
+        help_text=_("If checked, the import will continue even if some rows have errors.")
+    )
+
+    def get_required_headers(self):
+        """Return the required headers based on the import type"""
+        import_type = self.cleaned_data.get('import_type')
+
+        if import_type == 'stations':
+            return ['name', 'station_id', 'latitude', 'longitude']
+        elif import_type == 'climate_data':
+            return ['station_id', 'timestamp', 'temperature', 'humidity', 'precipitation']
+        elif import_type == 'weather_types':
+            return ['name', 'display_name', 'unit']
+        elif import_type == 'alerts':
+            return ['title', 'description', 'station_id', 'severity', 'data_type']
+
+        return []
+
+    def validate_headers(self, headers):
+        """Validate that the file has the required headers"""
+        required_headers = self.get_required_headers()
+        missing_headers = [h for h in required_headers if h not in headers]
+
+        if missing_headers:
+            raise forms.ValidationError(
+                _("Missing required headers: %(headers)s"),
+                params={'headers': ', '.join(missing_headers)}
+            )
+
+    def preview_data(self, file_obj, max_rows=5):
+        """Preview the first few rows of the file"""
+        if not file_obj:
+            return []
+
+        # Save current position to reset after preview
+        current_position = file_obj.tell()
+        file_obj.seek(0)
+
+        try:
+            # Try to read as CSV
+            reader = csv.DictReader(io.StringIO(file_obj.read().decode('utf-8')))
+            rows = [row for row in reader][:max_rows]
+
+            # Validate headers if we have rows
+            if rows and hasattr(reader, 'fieldnames'):
+                self.validate_headers(reader.fieldnames)
+
+            # Reset file pointer
+            file_obj.seek(current_position)
+            return rows
+        except Exception as e:
+            # Reset file pointer
+            file_obj.seek(current_position)
+            raise forms.ValidationError(f"Error previewing file: {str(e)}")
+
+
+class CSVUploadForm(BaseImportForm):
+    """Form for uploading CSV files"""
     IMPORT_CHOICES = [
+        ('stations', _('Weather Stations')),
+        ('climate_data', _('Climate Data')),
+        ('weather_data_types', _('Weather Data Types')),
+        ('countries', _('Countries')),
+    ]
+    
+    PROCESSING_CHOICES = [
+        ('direct', _('Direct Database Insert')),
+        ('stack', _('Add to Data Stack')),
         ('stations', _('Weather Stations')),
         ('climate_data', _('Climate Data')),
         ('weather_data_types', _('Weather Data Types')),
@@ -229,9 +328,7 @@ class FlashDriveImportForm(BaseImportForm):
                 params={'dirs': ', '.join(allowed_prefixes)}
             )
 
-        # Check if the path exists
-        if not os.path.exists(drive_path):
-            raise forms.ValidationError(_("The specified path does not exist."))
+        
 
         # Check if the path is a directory
         if not os.path.isdir(drive_path):

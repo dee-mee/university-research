@@ -235,8 +235,9 @@
 
     <!-- Main Content -->
     <div class="main-content">
-        <h1 class="mb-4">Dashboard</h1>
+        <h1 class="mb-4">Dashboard <small class="text-muted">({{ role_display }})</small></h1>
         
+        {% block dashboard_content %}
         <!-- Stats Cards -->
         <div class="row">
             <div class="col-md-3">
@@ -295,6 +296,7 @@
                 </a>
             </div>
         </div>
+        {% endblock %}
     </div>
 
     <!-- Bootstrap JS -->

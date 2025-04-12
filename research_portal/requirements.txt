@@ -46,3 +46,4 @@ urllib3==2.3.0
 whitenoise==6.9.0
 xlsxwriter
 cgi-tools
+prettytable
