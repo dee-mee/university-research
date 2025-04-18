@@ -133,22 +133,36 @@ class WeatherStationMap {
             windyContainer.parentNode.insertBefore(mapContainer, windyContainer.nextSibling);
         }
 
-        // Create the overlay map with transparent background
+        // Create the overlay map with transparent background - NO TILES
         this.map = L.map(this.options.mapContainerId, {
             center: this.options.initialView,
             zoom: this.options.initialZoom,
             zoomControl: true,
             attributionControl: false,
-            layers: [],
+            layers: [], // No base layers
             scrollWheelZoom: true
         });
 
-        // Make the map background transparent
-        document.querySelector(`#${this.options.mapContainerId} .leaflet-tile-pane`).style.opacity = '0';
-        document.querySelector(`#${this.options.mapContainerId} .leaflet-control-container`).style.zIndex = '2000';
+        // Make the map fully transparent
+        // These are the important changes to ensure transparency
+        setTimeout(() => {
+            const mapPane = document.querySelector(`#${this.options.mapContainerId} .leaflet-map-pane`);
+            if (mapPane) mapPane.style.background = 'transparent';
+            
+            const tilePane = document.querySelector(`#${this.options.mapContainerId} .leaflet-tile-pane`);
+            if (tilePane) tilePane.style.opacity = '0';
+            
+            const overlayPane = document.querySelector(`#${this.options.mapContainerId} .leaflet-overlay-pane`);
+            if (overlayPane) overlayPane.style.background = 'transparent';
+            
+            document.querySelector(`#${this.options.mapContainerId} .leaflet-control-container`).style.zIndex = '2000';
+        }, 100);
 
         // Sync view with Windy iframe (initial position)
         this.syncWithWindyMap();
+        
+        // Add opacity control for markers
+        this.addOpacityControl();
     }
 
     /**
@@ -401,18 +415,19 @@ class WeatherStationMap {
         const stationId = props.id || props.station_id || '';
         
         // Create custom icon for better visibility on Windy map
+        // Make markers smaller and more transparent by default
         const markerIcon = L.divIcon({
             className: 'custom-marker-icon',
             html: `<div class="marker-content ${props.is_active || props.status === 'active' ? 'active' : 'inactive'}">
                      <i class="fas fa-map-marker-alt"></i>
                      <div class="marker-label">${props.name || props.station_name || 'Station'}</div>
                    </div>`,
-            iconSize: [24, 36],
-            iconAnchor: [12, 36],
-            popupAnchor: [0, -36]
+            iconSize: [18, 28], // Smaller icon
+            iconAnchor: [9, 28],
+            popupAnchor: [0, -28]
         });
         
-        // Create marker
+        // Create marker with transparency
         const marker = L.marker([
             Array.isArray(coords) ? coords[1] : props.latitude, 
             Array.isArray(coords) ? coords[0] : props.longitude
@@ -420,7 +435,8 @@ class WeatherStationMap {
             title: props.name || props.station_name || 'Unnamed Station',
             alt: props.name || props.station_name || 'Unnamed Station',
             riseOnHover: true,
-            icon: markerIcon
+            icon: markerIcon,
+            opacity: 0.7 // Default transparency for all markers
         });
         
         // Create popup content
@@ -1031,38 +1047,44 @@ class WeatherStationMap {
             styleElement.id = 'weather-station-map-styles';
             styleElement.textContent = `
                 .custom-marker-icon {
-                    background: transparent;
-                    border: none;
+                    background: transparent !important;
+                    border: none !important;
                 }
                 .marker-content {
-                    color: #E03616;
-                    font-size: 16px;
+                    color: rgba(224, 54, 22, 0.8);
+                    font-size: 14px;
                     text-align: center;
-                    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+                    text-shadow: 0px 0px 3px white, 0px 0px 2px white;
+                    transition: all 0.3s ease;
+                }
+                .marker-content:hover {
+                    transform: scale(1.2);
+                    color: rgba(224, 54, 22, 1);
                 }
                 .marker-content.active {
-                    color: #E03616;
+                    color: rgba(224, 54, 22, 0.8);
                 }
                 .marker-content.inactive {
-                    color: #999;
+                    color: rgba(153, 153, 153, 0.6);
                 }
                 .marker-label {
                     position: absolute;
                     bottom: 100%;
                     left: 50%;
                     transform: translateX(-50%);
-                    background: rgba(0, 0, 0, 0.7);
+                    background: rgba(0, 0, 0, 0.5);
                     color: white;
-                    padding: 2px 6px;
-                    border-radius: 4px;
-                    font-size: 12px;
+                    padding: 1px 4px;
+                    border-radius: 3px;
+                    font-size: 10px;
                     white-space: nowrap;
                     pointer-events: none;
+                    transition: all 0.3s ease;
                 }
                 .info-container {
                     padding: 6px 8px;
                     background: white;
-                    background: rgba(255,255,255,0.9);
+                    background: rgba(255,255,255,0.85);
                     box-shadow: 0 0 15px rgba(0,0,0,0.2);
                     border-radius: 5px;
                     max-width: 300px;
@@ -1071,9 +1093,90 @@ class WeatherStationMap {
                     margin: 0 0 5px;
                     color: #555;
                 }
+                .opacity-control {
+                    width: 180px;
+                }
+                /* Make popups more transparent */
+                .leaflet-popup-content-wrapper {
+                    background: rgba(255, 255, 255, 0.85);
+                }
+                .leaflet-popup-tip {
+                    background: rgba(255, 255, 255, 0.85);
+                }
             `;
             document.head.appendChild(styleElement);
         }
+    }
+
+    // Add this new method to add opacity controls
+    /**
+     * Add opacity control for markers
+     */
+    addOpacityControl() {
+        const opacityControl = L.control({ position: 'topright' });
+        
+        opacityControl.onAdd = () => {
+            const div = L.DomUtil.create('div', 'info-container opacity-control');
+            div.innerHTML = `
+                <h4>Marker Opacity</h4>
+                <input type="range" id="marker-opacity" min="10" max="100" value="70" class="form-range">
+                <div class="d-flex justify-content-between">
+                    <span>Transparent</span>
+                    <span>Opaque</span>
+                </div>
+            `;
+            
+            // Prevent map interactions when using the slider
+            L.DomEvent.disableClickPropagation(div);
+            L.DomEvent.disableScrollPropagation(div);
+            
+            return div;
+        };
+        
+        opacityControl.addTo(this.map);
+        
+        // Add event listener after the control is added to DOM
+        setTimeout(() => {
+            const slider = document.getElementById('marker-opacity');
+            if (slider) {
+                slider.addEventListener('input', (e) => {
+                    const opacity = parseInt(e.target.value, 10) / 100;
+                    this.updateMarkersOpacity(opacity);
+                });
+            }
+        }, 100);
+    }
+
+    /**
+     * Update opacity of all markers
+     */
+    updateMarkersOpacity(opacity) {
+        // Update active markers
+        this.stationLayers.active.eachLayer(layer => {
+            layer.setOpacity(opacity);
+            // Also update the inner icon if it has one
+            const icon = layer.getElement();
+            if (icon) {
+                const markerContent = icon.querySelector('.marker-content');
+                if (markerContent) {
+                    markerContent.style.opacity = opacity;
+                }
+            }
+        });
+        
+        // Update inactive markers with reduced opacity
+        const inactiveOpacity = opacity * 0.5;
+        this.stationLayers.inactive.eachLayer(layer => {
+            layer.setOpacity(inactiveOpacity);
+            // Also update the inner icon
+            const icon = layer.getElement();
+            if (icon) {
+                const markerContent = icon.querySelector('.marker-content');
+                if (markerContent) {
+                    markerContent.style.opacity = inactiveOpacity;
+                }
+            }
+        });
     }
 }
 
