@@ -38,10 +38,25 @@ class WeatherStationMap {
      */
     bindEvents() {
         document.addEventListener('click', (e) => {
-            if (e.target && e.target.classList.contains('station-data-btn')) {
-                const stationId = e.target.getAttribute('data-station-id');
+            // Handle data button clicks
+            if (e.target && (e.target.classList.contains('station-data-btn') || 
+                              e.target.closest('.station-data-btn'))) {
+                const btn = e.target.classList.contains('station-data-btn') ? 
+                            e.target : e.target.closest('.station-data-btn');
+                const stationId = btn.getAttribute('data-station-id');
                 console.log("Loading data for station:", stationId);
                 this.loadStationData(stationId);
+            }
+            
+            // This is no longer needed as we're using direct links now
+            // But kept for backward compatibility
+            if (e.target && (e.target.classList.contains('station-stats-btn') || 
+                              e.target.closest('.station-stats-btn'))) {
+                const btn = e.target.classList.contains('station-stats-btn') ? 
+                            e.target : e.target.closest('.station-stats-btn');
+                const stationId = btn.getAttribute('data-station-id');
+                console.log("Navigating to statistics for station:", stationId);
+                window.location.href = `${this.apiBaseUrl}/maps/stations/${stationId}/statistics/`;
             }
         });
 
@@ -127,7 +142,7 @@ class WeatherStationMap {
             mapContainer.style.width = '100%';
             mapContainer.style.height = '100%';
             mapContainer.style.pointerEvents = 'auto';
-            mapContainer.style.zIndex = '1000';
+            mapContainer.style.zIndex = '1000'; // Keep at 1000, below navbar's 1500
             
             // Insert the overlay container right after the Windy iframe
             windyContainer.parentNode.insertBefore(mapContainer, windyContainer.nextSibling);
@@ -413,6 +428,7 @@ class WeatherStationMap {
         
         // Get station ID (could be in different formats)
         const stationId = props.id || props.station_id || '';
+        console.log("Creating marker for station:", stationId, props.name || props.station_name);
         
         // Create custom icon for better visibility on Windy map
         // Make markers smaller and more transparent by default
@@ -439,7 +455,7 @@ class WeatherStationMap {
             opacity: 0.7 // Default transparency for all markers
         });
         
-        // Create popup content
+        // Create popup content with VERY prominent buttons - FIX URL PATH
         const popupContent = `
             <div class="info-container">
                 <h4>${props.name || props.station_name || 'Unnamed Station'}</h4>
@@ -447,24 +463,34 @@ class WeatherStationMap {
                 <p><strong>Status:</strong> ${props.is_active || props.status === 'active' ? 'Active' : 'Inactive'}</p>
                 <p><strong>Altitude:</strong> ${props.altitude ? props.altitude + ' m' : 'N/A'}</p>
                 <p><strong>Installed:</strong> ${props.date_installed || props.installation_date || 'N/A'}</p>
-                <button class="btn btn-sm btn-primary station-data-btn" data-station-id="${stationId}">View Data</button>
-                <button class="btn btn-sm btn-outline-secondary" onclick="window.location.href='/maps/stations/${stationId}/statistics/'">
-                    Statistics
-                </button>
+                
+                <div class="button-container mt-3">
+                    <a href="${this.apiBaseUrl}/stations/${stationId}/statistics/" 
+                       class="btn btn-lg btn-success w-100 mb-2 station-stats-direct-link">
+                        <i class="fas fa-chart-bar me-1"></i> View Statistics
+                    </a>
+                    <button class="btn btn-sm btn-primary station-data-btn w-100" data-station-id="${stationId}">
+                        <i class="fas fa-chart-line me-1"></i> Show Latest Data
+                    </button>
+                </div>
             </div>
         `;
         
         // Bind popup to marker
-        marker.bindPopup(popupContent);
+        marker.bindPopup(popupContent, { 
+            minWidth: 200,
+            maxWidth: 300
+        });
         
-        // Add click event to load station data
+        // Add click event to open popup without automatically loading data
         marker.on('click', () => {
-            this.loadStationData(stationId);
+            console.log("Marker clicked for station:", stationId);
+            // Just let the popup open naturally - don't auto-load data
         });
         
         return marker;
     }
-    
+
     /**
      * Update the visibility of stations based on zoom level
      * For Windy overlay mode - hide station labels at lower zoom levels
@@ -493,6 +519,43 @@ class WeatherStationMap {
             return;
         }
         
+        // Get station info for popup location before making API call
+        const station = this.findStationById(stationId);
+        let popupLatLng;
+        let stationName = "Unknown Station";
+        
+        if (station) {
+            if (station.properties) {
+                stationName = station.properties.name || station.properties.station_name || "Unknown Station";
+                if (station.geometry && station.geometry.coordinates) {
+                    popupLatLng = [station.geometry.coordinates[1], station.geometry.coordinates[0]];
+                } else {
+                    popupLatLng = [station.properties.latitude || 0, station.properties.longitude || 0];
+                }
+            } else {
+                stationName = station.name || station.station_name || "Unknown Station";
+                popupLatLng = [station.latitude || 0, station.longitude || 0];
+            }
+        } else {
+            popupLatLng = this.map.getCenter();
+        }
+        
+        // Show loading message in popup
+        const loadingPopup = L.popup()
+            .setLatLng(popupLatLng)
+            .setContent(`
+                <div class="info-container">
+                    <h4>${stationName} - Loading Data</h4>
+                    <div class="text-center my-3">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                    <p class="text-center">Loading latest readings...</p>
+                </div>
+            `)
+            .openOn(this.map);
+        
         // Try to access station data using the correct API endpoint path
         const url = `${this.apiBaseUrl}/api/stations/${stationId}/data/`;
         console.log("Fetching station data from:", url);
@@ -518,29 +581,66 @@ class WeatherStationMap {
             })
             .then(response => response.json())
             .then(data => {
-                // Get station info for popup location
-                const station = this.findStationById(stationId);
-                let popupLatLng;
+                console.log("Station data response:", data);
                 
-                if (station) {
-                    if (station.geometry && station.geometry.coordinates) {
-                        popupLatLng = [station.geometry.coordinates[1], station.geometry.coordinates[0]];
-                    } else {
-                        popupLatLng = [station.latitude || 0, station.longitude || 0];
-                    }
+                // Check if data is empty (either empty array or empty object)
+                const isEmpty = 
+                    (Array.isArray(data) && data.length === 0) || 
+                    (data && typeof data === 'object' && Object.keys(data).length === 0) ||
+                    (!data);
+                    
+                if (isEmpty) {
+                    // Create content for when there's no data - FIX URL PATH
+                    const noDataContent = `
+                        <div class="info-container">
+                            <h4>${stationName}</h4>
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                No recent data available for this station.
+                            </div>
+                            
+                            <div class="button-container mt-3">
+                                <a href="${this.apiBaseUrl}/stations/${stationId}/statistics/" 
+                                   class="btn btn-lg btn-success w-100 mb-2 station-stats-direct-link">
+                                    <i class="fas fa-chart-bar me-1"></i> View Statistics
+                                </a>
+                                <a href="${this.apiBaseUrl}/stations/${stationId}/export/" 
+                                   class="btn btn-sm btn-secondary w-100">
+                                    <i class="fas fa-download me-1"></i> Export Data
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                    loadingPopup.setContent(noDataContent);
                 } else {
-                    popupLatLng = this.map.getCenter();
+                    // We have data, show it normally
+                    loadingPopup.setContent(this.createDataPopupContent(data, stationId));
                 }
-                
-                // Update the popup with the latest data
-                const popup = L.popup()
-                    .setLatLng(popupLatLng)
-                    .setContent(this.createDataPopupContent(data, stationId))
-                    .openOn(this.map);
             })
             .catch(error => {
                 console.error("Error loading station data:", error);
-                this.showError(`Failed to load data for station: ${error.message}`);
+                
+                // Show error in popup but keep it open - FIX URL PATH
+                const errorContent = `
+                    <div class="info-container">
+                        <h4>${stationName}</h4>
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            Error loading data: ${error.message}
+                        </div>
+                        
+                        <div class="button-container mt-3">
+                            <a href="${this.apiBaseUrl}/stations/${stationId}/statistics/" 
+                               class="btn btn-lg btn-success w-100 mb-2 station-stats-direct-link">
+                                <i class="fas fa-chart-bar me-1"></i> View Statistics
+                            </a>
+                            <button class="btn btn-sm btn-primary w-100" onclick="window.weatherMap.loadStationData('${stationId}')">
+                                <i class="fas fa-sync-alt me-1"></i> Try Again
+                            </button>
+                        </div>
+                    </div>
+                `;
+                loadingPopup.setContent(errorContent);
             });
     }
     
@@ -571,6 +671,7 @@ class WeatherStationMap {
         } else if (Array.isArray(data) && data.length > 0) {
             results = data;
         } else {
+            // This won't be called as we now handle empty data in loadStationData
             return `<div class="info-container"><p>No recent data available for this station.</p></div>`;
         }
         
@@ -579,6 +680,8 @@ class WeatherStationMap {
         const stationName = station ? 
             (station.properties ? station.properties.name : station.name) || 'Unknown Station' :
             latest.station_name || 'Unknown Station';
+        
+        console.log("Creating data popup for station:", stationId, stationName);
         
         return `
             <div class="info-container">
@@ -591,7 +694,17 @@ class WeatherStationMap {
                    ${latest.wind_direction !== null && latest.wind_direction !== undefined ? 'at ' + latest.wind_direction + '°' : ''}</p>
                 <p><strong>Air Quality:</strong> ${latest.air_quality_index !== null && latest.air_quality_index !== undefined ? latest.air_quality_index : 'N/A'}</p>
                 <p><strong>Data Quality:</strong> ${latest.data_quality || 'Good'}</p>
-                <button class="btn btn-sm btn-secondary" onclick="window.location.href='/maps/stations/${stationId}/statistics/'">View Statistics</button>
+                
+                <div class="button-container mt-3">
+                    <a href="${this.apiBaseUrl}/stations/${stationId}/statistics/" 
+                       class="btn btn-lg btn-success w-100 mb-2 station-stats-direct-link">
+                        <i class="fas fa-chart-bar me-1"></i> View Station Statistics
+                    </a>
+                    <a href="${this.apiBaseUrl}/stations/${stationId}/export/" 
+                       class="btn btn-sm btn-secondary w-100">
+                        <i class="fas fa-download me-1"></i> Export Data
+                    </a>
+                </div>
             </div>
         `;
     }
@@ -1102,6 +1215,15 @@ class WeatherStationMap {
                 }
                 .leaflet-popup-tip {
                     background: rgba(255, 255, 255, 0.85);
+                }
+                /* Enhanced popup styles for better visibility */
+                .leaflet-popup {
+                    z-index: 1100 !important; /* Make sure popups show above the map but below navbar */
+                }
+                
+                .leaflet-popup-content-wrapper {
+                    background: rgba(255, 255, 255, 0.95); /* More opaque background */
+                    box-shadow: 0 3px 14px rgba(0,0,0,0.3);
                 }
             `;
             document.head.appendChild(styleElement);

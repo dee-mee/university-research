@@ -1,4 +1,5 @@
 {% extends "profiles/dashboard.html" %}
+{% load static %}
 
 {% block dashboard_content %}
 <div class="dashboard-section">
@@ -54,4 +55,16 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+    // PhD dashboard-specific JavaScript
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize PhD dashboard components
+        const progressBars = document.querySelectorAll('.progress-bar');
+        // Add any PhD dashboard-specific functionality
+    });
+</script>
 {% endblock %}

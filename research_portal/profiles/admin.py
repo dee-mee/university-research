@@ -16,12 +16,16 @@ class CsvImportForm(forms.Form):
     )
 
 class ProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'phone', 'location', 'role', 'get_formatted_role')
-    search_fields = ('user__username', 'phone', 'location', 'role')
+    list_display = ('user', 'id_number', 'phone', 'location', 'role', 'get_formatted_role')
+    search_fields = ('user__username', 'id_number', 'phone', 'location', 'role')
     list_filter = ('role',)
     fieldsets = (
         (None, {
             'fields': ('user',)
+        }),
+        ('Authentication Information', {
+            'fields': ('id_number',),
+            'description': 'ID Number is used for login authentication and must be unique',
         }),
         ('Role Information', {
             'fields': ('role', 'department'),
@@ -69,7 +73,7 @@ class ProfileAdmin(admin.ModelAdmin):
                 
                 # Process each row
                 for row in csv.reader(io_string, delimiter=',', quotechar='"'):
-                    if len(row) < 5:  # Check basic length
+                    if len(row) < 6:  # Check basic length (including id_number)
                         continue
                     
                     # Create or update profile
@@ -81,6 +85,7 @@ class ProfileAdmin(admin.ModelAdmin):
                         profile.phone = row[1]
                         profile.location = row[2]
                         profile.role = row[3]
+                        profile.id_number = row[4]  # Add id_number field
                         profile.save()
                         
                         if created:

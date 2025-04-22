@@ -16,6 +16,8 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse
 from django.core.serializers import serialize
+from django.contrib import messages
+from django.urls import reverse
 import csv
 import json
 
@@ -268,6 +270,10 @@ def edit_profile(request):
             try:
                 # Update profile
                 profile = profile_form.save(commit=False)
+                
+                # Preserve the original role - this ensures the role cannot be changed
+                profile.role = Profile.objects.get(user=request.user).role
+                
                 profile.user = request.user
                 profile.save()
 
@@ -332,3 +338,31 @@ def edit_profile(request):
             'last_name': request.user.last_name
         }
     })
+
+@login_required
+def update_profile_image(request):
+    """
+    Handle profile image updates
+    """
+    if request.method == 'POST' and request.FILES.get('profile_image'):
+        try:
+            profile = request.user.profile
+            # Delete old image if it exists
+            if profile.profile_image:
+                # Don't delete the file if it's a default image that might be used elsewhere
+                if not 'default' in profile.profile_image.name:
+                    try:
+                        profile.profile_image.delete()
+                    except Exception as e:
+                        logger.error(f"Error deleting old profile image: {e}")
+            
+            # Save new image
+            profile.profile_image = request.FILES['profile_image']
+            profile.save()
+            
+            messages.success(request, 'Profile image updated successfully!')
+        except Exception as e:
+            logger.error(f"Error updating profile image: {e}")
+            messages.error(request, f"Error updating profile image: {str(e)}")
+    
+    return redirect('profiles:profile')
