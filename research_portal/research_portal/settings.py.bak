@@ -58,13 +58,12 @@ INSTALLED_APPS = [
     'django.contrib.gis',
     'rest_framework_gis',
     'django_filters',
-    'data_repository',  # Add the data_repository app here
+    'data_repository'
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
-    'research_portal.middleware.CGICompatibilityMiddleware',  # Add this line before other middleware
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Add this line
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -211,6 +210,3 @@ REST_FRAMEWORK = {
         'rest_framework.filters.OrderingFilter',
     ],
 }
-
-# Add base URL for use with different environments
-BASE_URL = os.environ.get('BASE_URL', 'http://127.0.0.1:8000')
