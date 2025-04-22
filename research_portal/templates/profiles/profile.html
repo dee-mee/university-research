@@ -1,327 +1,351 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Research Portal - Profile</title>
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- Custom CSS -->
-    <style>
-        :root {
-            --primary-color: #0d5dc5;
-            --secondary-color: #6c757d;
-            --background-gradient: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        }
+{% extends "base.html" %}
+{% load static %}
 
-        body {
-            background: var(--background-gradient);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
+{% block title %}Research Portal - Profile{% endblock %}
 
+{% block content %}
+<style>
+    :root {
+        --primary-color: #0d5dc5;
+        --secondary-color: #6c757d;
+        --background-gradient: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    }
+
+    body {
+        background: var(--background-gradient);
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .sidebar {
+        width: 280px;
+        background: #eaba49;
+        box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+        position: fixed;
+        height: 100vh;
+        padding: 20px;
+        overflow-y: auto;
+    }
+
+    .sidebar-header {
+        text-align: center;
+        padding: 20px 0;
+        border-bottom: 1px solid #eee;
+    }
+
+    .sidebar-header img {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin-bottom: 15px;
+    }
+
+    .nav-link {
+        display: flex;
+        align-items: center;
+        padding: 12px 15px;
+        color: var(--secondary-color);
+        text-decoration: none;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .nav-link:hover {
+        background: #f8f9fa;
+        color: var(--primary-color);
+    }
+
+    .nav-link i {
+        margin-right: 10px;
+        width: 24px;
+        text-align: center;
+    }
+
+    .main-content {
+        margin-left: 280px;
+        padding: 20px;
+    }
+
+    .profile-section {
+        background: rgb(245, 200, 38);
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        
+    }
+
+    .profile-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .profile-info {
+        margin-top: 20px;
+    }
+
+    .profile-tabs {
+        margin-bottom: 20px;
+        background-color: #eaba49;
+    }
+
+    .tab-content {
+        padding: 20px;
+        background: rgb(247, 190, 35);
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .edit-profile-btn {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: var(--primary-color);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 5px;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        transition: transform 0.3s ease;
+    }
+
+    .edit-profile-btn:hover {
+        transform: translateY(-2px);
+    }
+
+    @media (max-width: 768px) {
         .sidebar {
-            width: 280px;
-            background: #ffffff;
-            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-            position: fixed;
-            height: 100vh;
-            padding: 20px;
-            overflow-y: auto;
-        }
-
-        .sidebar-header {
-            text-align: center;
-            padding: 20px 0;
-            border-bottom: 1px solid #eee;
-        }
-
-        .sidebar-header img {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            object-fit: cover;
-            margin-bottom: 15px;
-        }
-
-        .nav-link {
-            display: flex;
-            align-items: center;
-            padding: 12px 15px;
-            color: var(--secondary-color);
-            text-decoration: none;
-            border-radius: 8px;
-            transition: all 0.3s ease;
-        }
-
-        .nav-link:hover {
-            background: #f8f9fa;
-            color: var(--primary-color);
-        }
-
-        .nav-link i {
-            margin-right: 10px;
-            width: 24px;
-            text-align: center;
+            width: 100%;
+            position: static;
+            height: auto;
         }
 
         .main-content {
-            margin-left: 280px;
-            padding: 20px;
-        }
-
-        .profile-section {
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .profile-header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .profile-header img {
-            width: 200px;
-            height: 200px;
-            border-radius: 50%;
-            object-fit: cover;
-            margin-bottom: 20px;
-            border: 4px solid var(--primary-color);
-        }
-
-        .profile-info {
-            margin-top: 20px;
-        }
-
-        .profile-tabs {
-            margin-bottom: 20px;
-        }
-
-        .tab-content {
-            padding: 20px;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-left: 0;
         }
 
         .edit-profile-btn {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: var(--primary-color);
-            color: white;
-            padding: 12px 24px;
-            border-radius: 5px;
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-            transition: transform 0.3s ease;
+            position: static;
+            margin-top: 20px;
         }
+    }
 
-        .edit-profile-btn:hover {
-            transform: translateY(-2px);
-        }
+    .profile-image-container {
+        position: relative;
+        display: inline-block;
+        margin-bottom: 20px;
+    }
 
-        @media (max-width: 768px) {
-            .sidebar {
-                width: 100%;
-                position: static;
-                height: auto;
-            }
+    .profile-image-container img {
+        width: 200px;
+        height: 200px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid var(--primary-color);
+    }
 
-            .main-content {
-                margin-left: 0;
-            }
+    .image-upload-overlay {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        background-color: var(--primary-color);
+        color: white;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
 
-            .edit-profile-btn {
-                position: static;
-                margin-top: 20px;
-            }
-        }
-    </style>
-</head>
-<body>
-    <!-- Navigation Bar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="{% url 'research:index' %}">Research Portal</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'research:index' %}">Home</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'research:about' %}">About</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'repository:dataset_list' %}">Datasets</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'maps:map' %}">Maps</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'research:contact' %}">Contact</a>
-                    </li>
-                </ul>
-                <ul class="navbar-nav">
-                    {% if user.is_authenticated %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'profiles:dashboard' %}">Dashboard</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'profiles:profile' %}">Profile</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'profiles:logout' %}">Logout</a>
-                        </li>
-                    {% else %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'profiles:login' %}">Login</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'profiles:register' %}">Register</a>
-                        </li>
-                    {% endif %}
-                </ul>
-            </div>
-        </div>
-    </nav>
+    .image-upload-overlay:hover {
+        background-color: #0b4da2;
+        transform: scale(1.1);
+    }
 
-    <!-- Sidebar -->
-    <div class="sidebar">
-        <div class="sidebar-header">
+    .image-upload-form {
+        display: none;
+    }
+</style>
+
+<!-- Sidebar -->
+<div class="sidebar">
+    <div class="sidebar-header">
+        {% if user.profile.profile_image %}
+            <img src="{{ user.profile.profile_image.url }}" alt="Profile Picture">
+        {% else %}
             <img src="https://via.placeholder.com/120" alt="Profile Picture">
-            <h3>{{ user.get_full_name }}</h3>
-            <p>{{ user.email }}</p>
-        </div>
-
-        <div class="sidebar-menu">
-            <a href="{% url 'profiles:dashboard' %}" class="nav-link">
-                <i class="fas fa-tachometer-alt"></i>
-                Dashboard
-            </a>
-            <a href="{% url 'profiles:profile' %}" class="nav-link active">
-                <i class="fas fa-user"></i>
-                Profile
-            </a>
-            <a href="{% url 'repository:dataset_list' %}" class="nav-link">
-                <i class="fas fa-database"></i>
-                Datasets
-            </a>
-            <a href="{% url 'maps:map' %}" class="nav-link">
-                <i class="fas fa-map"></i>
-                Maps
-            </a>
-            <a href="{% url 'profiles:settings' %}" class="nav-link">
-                <i class="fas fa-cog"></i>
-                Settings
-            </a>
-            <a href="{% url 'profiles:notifications' %}" class="nav-link">
-                <i class="fas fa-bell"></i>
-                Notifications
-            </a>
-            <a href="{% url 'profiles:privacy' %}" class="nav-link">
-                <i class="fas fa-lock"></i>
-                Privacy
-            </a>
-            <a href="{% url 'profiles:logout' %}" class="nav-link">
-                <i class="fas fa-sign-out-alt"></i>
-                Logout
-            </a>
-        </div>
+        {% endif %}
+        <h3>{{ user.get_full_name }}</h3>
+        <p>{{ user.email }}</p>
     </div>
 
-    <!-- Main Content -->
-    <div class="main-content">
-        <h1 class="mb-4">Profile</h1>
+    <div class="sidebar-menu">
+        <a href="{% url 'profiles:dashboard' %}" class="nav-link">
+            <i class="fas fa-tachometer-alt"></i>
+            Dashboard
+        </a>
+        <a href="{% url 'profiles:profile' %}" class="nav-link active">
+            <i class="fas fa-user"></i>
+            Profile
+        </a>
+        <a href="{% url 'repository:dataset_list' %}" class="nav-link">
+            <i class="fas fa-database"></i>
+            Datasets
+        </a>
+        <a href="{% url 'maps:map' %}" class="nav-link">
+            <i class="fas fa-map"></i>
+            Maps
+        </a>
+        <a href="{% url 'profiles:settings' %}" class="nav-link">
+            <i class="fas fa-cog"></i>
+            Settings
+        </a>
+        <a href="{% url 'profiles:notifications' %}" class="nav-link">
+            <i class="fas fa-bell"></i>
+            Notifications
+        </a>
+        <a href="{% url 'profiles:privacy' %}" class="nav-link">
+            <i class="fas fa-lock"></i>
+            Privacy
+        </a>
+        <a href="{% url 'profiles:logout' %}" class="nav-link">
+            <i class="fas fa-sign-out-alt"></i>
+            Logout
+        </a>
+    </div>
+</div>
+
+<!-- Main Content -->
+<div class="main-content">
+    <h1 class="mb-4">Profile</h1>
+    
+    <!-- Profile Header -->
+    <div class="profile-header">
+        <div class="profile-image-container">
+            {% if user.profile.profile_image %}
+                <img src="{{ user.profile.profile_image.url }}" alt="Profile Picture" id="profile-image">
+            {% else %}
+                <img src="https://via.placeholder.com/200" alt="Profile Picture" id="profile-image">
+            {% endif %}
+            
+            <!-- Image upload overlay -->
+            <div class="image-upload-overlay" onclick="document.getElementById('profile-image-upload').click()">
+                <i class="fas fa-camera"></i>
+            </div>
+            
+            <!-- Hidden form for image upload -->
+            <form id="profile-image-form" class="image-upload-form" method="post" action="{% url 'profiles:update_profile_image' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="file" id="profile-image-upload" name="profile_image" accept="image/*" onchange="submitProfileImage()">
+            </form>
+        </div>
         
-        <!-- Profile Header -->
-        <div class="profile-header">
-            <img src="https://via.placeholder.com/200" alt="Profile Picture">
-            <div class="profile-info">
-                <h2>{{ user.get_full_name }}</h2>
-                <p class="text-muted">{{ user.email }}</p>
-            </div>
+        <div class="profile-info">
+            <h2>{{ user.get_full_name }}</h2>
+            <p class="text-muted">{{ user.email }}</p>
+            {% if user.profile.role %}
+                <p class="badge bg-primary">{{ user.profile.get_role_display_name }}</p>
+            {% endif %}
         </div>
+    </div>
 
-        <!-- Profile Tabs -->
-        <div class="profile-tabs">
-            <ul class="nav nav-tabs" id="profileTabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab" aria-controls="overview" aria-selected="true">
-                        Overview
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="activity-tab" data-bs-toggle="tab" data-bs-target="#activity" type="button" role="tab" aria-controls="activity" aria-selected="false">
-                        Activity
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="datasets-tab" data-bs-toggle="tab" data-bs-target="#datasets" type="button" role="tab" aria-controls="datasets" aria-selected="false">
-                        Datasets
-                    </button>
-                </li>
-            </ul>
+    <!-- Profile Tabs -->
+    <div class="profile-tabs">
+        <ul class="nav nav-tabs" id="profileTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab" aria-controls="overview" aria-selected="true">
+                    Overview
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="activity-tab" data-bs-toggle="tab" data-bs-target="#activity" type="button" role="tab" aria-controls="activity" aria-selected="false">
+                    Activity
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="datasets-tab" data-bs-toggle="tab" data-bs-target="#datasets" type="button" role="tab" aria-controls="datasets" aria-selected="false">
+                    Datasets
+                </button>
+            </li>
+        </ul>
 
-            <div class="tab-content" id="profileTabContent">
-                <!-- Overview Tab -->
-                <div class="tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="overview-tab">
-                    <div class="profile-section">
-                        <h3>Personal Information</h3>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <p><strong>Full Name:</strong> {{ user.get_full_name }}</p>
-                                <p><strong>Email:</strong> {{ user.email }}</p>
-                                <p><strong>Joined:</strong> {{ user.date_joined|date:"F j, Y" }}</p>
-                            </div>
-                            <div class="col-md-6">
-                                <p><strong>Role:</strong> {{ user.profile.role }}</p>
-                                <p><strong>Department:</strong> {{ user.profile.department }}</p>
-                                <p><strong>Research Interests:</strong> {{ user.profile.research_interests }}</p>
-                            </div>
+        <div class="tab-content" id="profileTabContent">
+            <!-- Overview Tab -->
+            <div class="tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="overview-tab">
+                <div class="profile-section">
+                    <h3>Personal Information</h3>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Full Name:</strong> {{ user.get_full_name }}</p>
+                            <p><strong>Email:</strong> {{ user.email }}</p>
+                            <p><strong>Joined:</strong> {{ user.date_joined|date:"F j, Y" }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Role:</strong> {{ user.profile.get_role_display_name }}</p>
+                            <p><strong>Department:</strong> {{ user.profile.department }}</p>
+                            <p><strong>Research Interests:</strong> {{ user.profile.research_interests }}</p>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Activity Tab -->
-                <div class="tab-pane fade" id="activity" role="tabpanel" aria-labelledby="activity-tab">
-                    <div class="profile-section">
-                        <h3>Recent Activity</h3>
-                        <div class="activity-list">
-                            <!-- Activity items will be populated by JavaScript -->
-                        </div>
+            <!-- Activity Tab -->
+            <div class="tab-pane fade" id="activity" role="tabpanel" aria-labelledby="activity-tab">
+                <div class="profile-section">
+                    <h3>Recent Activity</h3>
+                    <div class="activity-list">
+                        <!-- Activity items will be populated by JavaScript -->
                     </div>
                 </div>
+            </div>
 
-                <!-- Datasets Tab -->
-                <div class="tab-pane fade" id="datasets" role="tabpanel" aria-labelledby="datasets-tab">
-                    <div class="profile-section">
-                        <h3>My Datasets</h3>
-                        <div class="datasets-list">
-                            <!-- Dataset items will be populated by JavaScript -->
-                        </div>
+            <!-- Datasets Tab -->
+            <div class="tab-pane fade" id="datasets" role="tabpanel" aria-labelledby="datasets-tab">
+                <div class="profile-section">
+                    <h3>My Datasets</h3>
+                    <div class="datasets-list">
+                        <!-- Dataset items will be populated by JavaScript -->
                     </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Edit Profile Button -->
-    <a href="{% url 'profiles:edit_profile' %}" class="edit-profile-btn">
-        <i class="fas fa-edit"></i> Edit Profile
-    </a>
+<!-- Edit Profile Button -->
+<a href="{% url 'profiles:edit_profile' %}" class="edit-profile-btn">
+    <i class="fas fa-edit"></i> Edit Profile
+</a>
+{% endblock %}
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+{% block extra_js %}
+<!-- Custom JavaScript for profile image handling -->
+<script>
+    function submitProfileImage() {
+        // Show loading state
+        document.getElementById('profile-image').style.opacity = "0.5";
+        
+        // Submit the form
+        document.getElementById('profile-image-form').submit();
+    }
+    
+    // Preview image before upload
+    document.getElementById('profile-image-upload').addEventListener('change', function(e) {
+        if (e.target.files && e.target.files[0]) {
+            const reader = new FileReader();
+            
+            reader.onload = function(event) {
+                document.getElementById('profile-image').src = event.target.result;
+            }
+            
+            reader.readAsDataURL(e.target.files[0]);
+        }
+    });
+</script>
+{% endblock %}
