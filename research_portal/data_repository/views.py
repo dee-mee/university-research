@@ -5,12 +5,32 @@ from django.views.generic import ListView, DetailView, CreateView, UpdateView
 from django.urls import reverse_lazy
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse, FileResponse
-from django.db.models import Q, Sum
-from django.utils import timezone
+from django.views.decorators.http import require_GET
+from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from .models import Dataset, DatasetCategory, DatasetVersion, DatasetAccess, DatasetDownload, StackedDataset, StackedDatasetItem
-from .forms import DatasetForm, DatasetVersionForm, DatasetAccessForm, StackedDatasetForm, StackedDatasetItemForm
+from django.db.models import Q
+
 import json
+import os
+
+# Import the models
+from .models import (
+    Dataset, 
+    DatasetCategory, 
+    DatasetVersion, 
+    DatasetAccess,
+    DatasetDownload,
+    StackedDataset,
+    StackedDatasetItem
+)
+
+# Import the forms (assuming these are defined elsewhere)
+from .forms import (
+    DatasetForm, 
+    DatasetVersionForm, 
+    StackedDatasetForm,
+    StackedDatasetItemForm
+)
 
 class DatasetListView(ListView):
     model = Dataset
@@ -562,3 +582,144 @@ def create_stack_from_selection(request):
         
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+@require_GET
+def get_time_series_data(request, version_id):
+    """API endpoint to retrieve time series data for visualization"""
+    try:
+        # Get the dataset version
+        version = DatasetVersion.objects.get(id=version_id)
+        
+        # Check if user has access to this dataset
+        # Instead of automatically redirecting to login, return a proper JSON response
+        if not request.user.is_authenticated:
+            # For datasets that require login
+            dataset_status = getattr(version.dataset, 'status', 'private')
+            if dataset_status != 'published':
+                return JsonResponse({'error': 'Authentication required'}, status=401)
+        
+        # If we get here, either the user is authenticated or the dataset is public
+        
+        # Extract time series data from the dataset file
+        result = {}
+        
+        # Check file format and metadata
+        if not version.file_path:
+            return JsonResponse({'error': 'No file available'}, status=404)
+            
+        file_format = version.metadata.get('format', '').lower() if version.metadata else ''
+        file_path = version.file_path.path
+        
+        if file_format == 'json' or file_path.lower().endswith('.json'):
+            # Read JSON file
+            try:
+                with open(file_path, 'r') as f:
+                    file_data = json.load(f)
+                    
+                # Extract data from our JSON format
+                if 'data' in file_data and isinstance(file_data['data'], dict):
+                    for variable, data in file_data['data'].items():
+                        if 'times' in data and 'values' in data:
+                            result[variable] = {
+                                'times': data['times'],
+                                'values': data['values'],
+                            }
+            except Exception as e:
+                return JsonResponse({'error': f'Error reading JSON data: {str(e)}'}, status=500)
+                
+        elif file_format == 'csv' or file_path.lower().endswith('.csv'):
+            # Read CSV file
+            try:
+                import pandas as pd
+                df = pd.read_csv(file_path)
+                
+                # Extract data from columns (assuming first column is date/time)
+                date_col = df.columns[0]
+                for column in df.columns[1:]:  # Skip the date column
+                    result[column] = {
+                        'times': df[date_col].tolist(),
+                        'values': df[column].tolist()
+                    }
+            except Exception as e:
+                return JsonResponse({'error': f'Error reading CSV data: {str(e)}'}, status=500)
+                
+        elif file_format == 'netcdf' or file_path.lower().endswith('.nc'):
+            # Read NetCDF file
+            try:
+                import netCDF4 as nc
+                import numpy as np
+                from datetime import datetime, timedelta
+                
+                with nc.Dataset(file_path, 'r') as nc_data:
+                    # Get time variable and units
+                    time_var = nc_data.variables.get('time')
+                    if time_var is None:
+                        for var_name in nc_data.variables:
+                            if 'time' in var_name.lower():
+                                time_var = nc_data.variables[var_name]
+                                break
+                    
+                    # Convert time to datetime objects
+                    if time_var is not None:
+                        time_units = time_var.units
+                        calendar = getattr(time_var, 'calendar', 'standard')
+                        
+                        # Extract reference date from units (e.g., "days since 2000-01-01")
+                        try:
+                            units_parts = time_units.split('since')
+                            if len(units_parts) > 1:
+                                ref_date_str = units_parts[1].strip()
+                                ref_date = nc.num2date(0, time_units, calendar)
+                                
+                                times = nc.num2date(time_var[:], time_units, calendar)
+                                time_strings = [t.isoformat() for t in times]
+                                
+                                # For each variable, extract data
+                                for var_name, variable in nc_data.variables.items():
+                                    # Skip non-data variables (like dimensions)
+                                    if var_name != 'time' and len(variable.shape) > 0:
+                                        # Only include variables with time dimension
+                                        if variable.shape[0] == len(time_strings):
+                                            # Convert to float for JSON serialization 
+                                            values = variable[:].data.tolist() if hasattr(variable[:], 'data') else variable[:].tolist()
+                                            result[var_name] = {
+                                                'times': time_strings,
+                                                'values': values
+                                            }
+                        except Exception as e:
+                            # If time extraction fails, just read raw data
+                            for var_name, variable in nc_data.variables.items():
+                                if var_name != 'time' and len(variable.shape) > 0:
+                                    values = variable[:].data.tolist() if hasattr(variable[:], 'data') else variable[:].tolist()
+                                    pseudo_times = list(range(len(values)))
+                                    result[var_name] = {
+                                        'times': pseudo_times,
+                                        'values': values
+                                    }
+            except Exception as e:
+                return JsonResponse({'error': f'Error reading NetCDF data: {str(e)}'}, status=500)
+                
+        # If no data was extracted, return an empty object with error message
+        if not result:
+            return JsonResponse({'error': 'No time series data found in file'}, status=404)
+            
+        return JsonResponse(result)
+    
+    except DatasetVersion.DoesNotExist:
+        return JsonResponse({'error': 'Dataset version not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+# Function to check if user has access to a dataset
+def has_access_to_dataset(user, dataset):
+    # Public datasets are accessible to all authenticated users
+    if dataset.status == 'published':
+        return True
+    # Owner always has access
+    if dataset.created_by == user:
+        return True
+    # Admin always has access
+    if user.is_staff:
+        return True
+    # Check for specific access grants
+    return DatasetAccess.objects.filter(dataset=dataset, user=user).exists()
