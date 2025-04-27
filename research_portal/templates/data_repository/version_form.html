@@ -7,6 +7,16 @@
     <h1>Upload New Version</h1>
     <p class="dataset-title">Dataset: {{ dataset.title }}</p>
     
+    {% if messages %}
+    <div class="alert alert-info message-container">
+        {% for message in messages %}
+        <div class="{% if message.tags %}alert alert-{{ message.tags }}{% else %}alert alert-info{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
         
@@ -54,10 +64,52 @@
             <p class="help-text">Optional metadata specific to this version</p>
         </div>
         
+        <!-- Time Series Metadata -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">Time Series Configuration</h5>
+            </div>
+            <div class="card-body">
+                <div class="form-group">
+                    <label for="{{ form.time_start.id_for_label }}">Start Date</label>
+                    {{ form.time_start }}
+                    {% if form.time_start.errors %}
+                    <div class="error-message">{{ form.time_start.errors }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.time_end.id_for_label }}">End Date</label>
+                    {{ form.time_end }}
+                    {% if form.time_end.errors %}
+                    <div class="error-message">{{ form.time_end.errors }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.time_resolution.id_for_label }}">Time Resolution</label>
+                    {{ form.time_resolution }}
+                    {% if form.time_resolution.errors %}
+                    <div class="error-message">{{ form.time_resolution.errors }}</div>
+                    {% endif %}
+                    <p class="help-text">Specify the time resolution (e.g., daily, monthly, yearly)</p>
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.variables.id_for_label }}">Variables (comma-separated)</label>
+                    {{ form.variables }}
+                    {% if form.variables.errors %}
+                    <div class="error-message">{{ form.variables.errors }}</div>
+                    {% endif %}
+                    <p class="help-text">Specify the variables included in this dataset</p>
+                </div>
+            </div>
+        </div>
+        
         <div class="form-actions">
             <button type="submit" class="submit-button">Upload Version</button>
             <a href="{% url 'repository:dataset_detail' dataset.slug %}" class="cancel-button">Cancel</a>
         </div>
     </form>
 </div>
-{% endblock %} 
+{% endblock %}

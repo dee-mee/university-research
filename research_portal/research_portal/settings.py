@@ -32,13 +32,15 @@ DEBUG = True
 ALLOWED_HOSTS = ['university-research.onrender.com', 'localhost', '127.0.0.1']
 CORS_ALLOWED_ORIGINS = [
     "https://university-research.onrender.com",
-    "http://localhost:5000",
+    "http://localhost:8000",
     "http://127.0.0.1:8000",
+    
 ]     
 CSRF_TRUSTED_ORIGINS = [
     "https://university-research.onrender.com",
-    "http://localhost:5000",
+    "http://localhost:8000",
     "http://127.0.0.1:8000",
+    
 ] 
 
 

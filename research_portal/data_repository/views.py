@@ -304,12 +304,15 @@ def dataset_download(request, dataset_id, version_id=None):
 def dataset_create(request):
     """View for creating a new dataset."""
     if request.method == 'POST':
-        form = DatasetForm(request.POST)
+        form = DatasetForm(request.POST, request.FILES)
         if form.is_valid():
             dataset = form.save(commit=False)
             dataset.created_by = request.user
             dataset.save()
+            messages.success(request, f'Dataset "{dataset.title}" was successfully created.')
             return redirect('repository:dataset_detail', dataset_id=dataset.id)
+        else:
+            messages.error(request, 'There was an error creating your dataset. Please check the form and try again.')
     else:
         form = DatasetForm()
     
@@ -320,6 +323,7 @@ def version_create(request, dataset_id):
     """View for creating a new version of a dataset."""
     dataset = get_object_or_404(Dataset, id=dataset_id)
     if request.user != dataset.created_by:
+        messages.error(request, 'You do not have permission to add versions to this dataset.')
         return HttpResponse("Access denied", status=403)
     
     if request.method == 'POST':
@@ -327,14 +331,17 @@ def version_create(request, dataset_id):
         if form.is_valid():
             version = form.save(commit=False)
             version.dataset = dataset
-            version.save()
+            version.created_by = request.user
             
             # Update current version
             dataset.versions.filter(is_current=True).update(is_current=False)
             version.is_current = True
             version.save()
             
+            messages.success(request, f'Version {version.version_number} was successfully uploaded.')
             return redirect('repository:dataset_detail', dataset_id=dataset.id)
+        else:
+            messages.error(request, 'There was an error uploading your dataset version. Please check the form and try again.')
     else:
         form = DatasetVersionForm()
     
@@ -360,3 +367,198 @@ def get_dataset_details(request, dataset_id):
         } if current_version else None,
     }
     return JsonResponse(data)
+
+def dataset_timeseries(request, dataset_id, variable):
+    """API endpoint to get time series data for a specific variable of a dataset."""
+    dataset = get_object_or_404(Dataset, id=dataset_id)
+    current_version = dataset.versions.filter(is_current=True).first()
+    
+    if not current_version or not current_version.has_time_series:
+        return JsonResponse({'error': 'No time series data available for this dataset'}, status=404)
+    
+    # Get time series data for the specified variable
+    time_series_data = current_version.get_time_series_data(variable)
+    
+    if not time_series_data:
+        return JsonResponse({'error': f'No data available for variable {variable}'}, status=404)
+    
+    # Create response with different time aggregations
+    response_data = {
+        'dataset_id': dataset_id,
+        'variable': variable,
+        'version': current_version.version_number,
+        'time_resolution': current_version.time_resolution,
+        'time_start': current_version.time_start,
+        'time_end': current_version.time_end,
+        'data': time_series_data
+    }
+    
+    return JsonResponse(response_data)
+
+def api_dataset_timeseries(request, dataset_id):
+    """API endpoint to get time series data for all variables of a dataset."""
+    dataset = get_object_or_404(Dataset, id=dataset_id)
+    current_version = dataset.versions.filter(is_current=True).first()
+    
+    if not current_version or not current_version.has_time_series:
+        return JsonResponse({'error': 'No time series data available for this dataset'}, status=404)
+    
+    # Get available variables
+    variables = current_version.variables
+    
+    if not variables:
+        return JsonResponse({'error': 'No variables available for this dataset'}, status=404)
+    
+    # Get time series data for all variables
+    time_series_data = {}
+    for variable in variables:
+        variable_data = current_version.get_time_series_data(variable)
+        if variable_data:
+            time_series_data[variable] = {
+                'all': variable_data,
+                # You can add more aggregations here if needed
+            }
+    
+    response_data = {
+        'dataset_id': dataset_id,
+        'version': current_version.version_number,
+        'time_resolution': current_version.time_resolution,
+        'time_start': current_version.time_start,
+        'time_end': current_version.time_end,
+        'variables': variables,
+        'data': time_series_data
+    }
+    
+    return JsonResponse(response_data)
+
+def api_version_variables(request, version_id):
+    """API endpoint to get variables available in a specific version."""
+    version = get_object_or_404(DatasetVersion, id=version_id)
+    
+    variables = version.variables
+    
+    response_data = {
+        'version_id': version_id,
+        'dataset_id': version.dataset_id,
+        'version_number': version.version_number,
+        'variables': variables
+    }
+    
+    return JsonResponse(response_data)
+
+def api_dataset_versions(request, dataset_id):
+    """API endpoint to get all versions of a specific dataset."""
+    dataset = get_object_or_404(Dataset, id=dataset_id)
+    versions = dataset.versions.all().order_by('-created_at')
+    
+    versions_data = []
+    for version in versions:
+        versions_data.append({
+            'id': version.id,
+            'version_number': version.version_number,
+            'description': version.description,
+            'created_at': version.created_at.isoformat(),
+            'is_current': version.is_current,
+            'file_size': version.file_size,
+            'has_time_series': version.has_time_series,
+            'time_resolution': version.time_resolution,
+            'variables': version.variables
+        })
+    
+    response_data = {
+        'dataset_id': dataset_id,
+        'dataset_title': dataset.title,
+        'versions_count': len(versions_data),
+        'versions': versions_data
+    }
+    
+    return JsonResponse(response_data)
+
+@login_required
+def delete_stacked_dataset(request, stacked_dataset_id):
+    """View for deleting a stacked dataset."""
+    stacked_dataset = get_object_or_404(StackedDataset, id=stacked_dataset_id)
+    
+    # Only allow the creator to delete the stacked dataset
+    if stacked_dataset.created_by != request.user:
+        messages.error(request, 'You do not have permission to delete this stacked dataset.')
+        return redirect('repository:stacked_dataset_list')
+    
+    if request.method == 'POST':
+        # Delete associated file if it exists
+        if stacked_dataset.result_file:
+            try:
+                stacked_dataset.result_file.delete()
+            except Exception as e:
+                # Log the exception but continue with deletion
+                print(f"Error deleting file: {e}")
+        
+        # Delete the stacked dataset
+        stacked_dataset.delete()
+        messages.success(request, 'Stacked dataset was successfully deleted.')
+        return redirect('repository:stacked_dataset_list')
+    else:
+        # If accessed with GET request, redirect to confirmation page or just redirect to list
+        # For simplicity, we're just redirecting to the list view
+        # You might want to implement a confirmation page in a real application
+        return redirect('repository:stacked_dataset_list')
+
+@login_required
+def create_stack_from_selection(request):
+    """Creates a new stack from selected datasets."""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method'}, status=400)
+    
+    try:
+        data = json.loads(request.body)
+        name = data.get('name')
+        description = data.get('description', '')
+        is_public = data.get('is_public', True)
+        datasets = data.get('datasets', [])
+        
+        # Validate inputs
+        if not name:
+            return JsonResponse({'success': False, 'error': 'Stack name is required'}, status=400)
+        
+        if not datasets:
+            return JsonResponse({'success': False, 'error': 'No datasets selected'}, status=400)
+        
+        # Create the stacked dataset
+        stacked_dataset = StackedDataset.objects.create(
+            name=name,
+            description=description,
+            is_public=is_public,
+            created_by=request.user
+        )
+        
+        # Add selected datasets to the stack
+        for i, dataset_info in enumerate(datasets):
+            dataset_id = dataset_info.get('id')
+            version_id = dataset_info.get('version_id')
+            
+            dataset = get_object_or_404(Dataset, id=dataset_id)
+            
+            # Create stacked dataset item
+            item = StackedDatasetItem(
+                stacked_dataset=stacked_dataset,
+                dataset=dataset,
+                order=i
+            )
+            
+            # If a specific version was selected, try to set it
+            if version_id:
+                try:
+                    # Use the attribute we added in the form for dataset_version_id
+                    item.dataset_version_id = int(version_id)
+                except (ValueError, TypeError):
+                    pass
+            
+            item.save()
+        
+        return JsonResponse({
+            'success': True, 
+            'redirect_url': reverse_lazy('repository:stacked_dataset_detail', kwargs={'slug': stacked_dataset.slug})
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)

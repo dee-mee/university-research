@@ -1,7 +1,35 @@
-"""
+#!/bin/bash
+# Helper script for generating test data safely
+
+# Make the script executable
+chmod +x data_repository/test_data_script.py
+
+# Default to 10 datasets if no argument provided
+COUNT=${1:-10}
+
+echo "======================================================================="
+echo "   Test Data Generator for Research Portal"
+echo "======================================================================="
+echo "This will generate $COUNT test datasets with mock files and metadata."
+echo "The process may take some time depending on the number of datasets."
+echo
+
+# Check for required packages and install if missing
+echo "Checking requirements..."
+pip install -q faker pandas numpy netCDF4 tqdm
+
+# Make sure compatibility module exists
+if [ ! -f "compat_cgi.py" ]; then
+    echo "Creating compatibility module for Python 3.13+..."
+    python -c "
+import sys
+if sys.version_info >= (3, 13):
+    print('Creating compatibility module for Python 3.13+')
+    with open('compat_cgi.py', 'w') as f:
+        f.write('''\"\"\"
 Compatibility module for Python 3.13+ that provides a minimal cgi module implementation
 to support Django running on newer Python versions.
-"""
+\"\"\"
 
 import warnings
 import html
@@ -12,22 +40,22 @@ from urllib.parse import parse_qs
 
 # The constants that were in the cgi module
 __all__ = [
-    "parse", "parse_multipart", "parse_header", "parse_qs", "parse_qsl",
-    "escape", "FieldStorage"
+    \"parse\", \"parse_multipart\", \"parse_header\", \"parse_qs\", \"parse_qsl\",
+    \"escape\", \"FieldStorage\"
 ]
 
 # Replicate the constants from the old cgi module
 maxlen = 0  # No max length enforced
 logfile = None
-valid_boundary = set('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789\'()+_,-./:=? ')
+valid_boundary = set('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789\\\'()+_,-./:=? ')
 
 # Replicate the escape function
 escape = html.escape
 
 def parse_header(line):
-    """Parse a Content-type header.
+    \"\"\"Parse a Content-type header.
     Return the main content-type and a dictionary of parameters.
-    """
+    \"\"\"
     if not line:
         return '', {}
     
@@ -41,39 +69,14 @@ def parse_header(line):
         name, value = part.strip().split('=', 1)
         name = name.strip().lower()
         value = value.strip()
-        if len(value) >= 2 and value[0] == value[-1] == '"':
+        if len(value) >= 2 and value[0] == value[-1] == '\"':
             value = value[1:-1]
         params[name] = value
     
     return key, params
 
-def _parseparam(s):
-    """Parse parameter values with their attributes."""
-    while s[:1] == ';':
-        s = s[1:]
-        end = s.find(';')
-        if end > 0:
-            param, s = s[:end], s[end:]
-        else:
-            param, s = s, ''
-        if '=' in param:
-            a, v = param.split('=', 1)
-            if v and v[0] == v[-1] == '"':
-                v = v[1:-1]
-            yield a.strip(), v.strip()
-
 def parse_multipart(fp, boundary, environ=None, keep_blank_values=False):
-    """Parse multipart input.
-
-    Arguments:
-    fp   : input file
-    boundary : boundary string
-    environ : environment dictionary (used for maxlen)
-    keep_blank_values: flag indicating whether blank values in
-        percent-encoded forms should be treated as blank strings.
-
-    Returns a dictionary mapping field names to lists of values.
-    """
+    \"\"\"Parse multipart input.\"\"\"
     if environ is None:
         environ = {}
     
@@ -127,12 +130,6 @@ def parse_multipart(fp, boundary, environ=None, keep_blank_values=False):
                 break
             field_value += line
         
-        # Strip CRLF from end
-        if field_value.endswith(b'\r\n'):
-            field_value = field_value[:-2]
-        elif field_value.endswith(b'\n'):
-            field_value = field_value[:-1]
-        
         # Add to result
         if field_name:
             if field_name in result:
@@ -143,7 +140,7 @@ def parse_multipart(fp, boundary, environ=None, keep_blank_values=False):
     return result
 
 class MiniFieldStorage:
-    """Minimal FieldStorage items for form data."""
+    \"\"\"Minimal FieldStorage items for form data.\"\"\"
     def __init__(self, name, value):
         self.name = name
         self.value = value
@@ -156,11 +153,7 @@ class MiniFieldStorage:
         self.file = io.BytesIO(value.encode('utf-8') if isinstance(value, str) else value)
 
 class FieldStorage:
-    """Storage class for HTML form data.
-    
-    This is a simplified version that provides just enough functionality
-    to support Django's use of it.
-    """
+    \"\"\"Storage class for HTML form data.\"\"\"
     filename = None
     file = None
     type = None
@@ -211,70 +204,16 @@ class FieldStorage:
                 if isinstance(content_disp, bytes):
                     content_disp = content_disp.decode('iso-8859-1')
                 self.disposition, self.disposition_options = parse_header(content_disp)
-            
-            # Determine if request is multipart
-            if self.type.startswith('multipart/'):
-                self.parse_multipart(fp, outerboundary)
-            else:
-                # Form data - parse from environment
-                self.parse_form_data()
-        
-        elif environ:
-            self.parse_form_data()
-    
-    def parse_multipart(self, fp, boundary):
-        """Parse a multipart/form-data body.
-        
-        This method is simplified and doesn't fully implement the spec.
-        """
-        boundary = boundary or self.type_options.get('boundary', '').encode('ascii')
-        if not boundary:
-            return
-        
-        data = parse_multipart(fp, boundary, self.environ, self.keep_blank_values)
-        
-        for key, values in data.items():
-            if len(values) == 1:
-                self.list.append(MiniFieldStorage(key, values[0]))
-            else:
-                for value in values:
-                    self.list.append(MiniFieldStorage(key, value))
-    
-    def parse_form_data(self):
-        """Parse form data from the environment."""
-        method = self.environ.get('REQUEST_METHOD', '').upper()
-        query_string = self.environ.get('QUERY_STRING', '')
-        
-        if method == 'POST':
-            # Parse POST data
-            content_type = self.environ.get('CONTENT_TYPE', '')
-            content_length = int(self.environ.get('CONTENT_LENGTH', 0))
-            
-            if content_type == 'application/x-www-form-urlencoded':
-                data = self.environ.get('wsgi.input').read(content_length).decode(self.encoding)
-                parsed_data = parse_qs(data, keep_blank_values=self.keep_blank_values)
-                
-                for key, values in parsed_data.items():
-                    for value in values:
-                        self.list.append(MiniFieldStorage(key, value))
-        
-        # Parse GET data
-        if query_string:
-            parsed_data = parse_qs(query_string, keep_blank_values=self.keep_blank_values)
-            
-            for key, values in parsed_data.items():
-                for value in values:
-                    self.list.append(MiniFieldStorage(key, value))
     
     def getvalue(self, key, default=None):
-        """Return the first value received."""
+        \"\"\"Return the first value received.\"\"\"
         for item in self.list:
             if item.name == key:
                 return item.value
         return default
     
     def getlist(self, key):
-        """Return list of received values."""
+        \"\"\"Return list of received values.\"\"\"
         result = []
         for item in self.list:
             if item.name == key:
@@ -282,29 +221,50 @@ class FieldStorage:
         return result
     
     def keys(self):
-        """Return list of field names."""
+        \"\"\"Return list of field names.\"\"\"
         return list(set(item.name for item in self.list))
     
     def __contains__(self, key):
-        """Return true if field 'key' exists."""
+        \"\"\"Return true if field 'key' exists.\"\"\"
         for item in self.list:
             if item.name == key:
                 return True
         return False
     
     def __getitem__(self, key):
-        """Return the first value received."""
+        \"\"\"Return the first value received.\"\"\"
         for item in self.list:
             if item.name == key:
                 return item
         raise KeyError(key)
     
     def __iter__(self):
-        """Iterate over field names."""
+        \"\"\"Iterate over field names.\"\"\"
         for item in self.list:
             yield item.name
 
 def parse(fp, environ=None, keep_blank_values=False, strict_parsing=False):
-    """Parse a form data into a FieldStorage object."""
+    \"\"\"Parse a form data into a FieldStorage object.\"\"\"
     return FieldStorage(fp=fp, environ=environ, keep_blank_values=keep_blank_values, 
                         strict_parsing=strict_parsing)
+''')
+"
+fi
+
+echo "Starting data generation..."
+python data_repository/test_data_script.py $COUNT
+
+if [ $? -eq 0 ]; then
+    echo
+    echo "======================================================================="
+    echo "   Test Data Generation Completed Successfully!"
+    echo "======================================================================="
+    echo "You can now access the data through the web interface."
+else
+    echo
+    echo "======================================================================="
+    echo "   Error: Test Data Generation Failed"
+    echo "======================================================================="
+    echo "Please check the error messages above."
+    exit 1
+fi
