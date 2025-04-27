@@ -5,8 +5,6 @@
 <link rel="stylesheet" href="{% static 'css/highcharts.css' %}">
 {% endblock %}
 
-
-
 {% block content %}
 <div class="container mt-4">
     <nav aria-label="breadcrumb">
@@ -106,7 +104,7 @@
     </div>
 
     <!-- Time Series Visualization -->
-    {% if dataset.versions.first and dataset.versions.first.has_time_series %}
+    {% if dataset.versions.first and dataset.versions.first.metadata.variables %}
     <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h2 class="h5 mb-0">Time Series Visualization</h2>
@@ -120,7 +118,7 @@
             <div class="row mb-3">
                 <div class="col-md-4">
                     <select class="form-select" id="variableSelector">
-                        {% for variable in dataset.versions.first.variables %}
+                        {% for variable in dataset.versions.first.metadata.variables %}
                         <option value="{{ variable }}">{{ variable }}</option>
                         {% endfor %}
                     </select>
@@ -135,6 +133,9 @@
                 </div>
             </div>
             <div id="timeSeriesChart" style="height: 400px;"></div>
+            <div id="noDataMessage" class="alert alert-info d-none">
+                Loading time series data... If this message persists, the dataset may not contain visualizable time series data.
+            </div>
         </div>
     </div>
     {% endif %}
@@ -325,24 +326,58 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
 {% block extra_js %}
-
-<script src="{% static 'js/highcharts.js' %}"></script>
-<script src="{% static 'js/series-label.js' %}"></script>
-<script src="{% static 'js/exporting.js' %}"></script>
+<!-- Replace local script references with CDN versions -->
+<script src="https://code.highcharts.com/highcharts.js"></script>
+<script src="https://code.highcharts.com/modules/series-label.js"></script>
+<script src="https://code.highcharts.com/modules/exporting.js"></script>
+<script src="https://code.highcharts.com/modules/export-data.js"></script>
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Time series chart initialization
-        {% if dataset.versions.first and dataset.versions.first.has_time_series %}
-        const timeSeriesData = {{ time_series_data|safe }};
+        {% if dataset.versions.first and dataset.versions.first.metadata.variables %}
+        const versionId = {{ dataset.versions.first.id }};
+        let timeSeriesData = null;
         let currentVariable = document.getElementById('variableSelector').value;
         let currentChartType = 'line';
         let currentTimeRange = 'all';
         
+        // Fetch time series data from API
+        function fetchTimeSeriesData() {
+            document.getElementById('timeSeriesChart').classList.add('d-none');
+            document.getElementById('noDataMessage').classList.remove('d-none');
+            
+            fetch(`/api/dataset-version/${versionId}/time-series-data/`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    timeSeriesData = data;
+                    document.getElementById('noDataMessage').classList.add('d-none');
+                    document.getElementById('timeSeriesChart').classList.remove('d-none');
+                    updateChart();
+                })
+                .catch(error => {
+                    console.error('Error fetching time series data:', error);
+                    document.getElementById('noDataMessage').textContent = 'Error loading time series data: ' + error.message;
+                    document.getElementById('noDataMessage').classList.remove('d-none');
+                });
+        }
+        
         function updateChart() {
-            const data = timeSeriesData[currentVariable][currentTimeRange];
+            if (!timeSeriesData || !timeSeriesData[currentVariable]) {
+                document.getElementById('noDataMessage').classList.remove('d-none');
+                document.getElementById('timeSeriesChart').classList.add('d-none');
+                return;
+            }
+            
+            const data = prepareDataForChart(timeSeriesData[currentVariable], currentTimeRange);
             
             Highcharts.chart('timeSeriesChart', {
                 chart: {
@@ -360,7 +395,7 @@
                 },
                 yAxis: {
                     title: {
-                        text: 'Value'
+                        text: getVariableUnits(currentVariable)
                     }
                 },
                 tooltip: {
@@ -373,7 +408,7 @@
                 plotOptions: {
                     series: {
                         marker: {
-                            enabled: false
+                            enabled: currentTimeRange !== 'all'  // Only show markers for smaller datasets
                         }
                     },
                     area: {
@@ -385,6 +420,60 @@
                     data: data
                 }]
             });
+        }
+        
+        // Prepare the data for the selected time range
+        function prepareDataForChart(variableData, timeRange) {
+            if (!variableData || !variableData.times || !variableData.values) {
+                return [];
+            }
+            
+            const processedData = variableData.times.map((time, index) => {
+                return [new Date(time).getTime(), variableData.values[index]];
+            });
+            
+            // Filter based on time range if needed
+            if (timeRange === 'all') {
+                return processedData;
+            } else {
+                const now = new Date();
+                let startDate;
+                
+                if (timeRange === 'day') {
+                    startDate = new Date(now);
+                    startDate.setDate(now.getDate() - 1);
+                } else if (timeRange === 'month') {
+                    startDate = new Date(now);
+                    startDate.setMonth(now.getMonth() - 1);
+                } else if (timeRange === 'year') {
+                    startDate = new Date(now);
+                    startDate.setFullYear(now.getFullYear() - 1);
+                }
+                
+                return processedData.filter(point => point[0] >= startDate.getTime());
+            }
+        }
+        
+        // Return units based on variable name
+        function getVariableUnits(variable) {
+            const units = {
+                'temperature': '°C',
+                'precipitation': 'mm/day',
+                'discharge': 'm³/s',
+                'evapotranspiration': 'mm/day',
+                'soil_moisture': 'kg/m²',
+                'groundwater': 'm',
+                'runoff': 'mm/day',
+                'humidity': '%',
+                'wind_speed': 'm/s',
+                'solar_radiation': 'W/m²',
+                'forest_cover': '%',
+                'crop_yield': 't/ha',
+                'irrigation': 'mm/day',
+                'water_demand': 'm³/s',
+                'water_stress': 'index'
+            };
+            return units[variable] || '';
         }
         
         document.getElementById('variableSelector').addEventListener('change', function() {
@@ -447,8 +536,8 @@
             button.classList.add('active');
         }
         
-        // Initialize chart
-        updateChart();
+        // Initialize by fetching data
+        fetchTimeSeriesData();
         {% endif %}
         
         // Stack management
@@ -541,6 +630,4 @@
         }
     });
 </script>
-{% endblock %}
-
 {% endblock %}
