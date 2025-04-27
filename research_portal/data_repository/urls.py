@@ -29,7 +29,6 @@ urlpatterns = [
     path('stacks/create-from-selection/', views.create_stack_from_selection, name='create_stack'),
     
     # API endpoints
-    path('api/dataset/<int:dataset_id>/versions/', views.api_dataset_versions, name='api_dataset_versions'),
     path('api/version/<int:version_id>/variables/', views.api_version_variables, name='api_version_variables'),
-    path('api/dataset/<int:dataset_id>/time-series/', views.api_dataset_timeseries, name='api_dataset_timeseries'),
+    path('api/dataset-version/<int:version_id>/time-series-data/', views.get_time_series_data, name='api_time_series_data'),
 ]
