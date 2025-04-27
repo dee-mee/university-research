@@ -37,12 +37,9 @@ class WeatherStation(models.Model):
     """Weather station or climate data collection point"""
     name = models.CharField(max_length=255)
     station_id = models.CharField(max_length=100, unique=True, null=True, blank=True)
-    station_id = models.CharField(max_length=100, unique=True, null=True, blank=True)
     description = models.TextField(blank=True, null=True)
     location = models.PointField(srid=4326, geography=True, spatial_index=True)  # Add spatial_index=True for better performance
     altitude = models.FloatField(help_text="Altitude in meters above sea level", null=True, blank=True)
-    country = models.ForeignKey(Country, on_delete=models.SET_NULL, null=True, related_name='stations')
-    region = models.CharField(max_length=100, blank=True, null=True, help_text="Administrative region within country")
     country = models.ForeignKey(Country, on_delete=models.SET_NULL, null=True, related_name='stations')
     region = models.CharField(max_length=100, blank=True, null=True, help_text="Administrative region within country")
     is_active = models.BooleanField(default=True)
@@ -415,8 +412,8 @@ class ClimateData(models.Model):
     
     station = models.ForeignKey(WeatherStation, on_delete=models.CASCADE, related_name='climate_data')
     timestamp = models.DateTimeField(db_index=True)
-    year = models.IntegerField(db_index=True, help_text="Year of the measurement for easier filtering")
-    month = models.IntegerField(db_index=True, help_text="Month of the measurement for easier filtering")
+    year = models.IntegerField(db_index=True, help_text="Year of the measurement for easier filtering", default=2000)
+    month = models.IntegerField(db_index=True, help_text="Month of the measurement for easier filtering", default=1)
     season = models.CharField(
         max_length=10, 
         choices=SEASON_CHOICES, 
@@ -637,8 +634,7 @@ class WeatherAlert(models.Model):
     
     title = models.CharField(max_length=255)
     description = models.TextField()
-    data_type = models.ForeignKey(WeatherDataType, on_delete=models.CASCADE, related_name='alerts')
-    data_type = models.ForeignKey(WeatherDataType, on_delete=models.CASCADE, related_name='alerts')
+    data_type = models.ForeignKey(WeatherDataType, on_delete=models.CASCADE, related_name='alerts', null=True)
     threshold_value = models.FloatField()
     severity = models.CharField(max_length=10, choices=SEVERITY_CHOICES)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active')
