@@ -1,10 +1,54 @@
 {% extends 'base.html' %}
 {% load static %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/highcharts.css' %}">
+{% endblock %}
+
+
+
 {% block content %}
 <div class="container mt-4">
-    <h1>{{ dataset.title }}</h1>
-    <p class="lead">{{ dataset.description }}</p>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'repository:dataset_list' %}">Datasets</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ dataset.title }}</li>
+        </ol>
+    </nav>
+
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1>{{ dataset.title }}</h1>
+            <p class="lead">{{ dataset.description }}</p>
+            
+            <div class="mb-3">
+                <span class="badge bg-primary">{{ dataset.category.name }}</span>
+                {% if dataset.is_featured %}
+                <span class="badge bg-warning text-dark">Featured</span>
+                {% endif %}
+                <span class="badge bg-secondary">{{ dataset.simulation_round }}</span>
+                <span class="badge bg-info">{{ dataset.impact_model }}</span>
+            </div>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <div class="btn-group" role="group">
+                {% if user.is_authenticated %}
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addToStackModal">
+                    <i class="fas fa-layer-group me-2"></i>Add to Stack
+                </button>
+                {% endif %}
+                
+                {% if dataset.created_by == user %}
+                <a href="{% url 'repository:dataset_update' dataset.slug %}" class="btn btn-primary">
+                    <i class="fas fa-edit me-2"></i>Edit
+                </a>
+                <a href="{% url 'repository:version_create' dataset.id %}" class="btn btn-info">
+                    <i class="fas fa-code-branch me-2"></i>New Version
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
 
     <!-- Properties Section -->
     <div class="card mb-4">
@@ -18,6 +62,12 @@
                     <p><strong>ISIMIP ID:</strong> {{ dataset.isimip_id|default:"Not specified" }}</p>
                     <p><strong>Size:</strong> {% if dataset.versions.first.file_size %}{{ dataset.versions.first.file_size|filesizeformat }}{% else %}Not available{% endif %}</p>
                     <p><strong>Version:</strong> {% if dataset.versions.first %}{{ dataset.versions.first.version_number }}{% else %}No versions{% endif %}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Created by:</strong> {{ dataset.created_by.get_full_name|default:dataset.created_by.username }}</p>
+                    <p><strong>Created at:</strong> {{ dataset.created_at|date:"F j, Y" }}</p>
+                    <p><strong>Last updated:</strong> {{ dataset.updated_at|date:"F j, Y" }}</p>
+                    <p><strong>DOI:</strong> {% if dataset.doi %}<a href="https://doi.org/{{ dataset.doi }}">{{ dataset.doi }}</a>{% else %}Not assigned{% endif %}</p>
                 </div>
             </div>
         </div>
@@ -55,19 +105,59 @@
         </div>
     </div>
 
+    <!-- Time Series Visualization -->
+    {% if dataset.versions.first and dataset.versions.first.has_time_series %}
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h2 class="h5 mb-0">Time Series Visualization</h2>
+            <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-primary active" id="btnLineChart">Line</button>
+                <button class="btn btn-outline-primary" id="btnBarChart">Bar</button>
+                <button class="btn btn-outline-primary" id="btnAreaChart">Area</button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <select class="form-select" id="variableSelector">
+                        {% for variable in dataset.versions.first.variables %}
+                        <option value="{{ variable }}">{{ variable }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-8">
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-secondary active" id="timeRangeAll">All</button>
+                        <button class="btn btn-outline-secondary" id="timeRangeYear">Year</button>
+                        <button class="btn btn-outline-secondary" id="timeRangeMonth">Month</button>
+                        <button class="btn btn-outline-secondary" id="timeRangeDay">Day</button>
+                    </div>
+                </div>
+            </div>
+            <div id="timeSeriesChart" style="height: 400px;"></div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Versions Section -->
     <div class="card mb-4">
-        <div class="card-header">
+        <div class="card-header d-flex justify-content-between align-items-center">
             <h2 class="h5 mb-0">Versions</h2>
+            {% if dataset.created_by == user %}
+            <a href="{% url 'repository:version_create' dataset.id %}" class="btn btn-sm btn-primary">
+                <i class="fas fa-plus me-1"></i> Add Version
+            </a>
+            {% endif %}
         </div>
         <div class="card-body">
             {% if dataset.versions.exists %}
                 <div class="table-responsive">
-                    <table class="table">
+                    <table class="table table-hover">
                         <thead>
                             <tr>
                                 <th>Version</th>
                                 <th>Description</th>
+                                <th>Time Range</th>
                                 <th>Size</th>
                                 <th>Created</th>
                                 <th>Actions</th>
@@ -78,20 +168,106 @@
                             <tr>
                                 <td>{{ version.version_number }}</td>
                                 <td>{{ version.description }}</td>
+                                <td>
+                                    {% if version.time_start and version.time_end %}
+                                    {{ version.time_start|date:"Y-m-d" }} to {{ version.time_end|date:"Y-m-d" }}
+                                    {% else %}
+                                    Not specified
+                                    {% endif %}
+                                </td>
                                 <td>{{ version.file_size|filesizeformat }}</td>
                                 <td>{{ version.created_at|date:"M d, Y" }}</td>
                                 <td>
-                                    {% if version.file_path %}
-                                        <a href="{{ version.file_path.url }}" class="btn btn-primary btn-sm">
+                                    <div class="btn-group btn-group-sm">
+                                        {% if version.file_path %}
+                                        <a href="{{ version.file_path.url }}" class="btn btn-primary">
                                             <i class="fas fa-download"></i> Download
                                         </a>
-                                    {% else %}
-                                        <button class="btn btn-secondary btn-sm" disabled>
+                                        {% else %}
+                                        <button class="btn btn-secondary" disabled>
                                             <i class="fas fa-exclamation-circle"></i> No file available
                                         </button>
-                                    {% endif %}
+                                        {% endif %}
+                                        
+                                        <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#versionDetailsModal-{{ version.id }}">
+                                            <i class="fas fa-info-circle"></i> Details
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
+                            <!-- Version Details Modal -->
+                            <div class="modal fade" id="versionDetailsModal-{{ version.id }}" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog modal-lg">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Version {{ version.version_number }} Details</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="row mb-3">
+                                                <div class="col-md-4"><strong>Version:</strong></div>
+                                                <div class="col-md-8">{{ version.version_number }}</div>
+                                            </div>
+                                            <div class="row mb-3">
+                                                <div class="col-md-4"><strong>Description:</strong></div>
+                                                <div class="col-md-8">{{ version.description }}</div>
+                                            </div>
+                                            <div class="row mb-3">
+                                                <div class="col-md-4"><strong>Created by:</strong></div>
+                                                <div class="col-md-8">{{ version.created_by.get_full_name|default:version.created_by.username }}</div>
+                                            </div>
+                                            <div class="row mb-3">
+                                                <div class="col-md-4"><strong>Created at:</strong></div>
+                                                <div class="col-md-8">{{ version.created_at|date:"F j, Y" }}</div>
+                                            </div>
+                                            <div class="row mb-3">
+                                                <div class="col-md-4"><strong>File size:</strong></div>
+                                                <div class="col-md-8">{{ version.file_size|filesizeformat }}</div>
+                                            </div>
+                                            <div class="row mb-3">
+                                                <div class="col-md-4"><strong>Time Range:</strong></div>
+                                                <div class="col-md-8">
+                                                    {% if version.time_start and version.time_end %}
+                                                    {{ version.time_start|date:"Y-m-d" }} to {{ version.time_end|date:"Y-m-d" }}
+                                                    {% else %}
+                                                    Not specified
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            <div class="row mb-3">
+                                                <div class="col-md-4"><strong>Time Resolution:</strong></div>
+                                                <div class="col-md-8">{{ version.time_resolution|default:"Not specified" }}</div>
+                                            </div>
+                                            <div class="row mb-3">
+                                                <div class="col-md-4"><strong>Variables:</strong></div>
+                                                <div class="col-md-8">
+                                                    {% if version.variables %}
+                                                        {% for variable in version.variables %}
+                                                            <span class="badge bg-info me-1">{{ variable }}</span>
+                                                        {% endfor %}
+                                                    {% else %}
+                                                        Not specified
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            <div class="row mb-3">
+                                                <div class="col-md-4"><strong>Metadata:</strong></div>
+                                                <div class="col-md-8">
+                                                    <pre class="pre-scrollable">{{ version.metadata|pprint }}</pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                            {% if version.file_path %}
+                                            <a href="{{ version.file_path.url }}" class="btn btn-primary">
+                                                <i class="fas fa-download"></i> Download
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -104,4 +280,267 @@
         </div>
     </div>
 </div>
-{% endblock %} 
+
+<!-- Add to Stack Modal -->
+<div class="modal fade" id="addToStackModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add to Stack</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="existingStack" class="form-label">Add to existing stack</label>
+                    <select class="form-select" id="existingStack">
+                        <option value="">Select a stack...</option>
+                        {% for stack in user_stacks %}
+                        <option value="{{ stack.id }}">{{ stack.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="newStackName" class="form-label">Or create a new stack</label>
+                    <input type="text" class="form-control" id="newStackName" placeholder="New stack name">
+                </div>
+                <div class="mb-3">
+                    <label for="stackVersion" class="form-label">Version to add</label>
+                    <select class="form-select" id="stackVersion">
+                        {% for version in dataset.versions.all %}
+                        <option value="{{ version.id }}" {% if version.is_current %}selected{% endif %}>{{ version.version_number }} - {{ version.created_at|date:"M d, Y" }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Variables to include</label>
+                    <div id="variableCheckboxes">
+                        <!-- Will be populated dynamically based on selected version -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="btnAddToStack">Add to Stack</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+
+<script src="{% static 'js/highcharts.js' %}"></script>
+<script src="{% static 'js/series-label.js' %}"></script>
+<script src="{% static 'js/exporting.js' %}"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Time series chart initialization
+        {% if dataset.versions.first and dataset.versions.first.has_time_series %}
+        const timeSeriesData = {{ time_series_data|safe }};
+        let currentVariable = document.getElementById('variableSelector').value;
+        let currentChartType = 'line';
+        let currentTimeRange = 'all';
+        
+        function updateChart() {
+            const data = timeSeriesData[currentVariable][currentTimeRange];
+            
+            Highcharts.chart('timeSeriesChart', {
+                chart: {
+                    type: currentChartType,
+                    zoomType: 'x'
+                },
+                title: {
+                    text: currentVariable + ' Time Series'
+                },
+                xAxis: {
+                    type: 'datetime',
+                    title: {
+                        text: 'Date'
+                    }
+                },
+                yAxis: {
+                    title: {
+                        text: 'Value'
+                    }
+                },
+                tooltip: {
+                    headerFormat: '<b>{series.name}</b><br>',
+                    pointFormat: '{point.x:%Y-%m-%d}: {point.y:.2f}'
+                },
+                legend: {
+                    enabled: true
+                },
+                plotOptions: {
+                    series: {
+                        marker: {
+                            enabled: false
+                        }
+                    },
+                    area: {
+                        fillOpacity: 0.5
+                    }
+                },
+                series: [{
+                    name: currentVariable,
+                    data: data
+                }]
+            });
+        }
+        
+        document.getElementById('variableSelector').addEventListener('change', function() {
+            currentVariable = this.value;
+            updateChart();
+        });
+        
+        document.getElementById('btnLineChart').addEventListener('click', function() {
+            currentChartType = 'line';
+            updateChart();
+            setActiveButton('chart-type', this);
+        });
+        
+        document.getElementById('btnBarChart').addEventListener('click', function() {
+            currentChartType = 'column';
+            updateChart();
+            setActiveButton('chart-type', this);
+        });
+        
+        document.getElementById('btnAreaChart').addEventListener('click', function() {
+            currentChartType = 'area';
+            updateChart();
+            setActiveButton('chart-type', this);
+        });
+        
+        document.getElementById('timeRangeAll').addEventListener('click', function() {
+            currentTimeRange = 'all';
+            updateChart();
+            setActiveButton('time-range', this);
+        });
+        
+        document.getElementById('timeRangeYear').addEventListener('click', function() {
+            currentTimeRange = 'year';
+            updateChart();
+            setActiveButton('time-range', this);
+        });
+        
+        document.getElementById('timeRangeMonth').addEventListener('click', function() {
+            currentTimeRange = 'month';
+            updateChart();
+            setActiveButton('time-range', this);
+        });
+        
+        document.getElementById('timeRangeDay').addEventListener('click', function() {
+            currentTimeRange = 'day';
+            updateChart();
+            setActiveButton('time-range', this);
+        });
+        
+        function setActiveButton(group, button) {
+            if (group === 'chart-type') {
+                document.querySelectorAll('#btnLineChart, #btnBarChart, #btnAreaChart').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+            } else if (group === 'time-range') {
+                document.querySelectorAll('#timeRangeAll, #timeRangeYear, #timeRangeMonth, #timeRangeDay').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+            }
+            button.classList.add('active');
+        }
+        
+        // Initialize chart
+        updateChart();
+        {% endif %}
+        
+        // Stack management
+        document.getElementById('stackVersion').addEventListener('change', function() {
+            const versionId = this.value;
+            fetch(`/api/version/${versionId}/variables/`)
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.getElementById('variableCheckboxes');
+                    container.innerHTML = '';
+                    data.variables.forEach(variable => {
+                        const div = document.createElement('div');
+                        div.className = 'form-check';
+                        div.innerHTML = `
+                            <input class="form-check-input" type="checkbox" value="${variable}" id="var-${variable}" checked>
+                            <label class="form-check-label" for="var-${variable}">${variable}</label>
+                        `;
+                        container.appendChild(div);
+                    });
+                });
+        });
+        
+        document.getElementById('btnAddToStack').addEventListener('click', function() {
+            const existingStack = document.getElementById('existingStack').value;
+            const newStackName = document.getElementById('newStackName').value;
+            const versionId = document.getElementById('stackVersion').value;
+            
+            const selectedVariables = [];
+            document.querySelectorAll('#variableCheckboxes input[type="checkbox"]:checked').forEach(checkbox => {
+                selectedVariables.push(checkbox.value);
+            });
+            
+            const data = {
+                dataset_id: {{ dataset.id }},
+                version_id: versionId,
+                variables: selectedVariables
+            };
+            
+            let url = '';
+            if (existingStack) {
+                url = `/api/stacks/${existingStack}/add-dataset/`;
+            } else if (newStackName) {
+                url = '/api/stacks/create-and-add/';
+                data.stack_name = newStackName;
+            } else {
+                alert('Please select an existing stack or enter a name for a new stack');
+                return;
+            }
+            
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = data.redirect_url;
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error);
+            });
+        });
+        
+        // Helper function to get CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        
+        // Initialize variables for first version
+        if (document.getElementById('stackVersion')) {
+            document.getElementById('stackVersion').dispatchEvent(new Event('change'));
+        }
+    });
+</script>
+{% endblock %}
+
+{% endblock %}

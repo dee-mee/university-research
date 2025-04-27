@@ -3,6 +3,350 @@
 
 {% block extra_js %}
 <script src="{% static 'js/dataset_list.js' %}"></script>
+<script src="{% static 'js/jstree.min.js' %}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // View Mode Handling
+        function setViewMode(mode) {
+            const gridView = document.getElementById('gridView');
+            const treeView = document.getElementById('treeView');
+            const listView = document.getElementById('listView');
+            const btnGridView = document.getElementById('btnGridView');
+            const btnTreeView = document.getElementById('btnTreeView');
+            const btnListView = document.getElementById('btnListView');
+            
+            // Hide all views
+            gridView.style.display = 'none';
+            treeView.style.display = 'none';
+            listView.style.display = 'none';
+            
+            // Reset all buttons
+            btnGridView.classList.remove('btn-primary');
+            btnGridView.classList.add('btn-outline-primary');
+            btnTreeView.classList.remove('btn-primary');
+            btnTreeView.classList.add('btn-outline-primary');
+            btnListView.classList.remove('btn-primary');
+            btnListView.classList.add('btn-outline-primary');
+            
+            // Show selected view and activate button
+            if (mode === 'grid') {
+                gridView.style.display = 'flex';
+                btnGridView.classList.remove('btn-outline-primary');
+                btnGridView.classList.add('btn-primary');
+            } else if (mode === 'tree') {
+                treeView.style.display = 'block';
+                btnTreeView.classList.remove('btn-outline-primary');
+                btnTreeView.classList.add('btn-primary');
+                
+                // Initialize tree if it hasn't been already
+                if (!window.treeInitialized) {
+                    initializeTree();
+                    window.treeInitialized = true;
+                }
+            } else if (mode === 'list') {
+                listView.style.display = 'block';
+                btnListView.classList.remove('btn-outline-primary');
+                btnListView.classList.add('btn-primary');
+            }
+            
+            // Save preference to localStorage
+            localStorage.setItem('datasetViewMode', mode);
+        }
+        
+        // Initialize Tree View
+        function initializeTree() {
+            $('#datasetTree').jstree({
+                'core': {
+                    'data': {{ tree_data|safe }},
+                    'themes': {
+                        'name': 'proton',
+                        'responsive': true
+                    }
+                },
+                'types': {
+                    'category': {
+                        'icon': 'fas fa-folder category-icon'
+                    },
+                    'dataset': {
+                        'icon': 'fas fa-database dataset-icon'
+                    },
+                    'version': {
+                        'icon': 'fas fa-code-branch version-icon'
+                    }
+                },
+                'plugins': ['types', 'wholerow', 'checkbox', 'search']
+            }).on('check_node.jstree', function(e, data) {
+                if (data.node.type === 'version') {
+                    addDatasetToSelection({
+                        id: data.node.original.dataset_id,
+                        title: data.node.original.dataset_title,
+                        version_id: data.node.id,
+                        version_number: data.node.text
+                    });
+                }
+            }).on('uncheck_node.jstree', function(e, data) {
+                if (data.node.type === 'version') {
+                    removeDatasetFromSelection(data.node.original.dataset_id);
+                }
+            });
+            
+            // Search functionality for tree
+            const treeSearchTimeout = 300;
+            let treeSearchTimer;
+            
+            $('#treeSearch').on('keyup', function() {
+                clearTimeout(treeSearchTimer);
+                treeSearchTimer = setTimeout(function() {
+                    $('#datasetTree').jstree('search', $('#treeSearch').val());
+                }, treeSearchTimeout);
+            });
+        }
+        
+        // Selected Datasets Management
+        const selectedDatasets = new Map();
+        
+        function addDatasetToSelection(dataset) {
+            if (selectedDatasets.has(dataset.id)) {
+                return;
+            }
+            
+            selectedDatasets.set(dataset.id, dataset);
+            updateSelectedUI();
+        }
+        
+        function removeDatasetFromSelection(datasetId) {
+            if (!selectedDatasets.has(datasetId)) {
+                return;
+            }
+            
+            selectedDatasets.delete(datasetId);
+            updateSelectedUI();
+        }
+        
+        function updateSelectedUI() {
+            const selectedList = document.getElementById('selectedList');
+            const modalSelectedList = document.getElementById('modalSelectedList');
+            const selectedCount = document.getElementById('selectedCount');
+            const createStackBtn = document.getElementById('createStackBtn');
+            const clearSelectionBtn = document.getElementById('clearSelectionBtn');
+            
+            // Update count
+            const count = selectedDatasets.size;
+            selectedCount.textContent = count;
+            
+            // Enable/disable buttons
+            createStackBtn.disabled = count === 0;
+            clearSelectionBtn.disabled = count === 0;
+            
+            // Update selected lists
+            selectedList.innerHTML = '';
+            modalSelectedList.innerHTML = '';
+            
+            selectedDatasets.forEach((dataset) => {
+                const listItem = document.createElement('li');
+                listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                listItem.innerHTML = `
+                    ${dataset.title}
+                    <span class="badge bg-danger rounded-pill remove-dataset-btn" data-id="${dataset.id}">
+                        <i class="fas fa-times"></i>
+                    </span>
+                `;
+                selectedList.appendChild(listItem);
+                
+                const modalItem = document.createElement('li');
+                modalItem.className = 'list-group-item';
+                modalItem.textContent = dataset.title + (dataset.version_number ? ` (v${dataset.version_number})` : '');
+                modalSelectedList.appendChild(modalItem);
+            });
+            
+            // Add event listeners to remove buttons
+            document.querySelectorAll('.remove-dataset-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const datasetId = this.getAttribute('data-id');
+                    removeDatasetFromSelection(datasetId);
+                    
+                    // Also uncheck in tree if tree view is initialized
+                    if (window.treeInitialized) {
+                        const node = $('#datasetTree').jstree(true).get_node(datasetId);
+                        if (node) {
+                            $('#datasetTree').jstree(true).uncheck_node(node);
+                        }
+                    }
+                });
+            });
+        }
+        
+        // Add dataset to selection from grid/list view
+        document.querySelectorAll('.select-dataset-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const datasetId = this.getAttribute('data-id');
+                const datasetTitle = this.getAttribute('data-title');
+                
+                addDatasetToSelection({
+                    id: datasetId,
+                    title: datasetTitle
+                });
+            });
+        });
+        
+        // Clear selection button
+        document.getElementById('clearSelectionBtn').addEventListener('click', function() {
+            selectedDatasets.clear();
+            updateSelectedUI();
+            
+            // Uncheck all in tree if tree view is initialized
+            if (window.treeInitialized) {
+                $('#datasetTree').jstree(true).uncheck_all();
+            }
+        });
+        
+        // Create stack button
+        document.getElementById('createStackBtn').addEventListener('click', function() {
+            const createStackModal = new bootstrap.Modal(document.getElementById('createStackModal'));
+            createStackModal.show();
+        });
+        
+        // Submit create stack form
+        document.getElementById('btnSubmitStack').addEventListener('click', function() {
+            const stackName = document.getElementById('stackName').value;
+            const stackDescription = document.getElementById('stackDescription').value;
+            const isPublic = document.getElementById('stackIsPublic').checked;
+            
+            if (!stackName) {
+                alert('Please enter a stack name');
+                return;
+            }
+            
+            const datasets = [];
+            selectedDatasets.forEach(dataset => {
+                datasets.push({
+                    id: dataset.id,
+                    version_id: dataset.version_id || null
+                });
+            });
+            
+            fetch('{% url "repository:create_stack" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    name: stackName,
+                    description: stackDescription,
+                    is_public: isPublic,
+                    datasets: datasets
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = data.redirect_url;
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error);
+            });
+        });
+        
+        // Variable filter functionality
+        document.getElementById('variableSearch').addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            document.querySelectorAll('.variable-filter-list .form-check').forEach(item => {
+                const variableName = item.querySelector('label').textContent.toLowerCase();
+                if (variableName.includes(searchTerm)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+        
+        // Filter functionality
+        const filterForm = document.querySelector('form[method="get"]');
+        document.querySelectorAll('#openLicense, #restrictedLicense, #dailyResolution, #monthlyResolution, #yearlyResolution').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = this.id;
+                input.value = this.checked ? '1' : '0';
+                
+                // Remove existing input with same name if it exists
+                const existingInput = filterForm.querySelector(`input[name="${this.id}"]`);
+                if (existingInput) {
+                    existingInput.remove();
+                }
+                
+                if (this.checked) {
+                    filterForm.appendChild(input);
+                }
+                
+                filterForm.submit();
+            });
+        });
+        
+        document.getElementById('startDate').addEventListener('change', function() {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'start_date';
+            input.value = this.value;
+            
+            // Remove existing input with same name if it exists
+            const existingInput = filterForm.querySelector('input[name="start_date"]');
+            if (existingInput) {
+                existingInput.remove();
+            }
+            
+            if (this.value) {
+                filterForm.appendChild(input);
+                filterForm.submit();
+            }
+        });
+        
+        document.getElementById('endDate').addEventListener('change', function() {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'end_date';
+            input.value = this.value;
+            
+            // Remove existing input with same name if it exists
+            const existingInput = filterForm.querySelector('input[name="end_date"]');
+            if (existingInput) {
+                existingInput.remove();
+            }
+            
+            if (this.value) {
+                filterForm.appendChild(input);
+                filterForm.submit();
+            }
+        });
+        
+        // Helper function to get CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        
+        // Restore view mode preference from localStorage or default to grid
+        const savedViewMode = localStorage.getItem('datasetViewMode') || 'grid';
+        setViewMode(savedViewMode);
+        
+        // Make setViewMode available globally
+        window.setViewMode = setViewMode;
+    });
+</script>
 {% endblock extra_js %}
 
 {% block content %}
@@ -101,35 +445,48 @@
         <!-- Dataset Grid -->
         <div class="col-md-9">
             <div class="row g-4" id="datasetGrid">
-                {% for dataset in datasets %}
-                <div class="col-md-4">
-                    <div class="card h-100">
-                        <div class="card-body">
-                            <h5 class="card-title">{{ dataset.title }}</h5>
-                            <p class="card-text text-muted small mb-3">{{ dataset.description|truncatewords:20 }}</p>
-                            
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <div>
-                                    <span class="badge bg-primary">{{ dataset.category.name }}</span>
-                                    <span class="badge bg-secondary ms-2">{{ dataset.license_type }}</span>
+                {% if datasets %}
+                    {% for dataset in datasets %}
+                    <div class="col-md-4">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ dataset.title }}</h5>
+                                <p class="card-text text-muted small mb-3">{{ dataset.description|truncatewords:20 }}</p>
+                                
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div>
+                                        <span class="badge bg-primary">{{ dataset.category.name }}</span>
+                                        <span class="badge bg-secondary ms-2">{{ dataset.license_type }}</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-muted small">{{ dataset.created_at|date:"M d, Y" }}</span>
+                                    </div>
                                 </div>
-                                <div>
-                                    <span class="text-muted small">{{ dataset.created_at|date:"M d, Y" }}</span>
-                                </div>
-                            </div>
 
-                            <div class="d-flex gap-2">
-                                <a href="{% url 'repository:dataset_detail' dataset.id %}" class="btn btn-outline-primary">
-                                    <i class="fas fa-info-circle me-2"></i>View Details
-                                </a>
-                                <button class="btn btn-outline-success" onclick="addToStack({{ dataset.id }})">
-                                    <i class="fas fa-plus me-2"></i>Add to Stack
-                                </button>
+                                <div class="d-flex gap-2">
+                                    <a href="{% url 'repository:dataset_detail' dataset.id %}" class="btn btn-outline-primary">
+                                        <i class="fas fa-info-circle me-2"></i>View Details
+                                    </a>
+                                    <button class="btn btn-outline-success" onclick="addToStack({{ dataset.id }})">
+                                        <i class="fas fa-plus me-2"></i>Add to Stack
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-                {% endfor %}
+                    {% endfor %}
+                {% else %}
+                    <div class="col-12">
+                        <div class="alert alert-info">
+                            <h4 class="alert-heading">No datasets found</h4>
+                            <p>There are currently no datasets matching your search criteria. Try adjusting your filters or create a new dataset.</p>
+                            <hr>
+                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                                <i class="fas fa-upload me-2"></i>Upload New Dataset
+                            </button>
+                        </div>
+                    </div>
+                {% endif %}
             </div>
 
             <!-- Pagination -->
@@ -218,7 +575,48 @@
         </div>
     </div>
 </div>
-{% endblock content %}
+
+<!-- Create Stack Modal -->
+<div class="modal fade" id="createStackModal" tabindex="-1" aria-labelledby="createStackModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createStackModalLabel">Create New Stack</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createStackForm">
+                    <div class="mb-3">
+                        <label for="stackName" class="form-label">Stack Name</label>
+                        <input type="text" class="form-control" id="stackName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="stackDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="stackDescription" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Selected Datasets</label>
+                        <ul class="list-group" id="modalSelectedList">
+                            <!-- Will be populated dynamically -->
+                        </ul>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="stackIsPublic" checked>
+                            <label class="form-check-label" for="stackIsPublic">
+                                Make this stack public
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="btnSubmitStack">Create Stack</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 {% block extra_css %}
 <style>
@@ -311,5 +709,78 @@
             margin: 1rem;
         }
     }
+    
+    /* Tree View Styles */
+    #treeView .jstree-icon {
+        color: var(--primary);
+    }
+    
+    #treeView .jstree-anchor {
+        padding: 4px 8px;
+        border-radius: 4px;
+        transition: all 0.2s;
+    }
+    
+    #treeView .jstree-anchor:hover {
+        background-color: rgba(44, 62, 80, 0.1);
+    }
+    
+    #treeView .jstree-clicked {
+        background-color: rgba(44, 62, 80, 0.2) !important;
+        box-shadow: none !important;
+    }
+    
+    #treeView .badge {
+        margin-left: 8px;
+        font-size: 0.7rem;
+    }
+    
+    /* Selected Datasets List */
+    #selectedList {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    
+    #selectedList .badge {
+        cursor: pointer;
+    }
+    
+    .variable-filter-list {
+        max-height: 200px;
+        overflow-y: auto;
+    }
+    
+    .select-dataset-btn, .remove-dataset-btn {
+        cursor: pointer;
+    }
+    
+    /* Dataset Card Time Series Flag */
+    .dataset-card .time-series-badge {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        font-size: 0.7rem;
+    }
+    
+    /* List View Dataset Row */
+    .dataset-row.selected {
+        background-color: rgba(44, 62, 80, 0.1);
+    }
+    
+    /* Tree View Custom Icons */
+    .category-icon {
+        color: #3498db;
+    }
+    
+    .dataset-icon {
+        color: #2ecc71;
+    }
+    
+    .version-icon {
+        color: #e74c3c;
+    }
 </style>
 {% endblock extra_css %}
+
+{% endblock content %}
+
