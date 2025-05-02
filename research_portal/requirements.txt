@@ -6,7 +6,9 @@ django-crispy-forms>=1.12.0,<2.0.0
 
 # PostgreSQL and GeoDjango support
 psycopg2-binary>=2.8.6,<2.10.0
-gdal>=3.0.0,<4.0.0
+# Temporarily commented out until system GDAL is properly installed
+# gdal>=3.0.0,<4.0.0
+# django-gis>=3.2.0
 
 # Data processing and visualization
 numpy==2.2.4
@@ -30,9 +32,10 @@ flake8>=3.9.0,<4.0.0
 asgiref==3.8.1
 certifi==2025.1.31
 charset-normalizer==3.4.1
-djangorestframework-gis==0.17
+# Temporarily commented out until system GDAL is properly installed
+# djangorestframework-gis==0.17
 dotenv==0.9.9
-gis==0.2.1
+# gis==0.2.1
 gunicorn==23.0.0
 idna==3.10
 packaging==24.2
@@ -48,8 +51,7 @@ xlsxwriter
 cgi-tools
 prettytable
 
-
-//FOR TEST Data
+# Test Data Generation
 tqdm
 faker
 netCDF4 

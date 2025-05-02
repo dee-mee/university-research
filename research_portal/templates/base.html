@@ -10,6 +10,7 @@
     <!-- Custom CSS -->
     <link href="{% static 'css/header.css' %}" rel="stylesheet">
     <link href="{% static 'css/styles.css' %}" rel="stylesheet">
+    <link href="{% static 'css/alerts.css' %}" rel="stylesheet">
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
@@ -44,6 +45,7 @@
                     </li>
                     <li class="nav-item"><a class="nav-link" href="{% url 'research:people' %}">People</a></li>
                     <li class="nav-item"><a class="nav-link" href="{% url 'maps:map' %}">Map</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{% url 'repository:dataset_list' %}">Datasets</a></li>
                     <li class="nav-item"><a class="nav-link" href="{% url 'research:contact' %}">Contact</a></li>
                     {% if request.user.is_authenticated %}
                     <li class="nav-item dropdown">
@@ -85,22 +87,14 @@
             <nav class="navbar navbar-expand-lg navbar-dark">
                 <div class="navbar-collapse">
                     <ul class="navbar-nav">
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                Active alerts
-                         </a>
-                            <div class="dropdown-menu dropdown-menu-dark">
-                                <a class="dropdown-item" href="#">Excessive rainfall</a>
-                                <a class="dropdown-item" href="#">River level</a>
-                                <a class="dropdown-item" href="#">Lake level</a>
-                                <a class="dropdown-item" href="#">Lake level extent</a>
-                            </div>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#">Active Alerts</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="#">Forecast</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="#">Radar</a>
+                            <a class="nav-link" href="{% url 'research:messages' %}">Messages</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="#">Rivers,Lakes,Rainfall</a>
