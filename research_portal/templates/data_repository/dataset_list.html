@@ -1,356 +1,16 @@
-{% extends 'base.html' %}
+{% extends 'data_repository/base_repository.html' %}
 {% load static %}
 
 {% block extra_js %}
 <script src="{% static 'js/dataset_list.js' %}"></script>
 <script src="{% static 'js/jstree.min.js' %}"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // View Mode Handling
-        function setViewMode(mode) {
-            const gridView = document.getElementById('gridView');
-            const treeView = document.getElementById('treeView');
-            const listView = document.getElementById('listView');
-            const btnGridView = document.getElementById('btnGridView');
-            const btnTreeView = document.getElementById('btnTreeView');
-            const btnListView = document.getElementById('btnListView');
-            
-            // Hide all views
-            gridView.style.display = 'none';
-            treeView.style.display = 'none';
-            listView.style.display = 'none';
-            
-            // Reset all buttons
-            btnGridView.classList.remove('btn-primary');
-            btnGridView.classList.add('btn-outline-primary');
-            btnTreeView.classList.remove('btn-primary');
-            btnTreeView.classList.add('btn-outline-primary');
-            btnListView.classList.remove('btn-primary');
-            btnListView.classList.add('btn-outline-primary');
-            
-            // Show selected view and activate button
-            if (mode === 'grid') {
-                gridView.style.display = 'flex';
-                btnGridView.classList.remove('btn-outline-primary');
-                btnGridView.classList.add('btn-primary');
-            } else if (mode === 'tree') {
-                treeView.style.display = 'block';
-                btnTreeView.classList.remove('btn-outline-primary');
-                btnTreeView.classList.add('btn-primary');
-                
-                // Initialize tree if it hasn't been already
-                if (!window.treeInitialized) {
-                    initializeTree();
-                    window.treeInitialized = true;
-                }
-            } else if (mode === 'list') {
-                listView.style.display = 'block';
-                btnListView.classList.remove('btn-outline-primary');
-                btnListView.classList.add('btn-primary');
-            }
-            
-            // Save preference to localStorage
-            localStorage.setItem('datasetViewMode', mode);
-        }
-        
-        // Initialize Tree View
-        function initializeTree() {
-            $('#datasetTree').jstree({
-                'core': {
-                    'data': {{ tree_data|safe }},
-                    'themes': {
-                        'name': 'proton',
-                        'responsive': true
-                    }
-                },
-                'types': {
-                    'category': {
-                        'icon': 'fas fa-folder category-icon'
-                    },
-                    'dataset': {
-                        'icon': 'fas fa-database dataset-icon'
-                    },
-                    'version': {
-                        'icon': 'fas fa-code-branch version-icon'
-                    }
-                },
-                'plugins': ['types', 'wholerow', 'checkbox', 'search']
-            }).on('check_node.jstree', function(e, data) {
-                if (data.node.type === 'version') {
-                    addDatasetToSelection({
-                        id: data.node.original.dataset_id,
-                        title: data.node.original.dataset_title,
-                        version_id: data.node.id,
-                        version_number: data.node.text
-                    });
-                }
-            }).on('uncheck_node.jstree', function(e, data) {
-                if (data.node.type === 'version') {
-                    removeDatasetFromSelection(data.node.original.dataset_id);
-                }
-            });
-            
-            // Search functionality for tree
-            const treeSearchTimeout = 300;
-            let treeSearchTimer;
-            
-            $('#treeSearch').on('keyup', function() {
-                clearTimeout(treeSearchTimer);
-                treeSearchTimer = setTimeout(function() {
-                    $('#datasetTree').jstree('search', $('#treeSearch').val());
-                }, treeSearchTimeout);
-            });
-        }
-        
-        // Selected Datasets Management
-        const selectedDatasets = new Map();
-        
-        function addDatasetToSelection(dataset) {
-            if (selectedDatasets.has(dataset.id)) {
-                return;
-            }
-            
-            selectedDatasets.set(dataset.id, dataset);
-            updateSelectedUI();
-        }
-        
-        function removeDatasetFromSelection(datasetId) {
-            if (!selectedDatasets.has(datasetId)) {
-                return;
-            }
-            
-            selectedDatasets.delete(datasetId);
-            updateSelectedUI();
-        }
-        
-        function updateSelectedUI() {
-            const selectedList = document.getElementById('selectedList');
-            const modalSelectedList = document.getElementById('modalSelectedList');
-            const selectedCount = document.getElementById('selectedCount');
-            const createStackBtn = document.getElementById('createStackBtn');
-            const clearSelectionBtn = document.getElementById('clearSelectionBtn');
-            
-            // Update count
-            const count = selectedDatasets.size;
-            selectedCount.textContent = count;
-            
-            // Enable/disable buttons
-            createStackBtn.disabled = count === 0;
-            clearSelectionBtn.disabled = count === 0;
-            
-            // Update selected lists
-            selectedList.innerHTML = '';
-            modalSelectedList.innerHTML = '';
-            
-            selectedDatasets.forEach((dataset) => {
-                const listItem = document.createElement('li');
-                listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
-                listItem.innerHTML = `
-                    ${dataset.title}
-                    <span class="badge bg-danger rounded-pill remove-dataset-btn" data-id="${dataset.id}">
-                        <i class="fas fa-times"></i>
-                    </span>
-                `;
-                selectedList.appendChild(listItem);
-                
-                const modalItem = document.createElement('li');
-                modalItem.className = 'list-group-item';
-                modalItem.textContent = dataset.title + (dataset.version_number ? ` (v${dataset.version_number})` : '');
-                modalSelectedList.appendChild(modalItem);
-            });
-            
-            // Add event listeners to remove buttons
-            document.querySelectorAll('.remove-dataset-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const datasetId = this.getAttribute('data-id');
-                    removeDatasetFromSelection(datasetId);
-                    
-                    // Also uncheck in tree if tree view is initialized
-                    if (window.treeInitialized) {
-                        const node = $('#datasetTree').jstree(true).get_node(datasetId);
-                        if (node) {
-                            $('#datasetTree').jstree(true).uncheck_node(node);
-                        }
-                    }
-                });
-            });
-        }
-        
-        // Add dataset to selection from grid/list view
-        document.querySelectorAll('.select-dataset-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const datasetId = this.getAttribute('data-id');
-                const datasetTitle = this.getAttribute('data-title');
-                
-                addDatasetToSelection({
-                    id: datasetId,
-                    title: datasetTitle
-                });
-            });
-        });
-        
-        // Clear selection button
-        document.getElementById('clearSelectionBtn').addEventListener('click', function() {
-            selectedDatasets.clear();
-            updateSelectedUI();
-            
-            // Uncheck all in tree if tree view is initialized
-            if (window.treeInitialized) {
-                $('#datasetTree').jstree(true).uncheck_all();
-            }
-        });
-        
-        // Create stack button
-        document.getElementById('createStackBtn').addEventListener('click', function() {
-            const createStackModal = new bootstrap.Modal(document.getElementById('createStackModal'));
-            createStackModal.show();
-        });
-        
-        // Submit create stack form
-        document.getElementById('btnSubmitStack').addEventListener('click', function() {
-            const stackName = document.getElementById('stackName').value;
-            const stackDescription = document.getElementById('stackDescription').value;
-            const isPublic = document.getElementById('stackIsPublic').checked;
-            
-            if (!stackName) {
-                alert('Please enter a stack name');
-                return;
-            }
-            
-            const datasets = [];
-            selectedDatasets.forEach(dataset => {
-                datasets.push({
-                    id: dataset.id,
-                    version_id: dataset.version_id || null
-                });
-            });
-            
-            fetch('{% url "repository:create_stack" %}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCookie('csrftoken')
-                },
-                body: JSON.stringify({
-                    name: stackName,
-                    description: stackDescription,
-                    is_public: isPublic,
-                    datasets: datasets
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    window.location.href = data.redirect_url;
-                } else {
-                    alert('Error: ' + data.error);
-                }
-            })
-            .catch(error => {
-                alert('Error: ' + error);
-            });
-        });
-        
-        // Variable filter functionality
-        document.getElementById('variableSearch').addEventListener('input', function() {
-            const searchTerm = this.value.toLowerCase();
-            document.querySelectorAll('.variable-filter-list .form-check').forEach(item => {
-                const variableName = item.querySelector('label').textContent.toLowerCase();
-                if (variableName.includes(searchTerm)) {
-                    item.style.display = 'block';
-                } else {
-                    item.style.display = 'none';
-                }
-            });
-        });
-        
-        // Filter functionality
-        const filterForm = document.querySelector('form[method="get"]');
-        document.querySelectorAll('#openLicense, #restrictedLicense, #dailyResolution, #monthlyResolution, #yearlyResolution').forEach(checkbox => {
-            checkbox.addEventListener('change', function() {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = this.id;
-                input.value = this.checked ? '1' : '0';
-                
-                // Remove existing input with same name if it exists
-                const existingInput = filterForm.querySelector(`input[name="${this.id}"]`);
-                if (existingInput) {
-                    existingInput.remove();
-                }
-                
-                if (this.checked) {
-                    filterForm.appendChild(input);
-                }
-                
-                filterForm.submit();
-            });
-        });
-        
-        document.getElementById('startDate').addEventListener('change', function() {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = 'start_date';
-            input.value = this.value;
-            
-            // Remove existing input with same name if it exists
-            const existingInput = filterForm.querySelector('input[name="start_date"]');
-            if (existingInput) {
-                existingInput.remove();
-            }
-            
-            if (this.value) {
-                filterForm.appendChild(input);
-                filterForm.submit();
-            }
-        });
-        
-        document.getElementById('endDate').addEventListener('change', function() {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = 'end_date';
-            input.value = this.value;
-            
-            // Remove existing input with same name if it exists
-            const existingInput = filterForm.querySelector('input[name="end_date"]');
-            if (existingInput) {
-                existingInput.remove();
-            }
-            
-            if (this.value) {
-                filterForm.appendChild(input);
-                filterForm.submit();
-            }
-        });
-        
-        // Helper function to get CSRF token
-        function getCookie(name) {
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
-                    }
-                }
-            }
-            return cookieValue;
-        }
-        
-        // Restore view mode preference from localStorage or default to grid
-        const savedViewMode = localStorage.getItem('datasetViewMode') || 'grid';
-        setViewMode(savedViewMode);
-        
-        // Make setViewMode available globally
-        window.setViewMode = setViewMode;
-    });
-</script>
 {% endblock extra_js %}
 
-{% block content %}
+{% block repository_sidebar %}{% endblock %}
+
+{% block repository_content %}
 <div class="container-fluid mt-4">
+
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div class="d-flex align-items-center">
@@ -361,98 +21,187 @@
             <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
                 <i class="fas fa-upload me-2"></i>Upload Dataset
             </button>
-            <button class="btn btn-primary" onclick="toggleViewMode()">
-                <i class="fas fa-th-large me-2"></i>Grid View
-            </button>
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-outline-primary" onclick="toggleViewMode('grid')">
+                    <i class="fas fa-th-large me-2"></i>Grid
+                </button>
+                <button type="button" class="btn btn-outline-primary" onclick="toggleViewMode('tree')">
+                    <i class="fas fa-sitemap me-2"></i>Tree
+                </button>
+            </div>
         </div>
     </div>
-
-    <!-- Search Bar -->
-    <div class="card mb-4">
-        <div class="card-body">
-            <form method="get" class="mb-0">
-                <div class="row g-3 align-items-center">
-                    <div class="col">
-                        <div class="input-group">
-                            <input type="text" name="q" class="form-control" placeholder="Search datasets..." value="{{ request.GET.q }}">
-                            <button class="btn btn-outline-secondary" type="button" id="searchOptionsBtn">
-                                <i class="fas fa-filter"></i>
+        <!-- Search Bar -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="get" class="mb-0">
+                    <div class="row g-3 align-items-center">
+                        <div class="col">
+                            <div class="input-group">
+                                <input type="text" name="q" class="form-control" placeholder="Search datasets..." value="{{ request.GET.q }}">
+                                <button class="btn btn-outline-secondary" type="button" id="searchOptionsBtn">
+                                    <i class="fas fa-filter"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search"></i> Search
                             </button>
                         </div>
+                        <div class="col-auto">
+                            <a href="{% url 'repository:dataset_list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Clear
+                            </a>
+                        </div>
                     </div>
-                    <div class="col-auto">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-search"></i> Search
-                        </button>
-                    </div>
-                    <div class="col-auto">
-                        <a href="{% url 'repository:dataset_list' %}" class="btn btn-outline-secondary">
-                            <i class="fas fa-times"></i> Clear
-                        </a>
-                    </div>
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
-    </div>
-
-    <!-- Dataset List -->
     <div class="row g-4">
-        <!-- Filters Sidebar -->
+        <!-- Unified Sidebar -->
         <div class="col-md-3">
             <div class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title mb-3">Filters</h5>
-                    
-                    <!-- Category Filter -->
-                    <div class="mb-3">
-                        <h6 class="mb-2">Categories</h6>
-                        <div class="list-group">
-                            {% for category in categories %}
-                            <a href="{% url 'repository:category_datasets' category.slug %}" class="list-group-item list-group-item-action">
-                                {{ category.name }}
-                                <span class="badge bg-primary rounded-pill float-end">{{ category.dataset_count }}</span>
-                            </a>
-                            {% endfor %}
+                <div class="card-body p-0">
+                    <!-- Waterinfo Sidebar (Accordion) -->
+                    <div class="p-3 border-bottom">
+                        <h5 class="card-title">Research Dataset</h5>
+                        <div class="accordion" id="waterInfoAccordion">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingFloods">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFloods" aria-expanded="false" aria-controls="collapseFloods">
+                                        Floods <span class="ms-auto badge bg-success">Normal</span>
+                                    </button>
+                                </h2>
+                                <div id="collapseFloods" class="accordion-collapse collapse" aria-labelledby="headingFloods" data-bs-parent="#waterInfoAccordion">
+                                    <div class="accordion-body">
+                                        <a href="#" class="d-block mb-1">Short Prediction</a>
+                                        <a href="#" class="d-block">1 Week Prediction</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingDrought">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDrought" aria-expanded="false" aria-controls="collapseDrought">
+                                        Drought <span class="ms-auto badge bg-warning text-dark">Pre-alert</span>
+                                    </button>
+                                </h2>
+                                <div id="collapseDrought" class="accordion-collapse collapse" aria-labelledby="headingDrought" data-bs-parent="#waterInfoAccordion">
+                                    <div class="accordion-body">
+                                        <a href="#" class="d-block mb-1">Short Prediction</a>
+                                        <a href="#" class="d-block">1 Week Prediction</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingRainfall">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseRainfall" aria-expanded="false" aria-controls="collapseRainfall">
+                                        Rainfall <span class="ms-auto badge bg-success">Normal</span>
+                                    </button>
+                                </h2>
+                                <div id="collapseRainfall" class="accordion-collapse collapse" aria-labelledby="headingRainfall" data-bs-parent="#waterInfoAccordion">
+                                    <div class="accordion-body">
+                                        <a href="#" class="d-block mb-1">Short Prediction</a>
+                                        <a href="#" class="d-block">1 Week Prediction</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingWaterQuality">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseWaterQuality" aria-expanded="false" aria-controls="collapseWaterQuality">
+                                        Water Quality <span class="ms-auto badge bg-success">Normal</span>
+                                    </button>
+                                </h2>
+                                <div id="collapseWaterQuality" class="accordion-collapse collapse" aria-labelledby="headingWaterQuality" data-bs-parent="#waterInfoAccordion">
+                                    <div class="accordion-body">
+                                        <a href="#" class="d-block mb-1">Short Prediction</a>
+                                        <a href="#" class="d-block">1 Week Prediction</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingCarbonFlux">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCarbonFlux" aria-expanded="false" aria-controls="collapseCarbonFlux">
+                                        Carbon Flux <span class="ms-auto badge bg-success">Normal</span>
+                                    </button>
+                                </h2>
+                                <div id="collapseCarbonFlux" class="accordion-collapse collapse" aria-labelledby="headingCarbonFlux" data-bs-parent="#waterInfoAccordion">
+                                    <div class="accordion-body">
+                                        <a href="#" class="d-block mb-1">Short Prediction</a>
+                                        <a href="#" class="d-block">1 Week Prediction</a>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-
-                    <!-- Date Range Filter -->
-                    <div class="mb-3">
-                        <h6 class="mb-2">Date Range</h6>
-                        <div class="input-group">
-                            <input type="date" class="form-control" id="startDate">
-                            <span class="input-group-text">to</span>
-                            <input type="date" class="form-control" id="endDate">
+                    <!-- Filters Section -->
+                    <div class="p-3">
+                        <h5 class="card-title mb-3">Filters</h5>
+                        <!-- Categories Filter -->
+                        <div class="mb-3">
+                            <h6 class="mb-2">Categories</h6>
+                            <div class="list-group">
+                                {% for category in categories %}
+                                    <div class="form-check">
+                                        <input class="form-check-input category-filter" type="checkbox" 
+                                               value="{{ category.id }}" id="category-{{ category.id }}"
+                                               data-category="{{ category.name }}">
+                                        <label class="form-check-label" for="category-{{ category.id }}">
+                                            {{ category.name }}
+                                            <span class="badge bg-primary rounded-pill">{{ category.dataset_count }}</span>
+                                        </label>
+                                    </div>
+                                {% endfor %}
+                            </div>
                         </div>
-                    </div>
-
-                    <!-- License Filter -->
-                    <div class="mb-3">
-                        <h6 class="mb-2">License</h6>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="openLicense">
-                            <label class="form-check-label" for="openLicense">Open License</label>
+                        <!-- Date Range Filter -->
+                        <div class="mb-3">
+                            <h6 class="mb-2">Date Range</h6>
+                            <div class="input-group">
+                                <input type="date" class="form-control" id="startDate" name="startDate">
+                                <span class="input-group-text">to</span>
+                                <input type="date" class="form-control" id="endDate" name="endDate">
+                            </div>
                         </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="restrictedLicense">
-                            <label class="form-check-label" for="restrictedLicense">Restricted Access</label>
+                        <!-- License Filter -->
+                        <div class="mb-3">
+                            <h6 class="mb-2">License</h6>
+                            <div class="form-check">
+                                <input class="form-check-input license-filter" type="checkbox" value="open" id="openLicense">
+                                <label class="form-check-label" for="openLicense">Open License</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input license-filter" type="checkbox" value="restricted" id="restrictedLicense">
+                                <label class="form-check-label" for="restrictedLicense">Restricted Access</label>
+                            </div>
+                        </div>
+                        <!-- Filter Buttons -->
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary" onclick="applyFilters()">
+                                <i class="fas fa-filter me-2"></i>Apply Filters
+                            </button>
+                            <button class="btn btn-outline-secondary" onclick="resetFilters()">
+                                <i class="fas fa-times me-2"></i>Reset Filters
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-
-        <!-- Dataset Grid -->
+        <!-- Dataset Grid/Tree View -->
         <div class="col-md-9">
-            <div class="row g-4" id="datasetGrid">
+            <!-- Grid View -->
+            <div class="row g-4" id="datasetGrid" style="display: none;">
                 {% if datasets %}
                     {% for dataset in datasets %}
-                    <div class="col-md-4">
+                    <div class="col-md-4" data-category-id="{{ dataset.category.id }}" 
+                         data-license-type="{{ dataset.license_type }}" 
+                         data-date="{{ dataset.created_at|date:'Y-m-d' }}"
+                         data-id="{{ dataset.id }}">
                         <div class="card h-100">
                             <div class="card-body">
                                 <h5 class="card-title">{{ dataset.title }}</h5>
                                 <p class="card-text text-muted small mb-3">{{ dataset.description|truncatewords:20 }}</p>
-                                
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     <div>
                                         <span class="badge bg-primary">{{ dataset.category.name }}</span>
@@ -462,7 +211,6 @@
                                         <span class="text-muted small">{{ dataset.created_at|date:"M d, Y" }}</span>
                                     </div>
                                 </div>
-
                                 <div class="d-flex gap-2">
                                     <a href="{% url 'repository:dataset_detail' dataset.id %}" class="btn btn-outline-primary">
                                         <i class="fas fa-info-circle me-2"></i>View Details
@@ -488,7 +236,14 @@
                     </div>
                 {% endif %}
             </div>
-
+            <!-- Tree View -->
+            <div id="datasetTree" style="display: none;">
+                <div class="card">
+                    <div class="card-body">
+                        <div id="jstree"></div>
+                    </div>
+                </div>
+            </div>
             <!-- Pagination -->
             <nav aria-label="Page navigation" class="mt-4">
                 <ul class="pagination justify-content-center">
@@ -499,7 +254,6 @@
                         </a>
                     </li>
                     {% endif %}
-
                     {% for num in datasets.paginator.page_range %}
                     {% if datasets.number == num %}
                     <li class="page-item active">
@@ -511,7 +265,6 @@
                     </li>
                     {% endif %}
                     {% endfor %}
-
                     {% if datasets.has_next %}
                     <li class="page-item">
                         <a class="page-link" href="?page={{ datasets.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
@@ -617,170 +370,5 @@
         </div>
     </div>
 </div>
-
-{% block extra_css %}
-<style>
-    :root {
-        --primary: #2c3e50;
-        --secondary: #34495e;
-        --accent: #3498db;
-        --light: #ecf0f1;
-        --dark: #2c3e50;
-        --success: #2ecc71;
-        --danger: #e74c3c;
-        --warning: #f1c40f;
-        --info: #3498db;
-    }
-
-    .card {
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        border: none;
-    }
-
-    .card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-    }
-
-    .card-title {
-        font-size: 1.1rem;
-        color: var(--primary);
-    }
-
-    .card-text {
-        color: var(--secondary);
-    }
-
-    .badge {
-        padding: 0.5em 0.75em;
-    }
-
-    .btn {
-        padding: 0.5rem 1rem;
-        border-radius: 5px;
-    }
-
-    .btn-primary {
-        background: linear-gradient(to right, var(--primary), var(--secondary));
-        border: none;
-    }
-
-    .btn-primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-    }
-
-    .btn-outline-primary {
-        color: var(--primary);
-        border: 1px solid var(--primary);
-    }
-
-    .btn-outline-primary:hover {
-        background: var(--primary);
-        color: white;
-    }
-
-    .pagination .page-link {
-        color: var(--primary);
-        border: 1px solid var(--primary);
-    }
-
-    .pagination .page-link:hover {
-        background-color: var(--primary);
-        border-color: var(--primary);
-    }
-
-    .pagination .page-item.active .page-link {
-        background-color: var(--primary);
-        border-color: var(--primary);
-    }
-
-    @media (max-width: 768px) {
-        .card {
-            margin-bottom: 1rem;
-        }
-
-        .btn {
-            width: 100%;
-            margin-bottom: 0.5rem;
-        }
-
-        .modal-dialog {
-            margin: 1rem;
-        }
-    }
-    
-    /* Tree View Styles */
-    #treeView .jstree-icon {
-        color: var(--primary);
-    }
-    
-    #treeView .jstree-anchor {
-        padding: 4px 8px;
-        border-radius: 4px;
-        transition: all 0.2s;
-    }
-    
-    #treeView .jstree-anchor:hover {
-        background-color: rgba(44, 62, 80, 0.1);
-    }
-    
-    #treeView .jstree-clicked {
-        background-color: rgba(44, 62, 80, 0.2) !important;
-        box-shadow: none !important;
-    }
-    
-    #treeView .badge {
-        margin-left: 8px;
-        font-size: 0.7rem;
-    }
-    
-    /* Selected Datasets List */
-    #selectedList {
-        max-height: 300px;
-        overflow-y: auto;
-    }
-    
-    #selectedList .badge {
-        cursor: pointer;
-    }
-    
-    .variable-filter-list {
-        max-height: 200px;
-        overflow-y: auto;
-    }
-    
-    .select-dataset-btn, .remove-dataset-btn {
-        cursor: pointer;
-    }
-    
-    /* Dataset Card Time Series Flag */
-    .dataset-card .time-series-badge {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        font-size: 0.7rem;
-    }
-    
-    /* List View Dataset Row */
-    .dataset-row.selected {
-        background-color: rgba(44, 62, 80, 0.1);
-    }
-    
-    /* Tree View Custom Icons */
-    .category-icon {
-        color: #3498db;
-    }
-    
-    .dataset-icon {
-        color: #2ecc71;
-    }
-    
-    .version-icon {
-        color: #e74c3c;
-    }
-</style>
-{% endblock extra_css %}
-
-{% endblock content %}
+{% endblock repository_content %}
 
