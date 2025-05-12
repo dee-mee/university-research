@@ -3,27 +3,33 @@
  * Handles displaying and downloading weather station data
  */
 
+/**
+ * Initialize the page
+ */
 document.addEventListener('DOMContentLoaded', function() {
     // Get station ID from URL parameter
     const urlParams = new URLSearchParams(window.location.search);
     const stationId = urlParams.get('id');
     
-    if (!stationId) {
-        showError("No station ID provided");
-        return;
+    if (stationId) {
+        // Load station data
+        loadStationData(stationId);
+        
+        // Set up download buttons
+        document.getElementById('download-json').addEventListener('click', function() {
+            downloadData(stationId, 'json');
+        });
+        
+        document.getElementById('download-csv').addEventListener('click', function() {
+            downloadData(stationId, 'csv');
+        });
+        
+        // Set badge information
+        updateStationBadges(stationId);
+    } else {
+        console.error('No station ID provided');
+        alert('No station ID provided. Please go back to the map and select a station.');
     }
-    
-    // Load station data
-    loadStationData(stationId);
-    
-    // Set up download buttons
-    document.getElementById('download-json').addEventListener('click', function() {
-        downloadData(stationId, 'json');
-    });
-    
-    document.getElementById('download-csv').addEventListener('click', function() {
-        downloadData(stationId, 'csv');
-    });
 });
 
 /**
@@ -204,12 +210,18 @@ function displayClimateData(climateData) {
     recentData.forEach(reading => {
         const row = document.createElement('tr');
         
+        // Format the values to ensure consistent decimal places
+        const temp = parseFloat(reading.temperature).toFixed(1);
+        const precip = parseFloat(reading.precipitation).toFixed(1);
+        const humidity = parseFloat(reading.humidity).toFixed(0);
+        const windSpeed = parseFloat(reading.wind_speed).toFixed(1);
+        
         row.innerHTML = `
-            <td>${formatDate(reading.timestamp)}</td>
-            <td>${reading.temperature} °C</td>
-            <td>${reading.precipitation} mm</td>
-            <td>${reading.humidity} %</td>
-            <td>${reading.wind_speed} m/s</td>
+            <td><strong>${formatDate(reading.timestamp)}</strong></td>
+            <td><span class="badge bg-danger text-white p-2">${temp} °C</span></td>
+            <td><span class="badge bg-primary text-white p-2">${precip} mm</span></td>
+            <td><span class="badge bg-info text-white p-2">${humidity} %</span></td>
+            <td><span class="badge bg-success text-white p-2">${windSpeed} m/s</span></td>
         `;
         
         tableBody.appendChild(row);
@@ -267,9 +279,9 @@ function createTemperatureChart(labels, temperatureData, limitedData) {
     }
     
     // Explicitly set canvas dimensions
-    tempCtx.height = 1000;
-    tempCtx.style.height = '1000px';
-    tempCtx.parentNode.style.height = '1000px';
+    tempCtx.height = 500;
+    tempCtx.style.height = '500px';
+    tempCtx.parentNode.style.height = '500px';
     
     // Calculate min/max for better y-axis scaling
     const tempMin = Math.min(...temperatureData) - 2;
@@ -363,9 +375,9 @@ function createPrecipitationChart(labels, precipitationData, limitedData) {
     }
     
     // Explicitly set canvas dimensions
-    precipCtx.height = 1000;
-    precipCtx.style.height = '1000px';
-    precipCtx.parentNode.style.height = '1000px';
+    precipCtx.height = 500;
+    precipCtx.style.height = '500px';
+    precipCtx.parentNode.style.height = '500px';
     
     // Calculate max for better y-axis scaling
     const precipMax = Math.max(...precipitationData) * 1.2;
@@ -597,4 +609,53 @@ function showError(message) {
             <a href="{% url 'map' %}" class="btn btn-primary">Back to Map</a>
         </div>
     `;
+}
+
+/**
+ * Update station badges based on station ID
+ * @param {string} stationId - The ID of the station
+ */
+function updateStationBadges(stationId) {
+    // Update breadcrumb
+    const breadcrumbElement = document.getElementById('breadcrumb-station-name');
+    if (breadcrumbElement) {
+        if (isNaN(stationId)) {
+            // For custom stations, use the ID to create a readable name
+            const stationName = stationId.split('-').map(word => 
+                word.charAt(0).toUpperCase() + word.slice(1)
+            ).join(' ');
+            breadcrumbElement.textContent = stationName;
+        } else {
+            // For numeric IDs, use a generic name
+            breadcrumbElement.textContent = `Station #${stationId}`;
+        }
+    }
+    
+    // Set station type badge
+    const typeElement = document.getElementById('station-type-badge');
+    if (typeElement) {
+        if (isNaN(stationId)) {
+            typeElement.textContent = 'Custom Station';
+            typeElement.classList.remove('bg-info');
+            typeElement.classList.add('bg-warning');
+        } else {
+            typeElement.textContent = 'Monitoring Station';
+        }
+    }
+    
+    // Set region badge based on station ID
+    const regionElement = document.getElementById('station-region-badge');
+    if (regionElement) {
+        if (stationId === 'jooust-station' || stationId === '1') {
+            regionElement.textContent = 'JOOUST Campus';
+        } else if (stationId === 'kisumu-station' || stationId === '2') {
+            regionElement.textContent = 'Kisumu County';
+        } else if (stationId === 'siaya-station' || stationId === '3') {
+            regionElement.textContent = 'Siaya County';
+        } else if (stationId === 'bondo-station' || stationId === '4') {
+            regionElement.textContent = 'Bondo Region';
+        } else {
+            regionElement.textContent = 'Lake Victoria Basin';
+        }
+    }
 }

@@ -3,133 +3,155 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/hotspot.css' %}">
+<link rel="stylesheet" href="{% static 'css/repository.css' %}">
 <style>
-    .data-container {
-        margin: 20px 0;
-    }
     .data-table {
         width: 100%;
         border-collapse: collapse;
         margin-bottom: 20px;
+        box-shadow: 0 2px 3px rgba(0,0,0,0.1);
     }
     .data-table th, .data-table td {
-        padding: 10px;
-        border: 1px solid #ddd;
-        text-align: left;
+        padding: 12px;
+        border: 1px solid #dee2e6;
+        text-align: center;
     }
     .data-table th {
-        background-color: #f5f5f5;
+        background-color: #f8f9fa;
+        font-weight: 600;
+        border-bottom: 2px solid #dee2e6;
     }
     .data-table tr:nth-child(even) {
-        background-color: #f9f9f9;
+        background-color: #f8f9fa;
     }
-    .download-options {
-        margin: 20px 0;
-    }
-    .download-btn {
-        margin-right: 10px;
-    }
-    .chart-wrapper {
-        position: relative;
-        margin: 30px 0;
-        padding: 20px;
-        border: 2px solid #ddd;
-        border-radius: 8px;
-        background-color: #f9f9f9;
-    }
-    .chart-wrapper h5 {
-        margin-top: 0;
-        margin-bottom: 20px;
-        border-bottom: 2px solid #ddd;
-        padding-bottom: 15px;
-        font-size: 18px;
-        color: #333;
+    .data-table tr:hover {
+        background-color: #f1f1f1;
     }
     .chart-container {
         position: relative;
-        height: 1000px !important;
+        height: 500px !important;
         width: 100% !important;
-        min-height: 1000px !important;
+        min-height: 500px !important;
     }
-    .back-to-map {
-        margin-bottom: 20px;
-    }
-    /* Fix for Chart.js overflow */
     canvas {
-        height: 1000px !important;
-        max-height: 1000px !important;
-        min-height: 1000px !important;
+        height: 500px !important;
+        max-height: 500px !important;
+        min-height: 500px !important;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="row">
-        <div class="col-md-12">
-            <div class="back-to-map">
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'maps:map' %}">Weather Map</a></li>
+            <li class="breadcrumb-item active" aria-current="page" id="breadcrumb-station-name">Weather Station Data</li>
+        </ol>
+    </nav>
+
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 id="station-name">Weather Station Data</h1>
+            <p class="lead" id="station-description"></p>
+            
+            <div class="mb-3">
+                <span class="badge bg-primary">Weather Station</span>
+                <span class="badge bg-info" id="station-type-badge">Monitoring Station</span>
+                <span class="badge bg-secondary" id="station-region-badge">Lake Victoria Basin</span>
+            </div>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <div class="btn-group" role="group">
                 <a href="{% url 'maps:map' %}" class="btn btn-outline-secondary">
-                    <i class="fas fa-arrow-left"></i> Back to Map
+                    <i class="fas fa-arrow-left me-2"></i>Back to Map
                 </a>
             </div>
-            
-            <div class="card">
-                <div class="card-header">
-                    <h2 id="station-name">Weather Station Data</h2>
-                    <p id="station-description" class="text-muted"></p>
+        </div>
+    </div>
+
+    <!-- Properties Section -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="h5 mb-0">Station Properties</h2>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Location:</strong> <span id="station-location"></span></p>
+                    <p><strong>Altitude:</strong> <span id="station-altitude"></span> meters</p>
                 </div>
-                <div class="card-body">
-                    <div class="station-info">
-                        <p><strong>Location:</strong> <span id="station-location"></span></p>
-                        <p><strong>Altitude:</strong> <span id="station-altitude"></span> meters</p>
-                        <p><strong>Installed:</strong> <span id="station-installed"></span></p>
-                        <p><strong>Last Updated:</strong> <span id="last-updated"></span></p>
-                    </div>
-                    
-                    <div class="download-options">
-                        <h4>Download Data</h4>
-                        <button id="download-json" class="btn btn-primary download-btn">
-                            <i class="fas fa-file-code"></i> Download JSON
-                        </button>
-                        <button id="download-csv" class="btn btn-success download-btn">
-                            <i class="fas fa-file-csv"></i> Download CSV
-                        </button>
-                    </div>
-                    
-                    <div class="data-container">
-                        <h4>Recent Weather Data</h4>
-                        <table class="data-table" id="weather-data-table">
-                            <thead>
-                                <tr>
-                                    <th>Timestamp</th>
-                                    <th>Temperature (°C)</th>
-                                    <th>Precipitation (mm)</th>
-                                    <th>Humidity (%)</th>
-                                    <th>Wind Speed (m/s)</th>
-                                </tr>
-                            </thead>
-                            <tbody id="data-table-body">
-                                <!-- Data will be populated by JavaScript -->
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    <h4 class="mt-4 mb-3">Weather Trends</h4>
-                    
-                    <div class="chart-wrapper">
-                        <h5>Temperature Trend (°C)</h5>
-                        <div class="chart-container">
-                            <canvas id="temperature-chart"></canvas>
-                        </div>
-                    </div>
-                    
-                    <div class="chart-wrapper">
-                        <h5>Precipitation Trend (mm)</h5>
-                        <div class="chart-container">
-                            <canvas id="precipitation-chart"></canvas>
-                        </div>
-                    </div>
+                <div class="col-md-6">
+                    <p><strong>Installed:</strong> <span id="station-installed"></span></p>
+                    <p><strong>Last Updated:</strong> <span id="last-updated"></span></p>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Download Section -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h2 class="h5 mb-0">Download Data</h2>
+        </div>
+        <div class="card-body">
+            <p class="text-muted mb-3">Export weather data for this station in your preferred format:</p>
+            <div class="d-flex">
+                <button id="download-json" class="btn btn-primary me-3">
+                    <i class="fas fa-file-code me-2"></i> Download JSON
+                </button>
+                <button id="download-csv" class="btn btn-success">
+                    <i class="fas fa-file-csv me-2"></i> Download CSV
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Data Section -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="h5 mb-0">Recent Weather Data</h2>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="data-table" id="weather-data-table">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Temperature (°C)</th>
+                            <th>Precipitation (mm)</th>
+                            <th>Humidity (%)</th>
+                            <th>Wind Speed (m/s)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="data-table-body">
+                        <!-- Data will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Time Series Visualization -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h2 class="h5 mb-0">Temperature Trend</h2>
+        </div>
+        <div class="card-body">
+            <div class="chart-container">
+                <canvas id="temperature-chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Precipitation Visualization -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h2 class="h5 mb-0">Precipitation Trend</h2>
+        </div>
+        <div class="card-body">
+            <div class="chart-container">
+                <canvas id="precipitation-chart"></canvas>
             </div>
         </div>
     </div>
