@@ -15,12 +15,12 @@ class WeatherStationMap {
         this.heatmapLayer = null;
         this.dataView = 'temperature';
         this.stations = [];
+        this.stationData = {};
         this.options = Object.assign({
-            useWindyOverlay: false,
-            windyMapId: 'windy-map',
-            mapContainerId: 'map-container',
             initialView: [-0.9, 34.75],
-            initialZoom: 6
+            initialZoom: 6,
+            mapTileUrl: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            mapAttribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }, options);
         
         // Initialize the map
@@ -84,12 +84,8 @@ class WeatherStationMap {
      * Initialize the Leaflet map
      */
     initMap() {
-        // Check if we're in Windy overlay mode
-        if (this.options.useWindyOverlay) {
-            this.initOverlayMap();
-        } else {
-            this.initStandaloneMap();
-        }
+        // Initialize OpenStreetMap
+        this.initStandaloneMap();
         
         // Add the station layers to the map
         this.stationLayers.active.addTo(this.map);
@@ -115,9 +111,39 @@ class WeatherStationMap {
         });
         
         // Add the tile layer (OpenStreetMap)
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        L.tileLayer(this.options.mapTileUrl, {
+            attribution: this.options.mapAttribution
         }).addTo(this.map);
+        
+        // Add additional map layers if needed
+        this.addMapLayers();
+    }
+    
+    /**
+     * Add additional map layers (satellite, terrain, etc.)
+     */
+    addMapLayers() {
+        // Base layers
+        const baseLayers = {
+            'OpenStreetMap': L.tileLayer(this.options.mapTileUrl, {
+                attribution: this.options.mapAttribution
+            }),
+            'Satellite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+            }),
+            'Terrain': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+                attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)'
+            })
+        };
+        
+        // Overlay layers
+        const overlayLayers = {
+            'Active Stations': this.stationLayers.active,
+            'Inactive Stations': this.stationLayers.inactive
+        };
+        
+        // Add layer control
+        L.control.layers(baseLayers, overlayLayers).addTo(this.map);
     }
 
     /**
@@ -1304,33 +1330,17 @@ class WeatherStationMap {
 
 // Initialize map when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
-    // Check if Windy map iframe exists
-    const windyMapElement = document.getElementById('windy-map');
-    const mapContainerElement = document.getElementById('map-container');
-    
-    // Configure the map based on the presence of Windy iframe
+    // Configure the map options
     let mapOptions = {
-        useWindyOverlay: !!windyMapElement,
-        windyMapId: 'windy-map',
-        mapContainerId: 'map-container',
         initialView: [-0.503, 34.847], // JOOUST coordinates
         initialZoom: 9
     };
     
     // Create the map instance
-    const targetElementId = mapOptions.useWindyOverlay ? 'map-container' : 'map';
-    window.weatherMap = new WeatherStationMap(targetElementId, '/maps', mapOptions);
+    window.weatherMap = new WeatherStationMap('map', '/maps', mapOptions);
     
-    // If the map is in overlay mode, add event listeners for the Windy iframe
-    if (mapOptions.useWindyOverlay && windyMapElement) {
-        // We can't directly listen to iframe content, but we can track when it loads
-        windyMapElement.addEventListener('load', function() {
-            window.weatherMap.syncWithWindyMap();
-        });
-        
-        // Listen to map zoom events
-        window.weatherMap.map.on('zoomend', function() {
-            window.weatherMap.updateStationVisibility();
-        });
-    }
+    // Listen to map zoom events
+    window.weatherMap.map.on('zoomend', function() {
+        window.weatherMap.updateStationVisibility();
+    });
 });
