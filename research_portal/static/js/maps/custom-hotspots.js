@@ -10,8 +10,8 @@ class CustomHotspots {
             {
                 id: 'jooust-station',
                 name: 'JOOUST Weather Station',
-                latitude: -0.503,
-                longitude: 34.847,
+                latitude: -0.093889,
+                longitude: 34.258611,
                 description: 'Jaramogi Oginga Odinga University of Science and Technology Weather Station',
                 is_active: true,
                 altitude: 1200,
@@ -25,11 +25,11 @@ class CustomHotspots {
                 }
             },
             {
-                id: 'mianthe-station',
-                name: 'Mianthe Weather Station',
-                latitude: -0.45,
-                longitude: 34.8,
-                description: 'Mianthe Regional Weather Monitoring Station',
+                id: 'kisumu-station',
+                name: 'Kisumu Weather Station',
+                latitude: -0.0917,
+                longitude: 34.7680,
+                description: 'Kisumu City Weather Monitoring Station',
                 is_active: true,
                 altitude: 1150,
                 date_installed: '2023-02-20',
@@ -44,8 +44,8 @@ class CustomHotspots {
             {
                 id: 'siaya-station',
                 name: 'Siaya Weather Station',
-                latitude: -0.4,
-                longitude: 34.3,
+                latitude: -0.0617,
+                longitude: 34.2422,
                 description: 'Siaya County Weather Monitoring Station',
                 is_active: true,
                 altitude: 1180,
@@ -61,8 +61,8 @@ class CustomHotspots {
             {
                 id: 'bondo-station',
                 name: 'Bondo Weather Station',
-                latitude: -0.55,
-                longitude: 34.9,
+                latitude: -0.1003,
+                longitude: 34.2755,
                 description: 'Bondo Regional Climate Research Station',
                 is_active: true,
                 altitude: 1220,
@@ -231,12 +231,12 @@ function addCustomHotspotsDirectly() {
     setTimeout(() => {
         console.log('Adding custom hotspots directly');
         
-        // Define the locations
+        // Define the locations with real coordinates
         const locations = [
-            { name: 'JOOUST', lat: -0.503, lng: 34.847, temp: 26.5, rain: 12.3 },
-            { name: 'Mianthe', lat: -0.45, lng: 34.8, temp: 28.2, rain: 5.7 },
-            { name: 'Siaya', lat: -0.4, lng: 34.3, temp: 27.8, rain: 18.5 },
-            { name: 'Bondo', lat: -0.55, lng: 34.9, temp: 25.9, rain: 22.1 }
+            { name: 'JOOUST', lat: -0.093889, lng: 34.258611, temp: 26.5, rain: 12.3 },
+            { name: 'Kisumu', lat: -0.0917, lng: 34.7680, temp: 28.2, rain: 5.7 },
+            { name: 'Siaya', lat: -0.0617, lng: 34.2422, temp: 27.8, rain: 18.5 },
+            { name: 'Bondo', lat: -0.1003, lng: 34.2755, temp: 25.9, rain: 22.1 }
         ];
         
         // Check if map is available
