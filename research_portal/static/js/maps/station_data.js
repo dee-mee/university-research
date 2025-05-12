@@ -4,12 +4,21 @@
  */
 
 /**
+ * Global variables for date filtering
+ */
+let globalStationId = null;
+let globalStartDate = null;
+let globalEndDate = null;
+let globalClimateData = [];
+
+/**
  * Initialize the page
  */
 document.addEventListener('DOMContentLoaded', function() {
     // Get station ID from URL parameter
     const urlParams = new URLSearchParams(window.location.search);
     const stationId = urlParams.get('id');
+    globalStationId = stationId;
     
     if (stationId) {
         // Load station data
@@ -24,8 +33,16 @@ document.addEventListener('DOMContentLoaded', function() {
             downloadData(stationId, 'csv');
         });
         
+        // Set up refresh preview button
+        document.getElementById('refresh-preview').addEventListener('click', function() {
+            updateDataPreview();
+        });
+        
         // Set badge information
         updateStationBadges(stationId);
+        
+        // Set up date filter functionality
+        setupDateFilter();
     } else {
         console.error('No station ID provided');
         alert('No station ID provided. Please go back to the map and select a station.');
@@ -55,8 +72,21 @@ function loadStationData(stationId) {
             // Display station info
             displayStationInfo(stationData);
             
+            // Construct API URL with date filter if available
+            let apiUrl = `/api/climate-data/station/${stationId}/`;
+            
+            // Add date range parameters if available
+            if (globalStartDate && globalEndDate) {
+                const startIso = globalStartDate.toISOString();
+                const endIso = globalEndDate.toISOString();
+                apiUrl += `?start_date=${encodeURIComponent(startIso)}&end_date=${encodeURIComponent(endIso)}`;
+            } else {
+                // Default to last 72 hours if no date range specified
+                apiUrl += '?hours=72';
+            }
+            
             // Load climate data for this station
-            return fetch(`/api/climate-data/station/${stationId}/?hours=72`);
+            return fetch(apiUrl);
         })
         .then(response => {
             if (!response || !response.ok) {
@@ -71,11 +101,20 @@ function loadStationData(stationId) {
                 return;
             }
             
+            // Store climate data globally
+            globalClimateData = climateData;
+            
+            // Filter data by date range if needed
+            const filteredData = filterClimateDataByDate(climateData, globalStartDate, globalEndDate);
+            
             // Display climate data
-            displayClimateData(climateData);
+            displayClimateData(filteredData);
             
             // Create charts
-            createCharts(climateData);
+            createCharts(filteredData);
+            
+            // Update data count display
+            updateDataCountDisplay(filteredData.length);
         })
         .catch(error => {
             console.error('Error loading data:', error);
@@ -460,71 +499,159 @@ function createPrecipitationChart(labels, precipitationData, limitedData) {
  * @param {string} format - The format to download (json or csv)
  */
 function downloadData(stationId, format) {
-    // First try to get data from the API
-    fetch(`/api/climate-data/station/${stationId}/?hours=72`)
+    // Check if we already have the data in memory
+    if (globalClimateData && globalClimateData.length > 0) {
+        prepareAndDownloadData(stationId, format);
+        return;
+    }
+    
+    // If we don't have data yet, fetch it first
+    // First get station data
+    const stationPromise = fetch(`/api/weather-stations/${stationId}/`)
         .then(response => {
             if (!response.ok) {
-                // If API fails, use custom climate data
+                return loadCustomStationData(stationId);
+            }
+            return response.json();
+        });
+    
+    // Construct API URL with date filter if available
+    let apiUrl = `/api/climate-data/station/${stationId}/`;
+    
+    // Add date range parameters if available
+    if (globalStartDate && globalEndDate) {
+        const startIso = globalStartDate.toISOString();
+        const endIso = globalEndDate.toISOString();
+        apiUrl += `?start_date=${encodeURIComponent(startIso)}&end_date=${encodeURIComponent(endIso)}`;
+    } else {
+        // Default to last 72 hours if no date range specified
+        apiUrl += '?hours=72';
+    }
+    
+    // Then get climate data
+    const climatePromise = fetch(apiUrl)
+        .then(response => {
+            if (!response.ok) {
                 return loadCustomClimateData(stationId);
             }
             return response.json();
-        })
-        .then(climateData => {
-            if (!climateData) {
-                showError("Climate data not found");
+        });
+    
+    // Process both promises
+    Promise.all([stationPromise, climatePromise])
+        .then(([stationData, climateData]) => {
+            if (!stationData) {
+                showError("Station data not found");
                 return;
             }
             
-            // Get station info
-            let stationPromise;
-            if (stationId.includes('-station')) {
-                // For custom stations
-                stationPromise = Promise.resolve(loadCustomStationData(stationId));
-            } else {
-                // For API stations
-                stationPromise = fetch(`/api/weather-stations/${stationId}/`)
-                    .then(response => response.ok ? response.json() : null);
+            if (!climateData) {
+                climateData = [];
             }
             
-            return stationPromise.then(stationData => {
-                if (!stationData) {
-                    showError("Station data not found");
-                    return;
-                }
-                
-                // Prepare data for download
-                const downloadData = {
-                    station: {
-                        id: stationData.id,
-                        name: stationData.name,
-                        location: {
-                            latitude: stationData.latitude,
-                            longitude: stationData.longitude,
-                            altitude: stationData.altitude
-                        },
-                        installed: stationData.date_installed
-                    },
-                    readings: climateData.map(reading => ({
-                        timestamp: reading.timestamp,
-                        temperature: reading.temperature,
-                        precipitation: reading.precipitation,
-                        humidity: reading.humidity,
-                        wind_speed: reading.wind_speed
-                    }))
-                };
-                
-                // Download in requested format
-                if (format === 'json') {
-                    downloadJSON(downloadData, `${stationData.name.replace(/\s+/g, '_')}_data.json`);
-                } else if (format === 'csv') {
-                    downloadCSV(downloadData.readings, `${stationData.name.replace(/\s+/g, '_')}_data.csv`);
-                }
-            });
+            // Store data globally
+            globalClimateData = climateData;
+            
+            // Now prepare and download
+            prepareAndDownloadData(stationId, format);
         })
         .catch(error => {
             console.error('Error downloading data:', error);
             showError("Error preparing download");
         });
+}
+
+/**
+ * Prepare and download data in the specified format
+ * @param {string} stationId - The ID of the station
+ * @param {string} format - The format to download (json or csv)
+ */
+function prepareAndDownloadData(stationId, format) {
+    // Get station data
+    let stationData;
+    if (isNaN(stationId)) {
+        // For custom stations
+        stationData = loadCustomStationData(stationId);
+    } else {
+        // Try to get from API
+        fetch(`/api/weather-stations/${stationId}/`)
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                }
+                return loadCustomStationData(stationId);
+            })
+            .then(data => {
+                stationData = data;
+                continueDownload();
+            })
+            .catch(() => {
+                stationData = loadCustomStationData(stationId);
+                continueDownload();
+            });
+        return;
+    }
+    
+    // If we already have station data, continue
+    if (stationData) {
+        continueDownload();
+    }
+    
+    function continueDownload() {
+        // Filter data by date range
+        const filteredData = filterClimateDataByDate(globalClimateData, globalStartDate, globalEndDate);
+        
+        if (format === 'json') {
+            // Check if metadata should be included
+            const includeMetadata = document.getElementById('include-metadata').checked;
+            
+            let downloadData;
+            if (includeMetadata) {
+                // Include minimal metadata
+                downloadData = {
+                    station: {
+                        id: stationData.id,
+                        name: stationData.name,
+                        location: `${stationData.latitude}, ${stationData.longitude}`,
+                        altitude: stationData.altitude,
+                        date_range: {
+                            start: globalStartDate ? globalStartDate.toISOString() : null,
+                            end: globalEndDate ? globalEndDate.toISOString() : null
+                        }
+                    },
+                    readings: filteredData.map(reading => ({
+                        timestamp: reading.timestamp,
+                        temperature: parseFloat(reading.temperature),
+                        precipitation: parseFloat(reading.precipitation),
+                        humidity: parseFloat(reading.humidity),
+                        wind_speed: parseFloat(reading.wind_speed)
+                    }))
+                };
+            } else {
+                // Only include the readings
+                downloadData = filteredData.map(reading => ({
+                    timestamp: reading.timestamp,
+                    temperature: parseFloat(reading.temperature),
+                    precipitation: parseFloat(reading.precipitation),
+                    humidity: parseFloat(reading.humidity),
+                    wind_speed: parseFloat(reading.wind_speed)
+                }));
+            }
+            
+            downloadJSON(downloadData, `${stationData.name.replace(/\s+/g, '_')}_data.json`);
+        } else if (format === 'csv') {
+            // For CSV, only include the readings (no metadata)
+            const csvData = filteredData.map(reading => ({
+                timestamp: reading.timestamp,
+                temperature: parseFloat(reading.temperature),
+                precipitation: parseFloat(reading.precipitation),
+                humidity: parseFloat(reading.humidity),
+                wind_speed: parseFloat(reading.wind_speed)
+            }));
+            
+            downloadCSV(csvData, `${stationData.name.replace(/\s+/g, '_')}_data.csv`);
+        }
+    }
 }
 
 /**
@@ -609,6 +736,237 @@ function showError(message) {
             <a href="{% url 'map' %}" class="btn btn-primary">Back to Map</a>
         </div>
     `;
+}
+
+/**
+ * Set up date filter functionality
+ */
+function setupDateFilter() {
+    // Set default dates (last 24 hours)
+    setDefaultDates('24h');
+    
+    // Add event listeners for preset radio buttons
+    document.querySelectorAll('input[name="time-preset"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value === 'custom') {
+                // Enable custom date inputs
+                document.getElementById('start-date').disabled = false;
+                document.getElementById('end-date').disabled = false;
+                document.getElementById('start-time').disabled = false;
+                document.getElementById('end-time').disabled = false;
+            } else {
+                // Set preset dates and disable custom inputs
+                setDefaultDates(this.value);
+                document.getElementById('start-date').disabled = true;
+                document.getElementById('end-date').disabled = true;
+                document.getElementById('start-time').disabled = true;
+                document.getElementById('end-time').disabled = true;
+            }
+        });
+    });
+    
+    // Add event listener for apply filter button
+    document.getElementById('apply-filter').addEventListener('click', function() {
+        applyDateFilter();
+    });
+    
+    // Initially disable date inputs since we're using a preset
+    document.getElementById('start-date').disabled = true;
+    document.getElementById('end-date').disabled = true;
+    document.getElementById('start-time').disabled = true;
+    document.getElementById('end-time').disabled = true;
+}
+
+/**
+ * Set default dates based on preset
+ * @param {string} preset - The preset value (24h, week, month, year, 5years, 10years, all)
+ */
+function setDefaultDates(preset) {
+    const now = new Date();
+    let startDate = new Date();
+    
+    // Calculate start date based on preset
+    switch(preset) {
+        case '24h':
+            startDate.setHours(now.getHours() - 24);
+            break;
+        case 'week':
+            startDate.setDate(now.getDate() - 7);
+            break;
+        case 'month':
+            startDate.setMonth(now.getMonth() - 1);
+            break;
+        case 'year':
+            startDate.setFullYear(now.getFullYear() - 1);
+            break;
+        case '5years':
+            startDate.setFullYear(now.getFullYear() - 5);
+            break;
+        case '10years':
+            startDate.setFullYear(now.getFullYear() - 10);
+            break;
+        case 'all':
+            // Set to a very old date to get all data (e.g., 50 years ago)
+            startDate = new Date(1970, 0, 1); // January 1, 1970 (Unix epoch)
+            break;
+        default:
+            startDate.setHours(now.getHours() - 24);
+    }
+    
+    // Format dates for input fields
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = now.toISOString().split('T')[0];
+    
+    // Format times for input fields
+    const startTimeStr = startDate.toTimeString().slice(0, 5);
+    const endTimeStr = now.toTimeString().slice(0, 5);
+    
+    // Set input values
+    document.getElementById('start-date').value = startDateStr;
+    document.getElementById('end-date').value = endDateStr;
+    document.getElementById('start-time').value = startTimeStr;
+    document.getElementById('end-time').value = endTimeStr;
+    
+    // Store globally
+    globalStartDate = startDate;
+    globalEndDate = now;
+}
+
+/**
+ * Apply date filter to data
+ */
+function applyDateFilter() {
+    // Get date range values
+    const startDateStr = document.getElementById('start-date').value;
+    const endDateStr = document.getElementById('end-date').value;
+    const startTimeStr = document.getElementById('start-time').value || '00:00';
+    const endTimeStr = document.getElementById('end-time').value || '23:59';
+    
+    // Create Date objects
+    const startDate = new Date(`${startDateStr}T${startTimeStr}:00`);
+    const endDate = new Date(`${endDateStr}T${endTimeStr}:00`);
+    
+    // Validate dates
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        alert('Please enter valid dates and times');
+        return;
+    }
+    
+    if (startDate > endDate) {
+        alert('Start date must be before end date');
+        return;
+    }
+    
+    // Store globally
+    globalStartDate = startDate;
+    globalEndDate = endDate;
+    
+    // Reload data with new date range
+    if (globalStationId) {
+        loadStationData(globalStationId);
+    }
+}
+
+/**
+ * Filter climate data by date range
+ * @param {Array} climateData - The climate data array
+ * @param {Date} startDate - The start date
+ * @param {Date} endDate - The end date
+ * @returns {Array} The filtered climate data
+ */
+function filterClimateDataByDate(climateData, startDate, endDate) {
+    if (!startDate || !endDate) {
+        return climateData;
+    }
+    
+    return climateData.filter(reading => {
+        const readingDate = new Date(reading.timestamp);
+        return readingDate >= startDate && readingDate <= endDate;
+    });
+}
+
+/**
+ * Update data count display
+ * @param {number} count - The number of data points
+ */
+function updateDataCountDisplay(count) {
+    // Add a small info text below the filter button
+    const filterForm = document.getElementById('date-filter-form');
+    let countDisplay = document.getElementById('data-count-display');
+    
+    if (!countDisplay) {
+        countDisplay = document.createElement('div');
+        countDisplay.id = 'data-count-display';
+        countDisplay.className = 'mt-3 text-muted small';
+        filterForm.appendChild(countDisplay);
+    }
+    
+    // Format date range for display
+    let dateRangeText = '';
+    if (globalStartDate && globalEndDate) {
+        const startStr = globalStartDate.toLocaleString();
+        const endStr = globalEndDate.toLocaleString();
+        dateRangeText = `from ${startStr} to ${endStr}`;
+    }
+    
+    countDisplay.innerHTML = `<strong>${count}</strong> data points found ${dateRangeText}`;
+    
+    // Also update the data preview
+    updateDataPreview();
+}
+
+/**
+ * Update data preview table
+ */
+function updateDataPreview() {
+    const previewTableBody = document.getElementById('preview-table-body');
+    if (!previewTableBody || !globalClimateData) {
+        return;
+    }
+    
+    // Clear existing preview
+    previewTableBody.innerHTML = '';
+    
+    // Filter data by date range
+    const filteredData = filterClimateDataByDate(globalClimateData, globalStartDate, globalEndDate);
+    
+    // Show only first 5 records
+    const previewData = filteredData.slice(0, 5);
+    
+    if (previewData.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = '<td colspan="5" class="text-center">No data available for the selected date range</td>';
+        previewTableBody.appendChild(row);
+        return;
+    }
+    
+    // Add preview rows
+    previewData.forEach(reading => {
+        const row = document.createElement('tr');
+        
+        // Format the values to ensure consistent decimal places
+        const temp = parseFloat(reading.temperature).toFixed(1);
+        const precip = parseFloat(reading.precipitation).toFixed(1);
+        const humidity = parseFloat(reading.humidity).toFixed(0);
+        const windSpeed = parseFloat(reading.wind_speed).toFixed(1);
+        
+        row.innerHTML = `
+            <td>${formatDate(reading.timestamp)}</td>
+            <td>${temp} °C</td>
+            <td>${precip} mm</td>
+            <td>${humidity} %</td>
+            <td>${windSpeed} m/s</td>
+        `;
+        
+        previewTableBody.appendChild(row);
+    });
+    
+    // Add a message if there are more records
+    if (filteredData.length > 5) {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td colspan="5" class="text-center text-muted">... and ${filteredData.length - 5} more records</td>`;
+        previewTableBody.appendChild(row);
+    }
 }
 
 /**

@@ -89,6 +89,104 @@
         </div>
     </div>
 
+    <!-- Date Range Filter Section -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h2 class="h5 mb-0">Date Range Filter</h2>
+        </div>
+        <div class="card-body">
+            <p class="text-muted mb-3">Select a specific time period to view weather data:</p>
+            <form id="date-filter-form" class="row g-3">
+                <div class="col-md-3">
+                    <label for="start-date" class="form-label">Start Date</label>
+                    <input type="date" class="form-control" id="start-date" name="start-date">
+                </div>
+                <div class="col-md-3">
+                    <label for="end-date" class="form-label">End Date</label>
+                    <input type="date" class="form-control" id="end-date" name="end-date">
+                </div>
+                <div class="col-md-2">
+                    <label for="start-time" class="form-label">Start Time</label>
+                    <input type="time" class="form-control" id="start-time" name="start-time">
+                </div>
+                <div class="col-md-2">
+                    <label for="end-time" class="form-label">End Time</label>
+                    <input type="time" class="form-control" id="end-time" name="end-time">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="button" id="apply-filter" class="btn btn-primary w-100">Apply Filter</button>
+                </div>
+                <div class="col-12">
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="time-preset" id="preset-24h" value="24h" checked>
+                        <label class="form-check-label" for="preset-24h">Last 24 Hours</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="time-preset" id="preset-week" value="week">
+                        <label class="form-check-label" for="preset-week">Last Week</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="time-preset" id="preset-month" value="month">
+                        <label class="form-check-label" for="preset-month">Last Month</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="time-preset" id="preset-year" value="year">
+                        <label class="form-check-label" for="preset-year">Last Year</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="time-preset" id="preset-5years" value="5years">
+                        <label class="form-check-label" for="preset-5years">Last 5 Years</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="time-preset" id="preset-10years" value="10years">
+                        <label class="form-check-label" for="preset-10years">Last 10 Years</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="time-preset" id="preset-all" value="all">
+                        <label class="form-check-label" for="preset-all">All Available Data</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="time-preset" id="preset-custom" value="custom">
+                        <label class="form-check-label" for="preset-custom">Custom Range</label>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Download Preview Section -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h2 class="h5 mb-0">Data Preview</h2>
+            <button class="btn btn-sm btn-outline-secondary" id="refresh-preview">Refresh Preview</button>
+        </div>
+        <div class="card-body">
+            <p class="text-muted mb-3">Preview of data that will be downloaded (showing first 5 records):</p>
+            <div class="table-responsive">
+                <table class="data-table" id="preview-table">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Temperature (°C)</th>
+                            <th>Precipitation (mm)</th>
+                            <th>Humidity (%)</th>
+                            <th>Wind Speed (m/s)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="preview-table-body">
+                        <!-- Preview data will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="form-check mt-3">
+                <input class="form-check-input" type="checkbox" id="include-metadata" checked>
+                <label class="form-check-label" for="include-metadata">
+                    Include station metadata in JSON download
+                </label>
+            </div>
+        </div>
+    </div>
+    
     <!-- Download Section -->
     <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
@@ -104,6 +202,7 @@
                     <i class="fas fa-file-csv me-2"></i> Download CSV
                 </button>
             </div>
+            <div class="form-text mt-2">Note: Downloads will include data from the selected date range.</div>
         </div>
     </div>
 
