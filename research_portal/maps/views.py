@@ -465,9 +465,50 @@ class WeatherAlertViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def active(self, request):
         """Get all active alerts"""
-        alerts = WeatherAlert.objects.filter(status='active')
-        serializer = self.get_serializer(alerts, many=True)
+        queryset = self.queryset.filter(status='active')
+        serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAdminOrReadOnly])
+def climate_data_station(request, station_id=None):
+    """
+    Get climate data for a specific station with options for filtering by time period
+    """
+    try:
+        # Get parameters
+        hours = int(request.query_params.get('hours', 72))
+        days = int(request.query_params.get('days', 0))
+        
+        # Calculate time period
+        time_delta = timedelta(hours=hours, days=days)
+        since = timezone.now() - time_delta
+        
+        # Get station
+        station = WeatherStation.objects.get(id=station_id)
+        
+        # Get climate data for this station within the time period
+        climate_data = ClimateData.objects.filter(
+            station=station,
+            timestamp__gte=since
+        ).order_by('timestamp')
+        
+        # Serialize the data
+        serializer = ClimateDataSerializer(climate_data, many=True)
+        
+        return Response(serializer.data)
+    
+    except WeatherStation.DoesNotExist:
+        return Response(
+            {"error": f"Weather station with ID {station_id} not found"},
+            status=404
+        )
+    except Exception as e:
+        return Response(
+            {"error": str(e)},
+            status=500
+        )
     
 # views.py (new map_data endpoint)
 @api_view(['GET'])
@@ -2114,6 +2155,79 @@ class ImportSuccessView(TemplateView):
         context['import_count'] = self.request.session.get('import_count', 0)
         context['import_type'] = self.request.session.get('import_type', 'data')
         return context
+
+
+def station_data_view(request):
+    """
+    View for displaying detailed station data with download options
+    """
+    station_id = request.GET.get('id')
+    
+    # For custom stations, we'll handle the data in JavaScript
+    # This view just renders the template
+    
+    context = {
+        'title': 'Weather Station Data',
+        'station_id': station_id
+    }
+    
+    return render(request, 'maps/station_data.html', context)
+
+
+def station_statistics_view(request, station_id):
+    """
+    View for displaying station statistics
+    Can handle both numeric IDs (database stations) and string IDs (custom stations)
+    """
+    # Check if station_id is a string ID for custom stations
+    if isinstance(station_id, str) or (isinstance(station_id, int) and station_id < 0):
+        # This is a custom station (like 'jooust-station', 'kisumu-station', etc.)
+        # We'll use the station_data_view to handle it
+        return redirect(f'/maps/station-data/?id={station_id}')
+    
+    # For regular database stations with numeric IDs
+    try:
+        station = get_object_or_404(WeatherStation, id=station_id)
+        
+        # Get climate data for this station
+        recent_data = ClimateData.objects.filter(
+            station=station,
+            timestamp__gte=timezone.now() - timedelta(days=30)
+        ).order_by('-timestamp')
+        
+        # Calculate statistics
+        stats = {
+            'readings_count': recent_data.count(),
+            'temperature': {
+                'avg': recent_data.aggregate(Avg('temperature'))['temperature__avg'],
+                'max': recent_data.aggregate(Max('temperature'))['temperature__max'],
+                'min': recent_data.aggregate(Min('temperature'))['temperature__min'],
+            },
+            'precipitation': {
+                'avg': recent_data.aggregate(Avg('precipitation'))['precipitation__avg'],
+                'max': recent_data.aggregate(Max('precipitation'))['precipitation__max'],
+                'min': recent_data.aggregate(Min('precipitation'))['precipitation__min'],
+                'total': recent_data.aggregate(Sum('precipitation'))['precipitation__sum'],
+            },
+            'humidity': {
+                'avg': recent_data.aggregate(Avg('humidity'))['humidity__avg'],
+                'max': recent_data.aggregate(Max('humidity'))['humidity__max'],
+                'min': recent_data.aggregate(Min('humidity'))['humidity__min'],
+            },
+        }
+        
+        context = {
+            'station': station,
+            'recent_data': recent_data[:10],  # Show only the 10 most recent readings
+            'stats': stats,
+            'title': f'{station.name} Statistics',
+        }
+        
+        return render(request, 'maps/station_statistics.html', context)
+        
+    except Exception as e:
+        messages.error(request, f"Error retrieving station statistics: {str(e)}")
+        return redirect('maps:map')  # Make sure 'maps:map' is the correct namespace
 
 # ...existing code...
 

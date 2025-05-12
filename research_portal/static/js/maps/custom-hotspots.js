@@ -260,13 +260,18 @@ function addCustomHotspotsDirectly() {
                     })
                 }).addTo(map);
                 
-                // Add popup with data
+                // Add popup with data and view data button
                 marker.bindPopup(`
                     <div class="info-container">
                         <h4>${loc.name} Weather Station</h4>
                         <p><strong>Temperature:</strong> ${loc.temp} °C</p>
                         <p><strong>Rainfall:</strong> ${loc.rain} mm</p>
                         <p><strong>Last Updated:</strong> ${new Date().toLocaleString()}</p>
+                        <div class="mt-3">
+                            <a href="/maps/station-data/?id=${loc.name.toLowerCase()}-station" class="btn btn-primary btn-sm">
+                                <i class="fas fa-chart-line"></i> View Data
+                            </a>
+                        </div>
                     </div>
                 `);
             });

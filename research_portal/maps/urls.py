@@ -15,6 +15,7 @@ urlpatterns = [
     path('api/', include(router.urls)),
     path('api/map-data/', views.map_data, name='map_data'),
     path('api/climate-data/recent/', views.climate_data_recent, name='climate_data_recent'),
+    path('api/climate-data/station/<int:station_id>/', views.climate_data_station, name='api_climate_data_station'),
     path('api/stations/<int:station_id>/data/', views.station_climate_data, name='station_climate_data'),
     
     # Add new graph data API endpoint
@@ -37,7 +38,8 @@ urlpatterns = [
     
     # Web views
     path('map/', views.MapView.as_view(), name='map'),
-    path('stations/<int:station_id>/statistics/', views.station_statistics_view, name='station_statistics'),
+    path('station-data/', views.station_data_view, name='station_data'),
+    path('stations/<str:station_id>/statistics/', views.station_statistics_view, name='station_statistics'),
     path('stations/<int:station_id>/export/', views.station_data_export_view, name='station_data_export'),
     path('stations/<int:station_id>/download/', views.download_station_data, name='download_station_data'),
     path('stations/<int:station_id>/stack/', views.station_data_stack_view, name='station_data_stack'),
