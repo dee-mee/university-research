@@ -22,6 +22,7 @@ from django.conf.urls.static import static
 from maps.views import ImportSuccessView
 from django.views.generic import RedirectView
 from data_repository import views as data_repository_views
+from maps.field_device_api import device_data_upload
 
 # Import custom admin settings
 import research_portal.admin
@@ -42,6 +43,9 @@ urlpatterns = [
     # Add direct API endpoints for data repository
     path('api/version/<int:version_id>/variables/', data_repository_views.api_version_variables, name='api_version_variables'),
     path('api/dataset-version/<int:version_id>/time-series-data/', data_repository_views.get_time_series_data, name='api_time_series_data'),
+    
+    # Direct endpoint for field device data uploads
+    path('api/field-data-uploads/upload_data/', device_data_upload, name='field_data_upload_direct'),
     
     # Add API fallback redirects to fix 404 errors
     path('api/weather-stations/', RedirectView.as_view(url='/maps/api/weather-stations/', permanent=False)),

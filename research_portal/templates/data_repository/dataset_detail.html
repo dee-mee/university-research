@@ -19,8 +19,14 @@
             <h1>{{ dataset.title }}</h1>
             <p class="lead">{{ dataset.description }}</p>
             
-            <div class="mb-3">
-                <span class="badge bg-primary">{{ dataset.category.name }}</span>
+            <div class="mb-3 dataset-badges">
+                {% if dataset.categories.all %}
+                    {% for category in dataset.categories.all %}
+                        <span class="badge badge-category">{{ category.name }}</span>
+                    {% endfor %}
+                {% else %}
+                    <span class="badge badge-category">{{ dataset.category.name }}</span>
+                {% endif %}
                 {% if dataset.is_featured %}
                 <span class="badge bg-warning text-dark">Featured</span>
                 {% endif %}

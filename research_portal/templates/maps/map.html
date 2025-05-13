@@ -47,7 +47,94 @@
  margin-right: 8px;
  opacity: 0.7;
  }
- 
+
+ /* Field device status colors */
+ .status-active {
+ color: #28a745;
+ }
+ .status-maintenance {
+ color: #ffc107;
+ }
+ .status-inactive {
+ color: #dc3545;
+ }
+ .status-lost {
+ color: #6c757d;
+ }
+
+ /* Battery indicators */
+ .battery-indicator {
+ width: 10px;
+ height: 10px;
+ border-radius: 50%;
+ position: absolute;
+ bottom: 2px;
+ right: 2px;
+ }
+ .battery-good {
+ background-color: #28a745;
+ }
+ .battery-low {
+ background-color: #ffc107;
+ }
+ .battery-critical {
+ background-color: #dc3545;
+ }
+
+ /* Filter panel styles */
+ .filter-panel {
+ position: absolute;
+ top: 10px;
+ right: 10px;
+ width: 300px;
+ background: white;
+ padding: 15px;
+ border-radius: 5px;
+ box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+ z-index: 1000;
+ transition: transform 0.3s ease;
+ }
+
+ .filter-panel.hidden {
+ transform: translateX(110%);
+ }
+
+ .filter-toggle {
+ position: absolute;
+ top: 10px;
+ right: 320px;
+ z-index: 1001;
+ background: white;
+ border: none;
+ border-radius: 5px;
+ padding: 8px 12px;
+ box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+ cursor: pointer;
+ transition: all 0.3s ease;
+ }
+
+ .filter-toggle:hover {
+ background: #f8f9fa;
+ }
+
+ .filter-toggle i {
+ font-size: 1.2em;
+ }
+
+ .filter-section {
+ margin-bottom: 15px;
+ }
+ .filter-section h6 {
+ margin-bottom: 10px;
+ }
+ .filter-checkbox {
+ margin-bottom: 5px;
+ }
+ .filter-badge {
+ font-size: 12px;
+ margin-left: 5px;
+ }
+
  /* Custom navbar styles */
  .custom-navbar {
    position: fixed;
@@ -443,10 +530,76 @@
                     <p class="mb-3">This map displays weather stations with hotspot features. Hotspots are color-coded based on temperature and rainfall data. Click on a station to view detailed parameter data.</p>
                     <div class="map-wrapper">
                         <!-- Replace Windy with direct OpenStreetMap implementation -->
-                        <div id="map" style="width: 100%; height: 450px;"></div>
+                        <div id="map"></div>
+                        <!-- Filter Toggle Button -->
+                        <button class="filter-toggle" title="Toggle Filter Panel">
+                            <i class="fas fa-sliders-h"></i>
+                        </button>
                         
+                        <!-- Filter Panel -->
+                        <div class="filter-panel" id="filterPanel">
+                            <div class="filter-section">
+                                <h6>Data Sources</h6>
+                                <div class="filter-checkbox">
+                                    <input type="checkbox" id="filter-weather-stations" checked>
+                                    <label for="filter-weather-stations">Weather Stations <span class="filter-badge" id="weather-station-count">0</span></label>
+                                </div>
+                                <div class="filter-checkbox">
+                                    <input type="checkbox" id="filter-field-devices" checked>
+                                    <label for="filter-field-devices">Field Devices <span class="filter-badge" id="field-device-count">0</span></label>
+                                </div>
+                                <div class="filter-checkbox">
+                                    <input type="checkbox" id="filter-manual-entries" checked>
+                                    <label for="filter-manual-entries">Manual Entries <span class="filter-badge" id="manual-entry-count">0</span></label>
+                                </div>
+                            </div>
+
+                            <div class="filter-section">
+                                <h6>Field Device Status</h6>
+                                <div class="filter-checkbox">
+                                    <input type="checkbox" id="filter-status-active" checked>
+                                    <label for="filter-status-active">Active <span class="filter-badge" id="status-active-count">0</span></label>
+                                </div>
+                                <div class="filter-checkbox">
+                                    <input type="checkbox" id="filter-status-maintenance">
+                                    <label for="filter-status-maintenance">Maintenance <span class="filter-badge" id="status-maintenance-count">0</span></label>
+                                </div>
+                                <div class="filter-checkbox">
+                                    <input type="checkbox" id="filter-status-inactive">
+                                    <label for="filter-status-inactive">Inactive <span class="filter-badge" id="status-inactive-count">0</span></label>
+                                </div>
+                                <div class="filter-checkbox">
+                                    <input type="checkbox" id="filter-status-lost">
+                                    <label for="filter-status-lost">Lost <span class="filter-badge" id="status-lost-count">0</span></label>
+                                </div>
+                            </div>
+
+                            <div class="filter-section">
+                                <h6>Battery Level</h6>
+                                <div class="filter-checkbox">
+                                    <input type="checkbox" id="filter-battery-good" checked>
+                                    <label for="filter-battery-good">Good (≥ 40%) <span class="filter-badge" id="battery-good-count">0</span></label>
+                                </div>
+                                <div class="filter-checkbox">
+                                    <input type="checkbox" id="filter-battery-low">
+                                    <label for="filter-battery-low">Low (20-39%) <span class="filter-badge" id="battery-low-count">0</span></label>
+                                </div>
+                                <div class="filter-checkbox">
+                                    <input type="checkbox" id="filter-battery-critical">
+                                    <label for="filter-battery-critical">Critical (< 20%) <span class="filter-badge" id="battery-critical-count">0</span></label>
+                                </div>
+                            </div>
+
+                            <div class="filter-section">
+                                <button id="reset-filters" class="btn btn-sm btn-secondary w-100">Reset Filters</button>
+                            </div>
+                        </div>
                         <!-- Add marker toggle control -->
                         <div class="map-toggle-controls">
+                            <button id="toggle-markers" class="btn btn-sm btn-light" title="Toggle Markers">
+                                <i class="fas fa-map-marker-alt"></i>
+                            </button>
+                        </div>
                             <button id="toggle-markers" class="btn btn-sm btn-light" title="Toggle Markers">
                                 <i class="fas fa-map-marker-alt"></i>
                             </button>
@@ -615,6 +768,17 @@ document.addEventListener('DOMContentLoaded', function() {
   setTimeout(() => {
     centerMap(-0.503, 34.847, 'JOOUST');
   }, 1000); // Slight delay to ensure map is loaded
+
+  // Filter panel toggle functionality
+  const filterPanel = document.getElementById('filterPanel');
+  const filterToggle = document.querySelector('.filter-toggle');
+  let isPanelOpen = true;
+
+  filterToggle.addEventListener('click', function() {
+    isPanelOpen = !isPanelOpen;
+    filterPanel.classList.toggle('hidden');
+    filterToggle.innerHTML = isPanelOpen ? '<i class="fas fa-sliders-h"></i>' : '<i class="fas fa-times"></i>';
+  });
 
   // Initialize map with Windy overlay mode enabled
   const mapOptions = {

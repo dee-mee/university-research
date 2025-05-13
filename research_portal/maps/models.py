@@ -577,7 +577,7 @@ class DataExport(models.Model):
     include_metadata = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     download_count = models.PositiveIntegerField(default=0, help_text="Number of times this export has been downloaded")
-    error_message = models.TextField(blank=True, null=True)
+    error_log = models.TextField(blank=True, null=True)
     
     # New fields we're adding
     file = models.FileField(upload_to='exports/', null=True, blank=True, help_text="The exported data file")

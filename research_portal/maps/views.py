@@ -4,8 +4,7 @@ import json
 import pytz
 import logging
 import io
-import pandas as pd
-import xlsxwriter
+import random
 import pandas as pd
 import xlsxwriter
 from datetime import datetime, timedelta
@@ -37,7 +36,7 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from .utils import fetch_environmental_data, calculate_statistics
 from .models import DataExport, WeatherAlert, WeatherStation, ClimateData, Country, WeatherDataType
-from .models import DataExport, WeatherAlert, WeatherStation, ClimateData, Country, WeatherDataType
+from .field_models import DeviceType, FieldDevice, DeviceCalibration, FieldDataUpload
 from .forms import CSVUploadForm, FlashDriveImportForm
 from .serializers import (
     WeatherAlertSerializer,
@@ -51,7 +50,10 @@ from .serializers import (
 )
 from .permissions import IsAdminOrReadOnly
 from django.urls import reverse_lazy, reverse
-from django.urls import reverse_lazy, reverse
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
+from .field_models import FieldDataUpload, FieldDataRecord, FieldDevice, DeviceType
 
 
 # views.py (improved debug_stations)
@@ -76,6 +78,96 @@ def debug_stations(request):
     })
 
 # views.py (improved MapView)
+@api_view(['POST'])
+def field_data_upload(request):
+    """
+    Endpoint for field devices to upload data
+    """
+    try:
+        device_id = request.data.get('device_id')
+        timestamp = request.data.get('timestamp')
+        latitude = request.data.get('latitude')
+        longitude = request.data.get('longitude')
+        data = request.data.get('data')
+
+        if not all([device_id, timestamp, latitude, longitude, data]):
+            return Response(
+                {'error': 'Missing required fields', 'received_data': request.data},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Get or create device
+        device = FieldDevice.objects.filter(device_id=device_id).first()
+        if not device:
+            # Create new device if it doesn't exist
+            device_type = DeviceType.objects.first()  # Use default device type
+            if not device_type:
+                return Response(
+                    {
+                        'error': 'No device type configured',
+                        'device_id': device_id,
+                        'available_device_types': list(DeviceType.objects.values_list('name', flat=True))
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            
+            device = FieldDevice.objects.create(
+                device_id=device_id,
+                device_type=device_type,
+                name=f"Device {device_id}",
+                location=Point(longitude, latitude)
+            )
+
+        # Update device location and last communication
+        device.location = Point(longitude, latitude)
+        device.last_communication = timezone.now()
+        device.save()
+
+        # Create or get data upload
+        upload, created = FieldDataUpload.objects.get_or_create(
+            title=f"Data Upload for {device_id}",
+            defaults={
+                'description': f"Automatic upload from device {device_id}",
+                'status': 'completed'
+            }
+        )
+
+        # Create data record
+        try:
+            record = FieldDataRecord.objects.create(
+                upload=upload,
+                device=device,
+                timestamp=timezone.make_aware(datetime.fromisoformat(timestamp)),
+                latitude=latitude,
+                longitude=longitude,
+                data=data
+            )
+            
+            return Response(
+                {
+                    'status': 'success',
+                    'message': 'Data uploaded successfully',
+                    'device_status': device.status,
+                    'record_id': record.id
+                },
+                status=status.HTTP_201_CREATED
+            )
+        except Exception as e:
+            return Response(
+                {
+                    'error': f'Failed to create data record: {str(e)}',
+                    'device_id': device_id,
+                    'timestamp': timestamp
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
 class MapView(TemplateView):
     template_name = 'maps/map.html'
     

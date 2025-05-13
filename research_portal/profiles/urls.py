@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import path
-from .views import RegisterView, PasswordResetView, login_view, dashboard_view, profile_view, edit_profile, export_profile, logout_view, settings_view, notifications_view, privacy_view, update_profile_image
+from .views import RegisterView, PasswordResetView, login_view, dashboard_view, profile_view, edit_profile, export_profile, logout_view, settings_view, notifications_view, privacy_view, update_profile_image, mark_notification_as_read
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from django.contrib.auth import views as auth_views
@@ -24,6 +24,7 @@ urlpatterns = [
     path('profile/edit/', edit_profile, name='edit_profile'),
     path('profile/settings/', settings_view, name='settings'),
     path('profile/notifications/', notifications_view, name='notifications'),
+    path('profile/notifications/mark-as-read/', mark_notification_as_read, name='mark_notification_read'),
     path('profile/privacy/', privacy_view, name='privacy'),
     path('logout/', logout_view, name='logout'),
 ]

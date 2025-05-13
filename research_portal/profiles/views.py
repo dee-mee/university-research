@@ -18,6 +18,7 @@ from django.http import JsonResponse, HttpResponse
 from django.core.serializers import serialize
 from django.contrib import messages
 from django.urls import reverse
+from .models import Profile, Notification
 import csv
 import json
 
@@ -143,31 +144,11 @@ def dashboard_view(request):
         role = user.profile.role
     except:
         role = 'project_member'  # Default role if profile doesn't exist
-    
-    # Determine which dashboard template to use based on role
-    template_map = {
-        'phd_student': 'profiles/dashboards/phd_dashboard.html',
-        'local_coordinator': 'profiles/dashboards/coordinator_dashboard.html',
-        'project_leader': 'profiles/dashboards/leader_dashboard.html',
-        'project_member': 'profiles/dashboards/member_dashboard.html',
-        'admin': 'profiles/dashboards/admin_dashboard.html',
-    }
-    
-    template = template_map.get(role, 'profiles/dashboard.html')
-    
-    # Common context for all dashboards
+
     context = {
-        'user': user,
         'role': role,
-        'role_display': user.profile.get_role_display_name() if hasattr(user, 'profile') else '',
-        'dashboard_url': 'profiles:dashboard',
-        'profile_url': 'profiles:profile',
-        'maps_url': 'maps:map',
-        'repository_url': 'repository:dataset_list',
-        'edit_profile_url': 'profiles:edit_profile',
-        'logout_url': 'profiles:logout'
+        'user': user
     }
-    
     # Add role-specific context
     if role == 'project_leader':
         # For project leaders, add project management info
@@ -176,7 +157,21 @@ def dashboard_view(request):
         # For coordinators, add location-specific info
         context['location_stats'] = []  # Add location statistics
     
-    return render(request, template, context)
+    return render(request, 'profiles/dashboard_bootstrap.html', context)
+
+@login_required
+def mark_notification_as_read(request):
+    """Mark a notification as read"""
+    if request.method == 'POST':
+        notification_id = request.GET.get('id')
+        try:
+            notification = Notification.objects.get(id=notification_id, user=request.user)
+            notification.read = True
+            notification.save()
+            return JsonResponse({'success': True})
+        except Notification.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Notification not found'}, status=404)
+    return JsonResponse({'success': False, 'error': 'Invalid request method'}, status=400)
 
 def homepage_view(request):
     return render(request, 'index.html')

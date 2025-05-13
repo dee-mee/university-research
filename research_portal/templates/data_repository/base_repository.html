@@ -34,39 +34,8 @@
 
 {% block content %}
 <div class="repository-container">
-    <!-- Sidebar with categories -->
+    <!-- Sidebar -->
     <div class="repository-sidebar">
-        <div class="sidebar-section">
-            <h3>Categories</h3>
-            <div class="category-tree">
-                {% for category in categories %}
-                    <div class="category-item">
-                        <div class="category-header">
-                            <a href="{% url 'repository:category_datasets' category.slug %}" class="category-link">
-                                {{ category.name }}
-                            </a>
-                            {% if category.subcategories.exists %}
-                                <button class="toggle-subcategories" data-category="{{ category.slug }}">
-                                    <span class="toggle-icon">▼</span>
-                                </button>
-                            {% endif %}
-                        </div>
-                        {% if category.subcategories.exists %}
-                            <div class="subcategories" id="subcategories-{{ category.slug }}">
-                                {% for subcategory in category.subcategories.all %}
-                                    <div class="subcategory-item">
-                                        <a href="{% url 'repository:category_datasets' subcategory.slug %}" class="subcategory-link">
-                                            {{ subcategory.name }}
-                                        </a>
-                                    </div>
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-                {% endfor %}
-            </div>
-        </div>
-
         {% if user.is_authenticated %}
         <div class="sidebar-section">
             <h3>My Datasets</h3>
@@ -84,26 +53,4 @@
         {% block repository_content %}{% endblock %}
     </div>
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Toggle subcategories
-    const toggleButtons = document.querySelectorAll('.toggle-subcategories');
-    toggleButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const categorySlug = this.dataset.category;
-            const subcategories = document.getElementById(`subcategories-${categorySlug}`);
-            const icon = this.querySelector('.toggle-icon');
-            
-            if (subcategories.style.display === 'none' || !subcategories.style.display) {
-                subcategories.style.display = 'block';
-                icon.textContent = '▼';
-            } else {
-                subcategories.style.display = 'none';
-                icon.textContent = '▶';
-            }
-        });
-    });
-});
-</script>
 {% endblock %} 

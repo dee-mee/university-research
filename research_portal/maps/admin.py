@@ -1,8 +1,13 @@
 from django.contrib import admin
-#from django.contrib.gis.admin import OSMGeoAdmin
+from django.contrib.gis.admin import OSMGeoAdmin
+from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from .models import (
     Country, WeatherStation, ClimateData, WeatherDataType,
     DataExport, WeatherAlert
+)
+from .field_models import (
+    DeviceType, FieldDevice, DeviceCalibration, FieldDataUpload
 )
 
 #@admin.register(Country)
@@ -21,34 +26,36 @@ from .models import (
 #    )
 
 #@admin.register(WeatherStation)
-#class WeatherStationAdmin(OSMGeoAdmin):
-#    list_display = ('name', 'station_id', 'country', 'is_active', 'date_installed')
-#    list_filter = ('is_active', 'country', 'date_installed')
-#    search_fields = ('name', 'station_id', 'description')
-#    readonly_fields = ('created_at', 'updated_at', 'stack_size')
-#    
-#    fieldsets = (
-#        (None, {
-#            'fields': ('name', 'station_id', 'description')
-#        }),
-#        ('Location', {
-#            'fields': ('location', 'altitude', 'country', 'region')
-#        }),
-#        ('Status', {
-#            'fields': ('is_active', 'date_installed', 'date_decommissioned')
-#        }),
-#        ('Data Types Available', {
-#            'fields': (
-#                'has_temperature', 'has_precipitation', 'has_humidity',
-#                'has_wind', 'has_air_quality', 'has_soil_moisture', 'has_water_level'
-#            )
-#        }),
-#        ('Data Stack Configuration', {
-#            'fields': ('max_stack_size', 'auto_process', 'process_threshold', 'stack_size')
-#        }),
-#        ('Timestamps', {
-#            'fields': ('created_at', 'updated_at', 'last_data_feed'),
-#            'classes': ('collapse',)
+class WeatherStationAdmin(OSMGeoAdmin):
+    list_display = ('name', 'station_id', 'country', 'is_active', 'date_installed')
+    list_filter = ('is_active', 'country', 'date_installed')
+    search_fields = ('name', 'station_id', 'description')
+    readonly_fields = ('created_at', 'updated_at', 'stack_size')
+    
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'station_id', 'description')
+        }),
+        ('Location', {
+            'fields': ('location', 'altitude', 'country', 'region')
+        }),
+        ('Status', {
+            'fields': ('is_active', 'date_installed', 'date_decommissioned')
+        }),
+        ('Data Types Available', {
+            'fields': (
+                'has_temperature', 'has_precipitation', 'has_humidity',
+                'has_wind', 'has_air_quality', 'has_soil_moisture', 'has_water_level'
+            )
+        }),
+        ('Data Stack Configuration', {
+            'fields': ('stack_size', 'stack_interval', 'stack_last_updated')
+        }),
+        ('Advanced Settings', {
+            'fields': ('data_retention_days', 'alert_thresholds', 'maintenance_schedule'),
+            'classes': ('collapse',)
+        })
+    )
 #        }),
 #    )
 #    
@@ -145,55 +152,171 @@ class ClimateDataInline(admin.TabularInline):
 
 
 
-@admin.register(ClimateData)
-class ClimateDataAdmin(admin.ModelAdmin):
-    list_display = ('station', 'timestamp', 'temperature', 'precipitation', 'data_quality')
-    list_filter = ('station', 'year', 'month', 'season', 'data_quality')
-    date_hierarchy = 'timestamp'
-    search_fields = ('station__name',)
-    readonly_fields = ('created_at', 'updated_at', 'year', 'month', 'season')
+#@admin.register(ClimateData)
+#class ClimateDataAdmin(admin.ModelAdmin):
+#    list_display = ('station', 'timestamp', 'temperature', 'precipitation', 'data_quality')
+#    list_filter = ('station', 'year', 'month', 'season', 'data_quality')
+#    date_hierarchy = 'timestamp'
+#    search_fields = ('station__name',)
+#    readonly_fields = ('created_at', 'updated_at', 'year', 'month', 'season')
+#    
+#    fieldsets = (
+#        (None, {
+#            'fields': ('station', 'timestamp', 'data_quality')
+#        }),
+#        ('Auto-calculated Fields', {
+#            'fields': ('year', 'month', 'season'),
+#            'classes': ('collapse',)
+#        }),
+#        ('Temperature & Humidity', {
+#            'fields': ('temperature', 'humidity'),
+#        }),
+#        ('Precipitation', {
+#            'fields': ('precipitation',),
+#        }),
+#        ('Wind', {
+#            'fields': ('wind_speed', 'wind_direction'),
+#        }),
+#        ('Air & Pressure', {
+#            'fields': ('air_quality_index', 'barometric_pressure', 'uv_index'),
+#        }),
+#        ('Surface Conditions', {
+#            'fields': ('cloud_cover', 'soil_moisture', 'water_level'),
+#        }),
+#        ('Metadata', {
+#            'fields': ('created_at', 'updated_at'),
+#            'classes': ('collapse',)
+#        }),
+#    )
+
+#@admin.register(WeatherDataType)
+#class WeatherDataTypeAdmin(admin.ModelAdmin):
+#    list_display = ('name', 'display_name', 'unit')
+#    search_fields = ('name', 'display_name')
+#    fieldsets = (
+#        (None, {
+#            'fields': ('name', 'display_name', 'description', 'icon')
+#        }),
+#        ('Validation', {
+#            'fields': ('unit', 'min_value', 'max_value'),
+#        }),
+#    )
+
+#@admin.register(DeviceType)
+#class DeviceTypeAdmin(admin.ModelAdmin):
+#    list_display = ('name', 'manufacturer', 'communication_protocol', 'power_source', 'battery_life_days', 'created_at')
+#    list_filter = ('communication_protocol', 'power_source', 'has_temperature', 'has_precipitation', 'has_humidity', 'has_wind')
+#    search_fields = ('name', 'manufacturer', 'model_number')
+#    
+#    fieldsets = (
+#        (None, {
+#            'fields': ('name', 'manufacturer', 'model_number', 'description')
+#        }),
+#        ('Technical Specifications', {
+#            'fields': (
+#                'communication_protocol',
+#                'power_source',
+#                'battery_life_days',
+#                'firmware_version'
+#            )
+#        }),
+#        ('Data Capabilities', {
+#            'fields': (
+#                'has_temperature',
+#                'has_precipitation',
+#                'has_humidity',
+#                'has_wind',
+#                'has_air_quality',
+#                'has_soil_moisture',
+#                'has_water_level'
+#            )
+#        }),
+#    )
+
+#@admin.register(FieldDevice)
+#class FieldDeviceAdmin(OSMGeoAdmin):
+#    list_display = ('name', 'device_id', 'device_type', 'status', 'battery_level', 'signal_strength', 'last_communication')
+#    list_display_links = ('name',)
+#    list_per_page = 20
+#    list_filter = ('status', 'device_type', 'battery_level')
+#    search_fields = ('name', 'device_id', 'notes')
+#    readonly_fields = ('created_at', 'updated_at')
+#    
+#    fieldsets = (
+#        (None, {
+#            'fields': ('name', 'device_id', 'device_type', 'weather_station')
+#        }),
+#        ('Location', {
+#            'fields': ('location',)
+#        }),
+#        ('Status', {
+#            'fields': (
+#                'status',
+#                'installation_date',
+#                'last_communication'
+#            )
+#        }),
+#        ('Operational Data', {
+#            'fields': (
+#                'battery_level',
+#                'signal_strength',
+#                'firmware_version',
+#                'transmission_interval'
+#            )
+#        }),
+#        ('Configuration', {
+#            'fields': ('notes',)
+#        }),
+#        ('Timestamps', {
+#            'fields': ('created_at', 'updated_at'),
+#            'classes': ('collapse',)
+#        }),
+#    )
+
+@admin.register(DeviceCalibration)
+class DeviceCalibrationAdmin(admin.ModelAdmin):
+    list_display = ('device', 'calibration_date', 'next_calibration_date', 'performed_by', 'created_at')
+    list_filter = ('calibration_date', 'device')
+    search_fields = ('device__name', 'device__device_id', 'performed_by')
+    date_hierarchy = 'calibration_date'
     
     fieldsets = (
         (None, {
-            'fields': ('station', 'timestamp', 'data_quality')
+            'fields': ('device', 'calibration_date', 'next_calibration_date', 'performed_by')
         }),
-        ('Auto-calculated Fields', {
-            'fields': ('year', 'month', 'season'),
-            'classes': ('collapse',)
+        ('Documentation', {
+            'fields': ('notes',)
         }),
-        ('Temperature & Humidity', {
-            'fields': ('temperature', 'humidity'),
-        }),
-        ('Precipitation', {
-            'fields': ('precipitation',),
-        }),
-        ('Wind', {
-            'fields': ('wind_speed', 'wind_direction'),
-        }),
-        ('Air & Pressure', {
-            'fields': ('air_quality_index', 'barometric_pressure', 'uv_index'),
-        }),
-        ('Surface Conditions', {
-            'fields': ('cloud_cover', 'soil_moisture', 'water_level'),
-        }),
-        ('Metadata', {
+        ('Timestamps', {
             'fields': ('created_at', 'updated_at'),
             'classes': ('collapse',)
         }),
     )
 
-@admin.register(WeatherDataType)
-class WeatherDataTypeAdmin(admin.ModelAdmin):
-    list_display = ('name', 'display_name', 'unit')
-    search_fields = ('name', 'display_name')
+@admin.register(FieldDataUpload)
+class FieldDataUploadAdmin(admin.ModelAdmin):
+    list_display = ('title', 'device_type', 'data_format', 'status', 'upload_date', 'processed_count', 'error_count')
+    list_filter = ('status', 'data_format', 'device_type')
+    search_fields = ('title', 'description')
+    readonly_fields = ('upload_date', 'processed_count', 'error_count', 'error_log', 'created_by')
+    date_hierarchy = 'upload_date'
+    
     fieldsets = (
         (None, {
-            'fields': ('name', 'display_name', 'description', 'icon')
+            'fields': ('title', 'description', 'device_type')
         }),
-        ('Validation', {
-            'fields': ('unit', 'min_value', 'max_value'),
+        ('Upload Details', {
+            'fields': ('data_file', 'data_format')
+        }),
+        ('Processing Status', {
+            'fields': ('status', 'processed_count', 'error_count', 'error_log')
+        }),
+        ('Metadata', {
+            'fields': ('upload_date', 'created_by'),
+            'classes': ('collapse',)
         }),
     )
+
 
 @admin.register(DataExport)
 class DataExportAdmin(admin.ModelAdmin):
@@ -213,7 +336,7 @@ class DataExportAdmin(admin.ModelAdmin):
             'fields': ('date_from', 'date_to', 'years', 'min_data_quality')
         }),
         ('Export Details', {
-            'fields': ('file', 'error_message', 'created_at', 'updated_at', 'last_downloaded', 'download_count')
+            'fields': ('file', 'error_log', 'created_at', 'updated_at', 'last_downloaded', 'download_count')
         }),
     )
     

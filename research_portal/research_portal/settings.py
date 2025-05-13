@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'django.contrib.gis',
     'rest_framework_gis',
+    'channels',
     'django_filters',
     'data_repository',  # Add the data_repository app here
 ]
@@ -163,6 +164,16 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Channels configuration
+ASGI_APPLICATION = 'research_portal.asgi.application'
+
+# Channel layers for WebSocket communication
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
 
 
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
