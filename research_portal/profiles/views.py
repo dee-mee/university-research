@@ -8,7 +8,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.csrf import csrf_protect
 from .serializers import RegisterSerializer, LoginSerializer, PasswordResetSerializer
 from .forms import LoginForm, ProfileEditForm, UserRegistrationForm
-from .models import Profile
+from .models import Profile, Notification
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordResetForm
 from django.core.mail import send_mail
@@ -18,9 +18,49 @@ from django.http import JsonResponse, HttpResponse
 from django.core.serializers import serialize
 from django.contrib import messages
 from django.urls import reverse
-from .models import Profile, Notification
+from django.utils import timezone
+from maps.models import WeatherStation
 import csv
 import json
+
+@login_required
+def profile_view(request):
+    """Display user's profile page with recent activity and settings."""
+    user = request.user
+    try:
+        profile = user.profile
+    except Profile.DoesNotExist:
+        profile = Profile.objects.create(user=user)
+
+    # Get recent activity (downloads, uploads, etc.)
+    recent_activity = []
+    
+    # Get recent downloads
+    downloads = DatasetDownload.objects.filter(user=user).order_by('-downloaded_at')[:5]
+    for download in downloads:
+        recent_activity.append({
+            'action': f'Downloaded {download.dataset.title} (v{download.version.version_number})',
+            'timestamp': download.downloaded_at
+        })
+    
+    # Get recent dataset creations
+    datasets = Dataset.objects.filter(created_by=user).order_by('-created_at')[:5]
+    for dataset in datasets:
+        recent_activity.append({
+            'action': f'Created dataset: {dataset.title}',
+            'timestamp': dataset.created_at
+        })
+    
+    # Sort activities by timestamp
+    recent_activity.sort(key=lambda x: x['timestamp'], reverse=True)
+
+    context = {
+        'user': user,
+        'profile': profile,
+        'recent_activity': recent_activity,
+        'title': 'Profile'
+    }
+    return render(request, 'profiles/profile.html', context)
 
 
 logger = logging.getLogger(__name__)

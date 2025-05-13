@@ -5,285 +5,215 @@
 
 {% block extra_css %}
 <style>
-    :root {
-        --primary-color: #0d5dc5;
-        --text-color: #000000;
-        --sidebar-width: 250px;
-        --link-hover-color: #0d5dc5;
-        --link-active-bg: rgba(13, 93, 197, 0.1);
-        --link-color: #000000;
-        --link-hover-bg: rgba(0, 0, 0, 0.1);
-    }
-
-    .sidebar .nav-link {
-        color: #000000 !important;
-        font-weight: 500;
-    }
-
-    .sidebar .nav-link i {
-        color: #000000 !important;
-    }
-
-    .sidebar .nav-link:hover {
-        color: #0d5dc5 !important;
-        background-color: var(--link-hover-bg);
-    }
-
-    .sidebar .nav-link.active {
-        color: #0d5dc5 !important;
-        background-color: var(--link-hover-bg);
-    }
-
-    .sidebar {
-        min-height: 100vh;
-        width: var(--sidebar-width);
-        position: fixed;
-        color: #000000;
-        left: 0;
-        top: 0;
-        z-index: 1000;
-        background: rgb(85, 100, 168);
-        box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-        padding: 1rem;
-    }
-
-    .sidebar-header {
-        text-align: center;
-        padding: 1rem 0;
-        border-bottom: 1px solid #eee;
-        margin-bottom: 1rem;
-    }
-
-    .sidebar-header img {
-        width: 80px;
-        height: 80px;
-        border-radius: 50%;
-        object-fit: cover;
-        margin-bottom: 0.5rem;
-    }
-
-    .sidebar-header h5 {
-        margin: 0;
-        font-size: 1.1rem;
-        color: #000000;
-    }
-
-    .sidebar-header p {
-        margin: 0;
-        color: #000000;
-    }
-
-
-
     .main-content {
-        margin-left: var(--sidebar-width);
         padding: 1rem;
         min-height: 100vh;
-        background: #f8f9fa;
-    }
-
-    .main-content h2 {
-        color: var(--text-color);
-    }
-
-    .main-content p {
-        color: var(--text-color);
-    }
-
-    @media (max-width: 991.98px) {
-        .sidebar {
-            width: 100%;
-            position: static;
-            margin-bottom: 1rem;
-            padding: 0.5rem;
-        }
-
-        .main-content {
-            margin-left: 0;
-            background: white;
-        }
-
-        .nav-link {
-            padding: 0.375rem 0.5rem;
-        }
-    }
-
-    .quick-action-card {
-        text-decoration: none;
-        color: var(--link-color);
-        transition: all 0.3s ease;
-        background: white;
-        border-radius: 0.5rem;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        padding: 1rem;
-        margin-bottom: 1rem;
-    }
-
-    .quick-action-card:hover {
-        transform: translateY(-5px);
-        color: var(--link-hover-color);
-        background-color: var(--link-hover-bg);
-    }
-
-    .quick-action-card i {
-        font-size: 2rem;
-        color: var(--primary-color);
-        margin-bottom: 0.75rem;
-    }
-
-    .quick-action-card h5 {
-        margin: 0 0 0.25rem 0;
-        font-size: 1.1rem;
-        color: #000000;
-    }
-
-    .quick-action-card p {
-        margin: 0;
-        font-size: 0.9rem;
-        color: #000000;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="container-fluid py-4">
     <div class="row">
-        <!-- Sidebar -->
-        <div class="col-md-3 col-lg-2 px-0">
-            <div class="sidebar">
-                <div class="sidebar-header">
-                    <img src="{% static 'images/default-avatar.png' %}" alt="Profile" class="rounded-circle">
-                    <h5>{{ user.get_full_name }}</h5>
-                    <p>{{ user.profile.role_display }}</p>
+        <div class="col-md-3">
+            <!-- Profile Sidebar -->
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <img src="{% if user.profile.profile_image %}{{ user.profile.profile_image.url }}{% else %}{% static 'img/default-avatar.png' %}{% endif %}" 
+                         alt="Profile Picture" 
+                         class="rounded-circle mb-3" 
+                         style="width: 150px; height: 150px; object-fit: cover; border: 3px solid #0d5dc5;">
+                    <h4 class="mb-0">{{ user.get_full_name }}</h4>
+                    <p class="text-muted">{{ user.email }}</p>
+                    <a href="{% url 'profiles:edit_profile' %}" class="btn btn-primary mt-3">Edit Profile</a>
                 </div>
-                
-                <nav>
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link active" href="{% url 'profiles:dashboard' %}">
-                                <i class="fas fa-home"></i>
-                                Dashboard
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'research:sub_projects' %}">
-                                <i class="fas fa-project-diagram"></i>
-                                Projects
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'maps:field_data_dashboard' %}">
-                                <i class="fas fa-map-marker-alt"></i>
-                                Field Data
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'research:latest_activities' %}">
-                                <i class="fas fa-file-alt"></i>
-                                Reports
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'profiles:settings' %}">
-                                <i class="fas fa-cog"></i>
-                                Settings
-                            </a>
-                        </li>
-                    </ul>
-                </nav>
             </div>
         </div>
-
-        <!-- Main Content -->
-        <div class="col-md-9 col-lg-10 ms-md-auto px-4 mt-4">
-            <div class="row mb-4">
-                <div class="col-12">
-                    <h2 class="mb-3">Welcome, {{ user.get_full_name }}</h2>
-                    <p class="text-muted">Here's what's happening in your projects today</p>
+        
+        <div class="col-md-9">
+            <!-- Quick Actions -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card bg-light text-center">
+                                <div class="card-body">
+                                    <i class="fas fa-plus-circle fa-3x mb-3"></i>
+                                    <h5 class="mb-0">Create Dataset</h5>
+                                    <a href="{% url 'repository:dataset_create' %}" class="btn btn-primary mt-3">Create</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light text-center">
+                                <div class="card-body">
+                                    <i class="fas fa-map-marker-alt fa-3x mb-3"></i>
+                                    <h5 class="mb-0">View Maps</h5>
+                                    <a href="{% url 'maps:map' %}" class="btn btn-primary mt-3">View Maps</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light text-center">
+                                <div class="card-body">
+                                    <i class="fas fa-bell fa-3x mb-3"></i>
+                                    <h5 class="mb-0">Notifications</h5>
+                                    <a href="{% url 'profiles:notifications' %}" class="btn btn-primary mt-3">View Notifications</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Quick Actions -->
-            <div class="row mb-4">
-                <div class="col-md-3">
-                    <a href="{% url 'research:sub_projects' %}" class="quick-action-card card h-100 text-center">
-                        <div class="card-body">
-                            <i class="fas fa-plus-circle"></i>
-                            <h5 class="card-title">New Project</h5>
-                            <p class="card-text">Start a new research project</p>
-                        </div>
-                    </a>
+            <!-- Live Data -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Live Data</h5>
                 </div>
-                <div class="col-md-3">
-                    <a href="{% url 'maps:field_data_upload' %}" class="quick-action-card card h-100 text-center">
-                        <div class="card-body">
-                            <i class="fas fa-upload"></i>
-                            <h5 class="card-title">Upload Data</h5>
-                            <p class="card-text">Upload new field data</p>
+                <div class="card-body">
+                    <div class="row">
+                        {% for station in recent_stations %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ station.name }}</h6>
+                                    <p class="small text-muted mb-2">{{ station.location.y|floatformat:2 }}, {{ station.location.x|floatformat:2 }}</p>
+                                    
+                                    <!-- Temperature -->
+                                    {% if station.has_temperature %}
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="fas fa-temperature-high text-primary me-2"></i>
+                                        <span class="fw-bold">{{ station.temperature|default:"-" }}°C</span>
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- Precipitation -->
+                                    {% if station.has_precipitation %}
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="fas fa-cloud-rain text-primary me-2"></i>
+                                        <span class="fw-bold">{{ station.precipitation|default:"-" }}mm</span>
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- Humidity -->
+                                    {% if station.has_humidity %}
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="fas fa-tint text-primary me-2"></i>
+                                        <span class="fw-bold">{{ station.humidity|default:"-" }}%</span>
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- Wind -->
+                                    {% if station.has_wind %}
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="fas fa-wind text-primary me-2"></i>
+                                        <span class="fw-bold">{{ station.wind_speed|default:"-" }}km/h</span>
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- Last Update -->
+                                    <div class="text-muted small">
+                                        Last update: {{ station.last_data_feed|timesince }} ago
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    </a>
+                        {% empty %}
+                        <div class="col-12">
+                            <p class="text-center text-muted">No live data available</p>
+                        </div>
+                        {% endfor %}
+                    </div>
                 </div>
-                <div class="col-md-3">
-                    <a href="{% url 'research:latest_activities' %}" class="quick-action-card card h-100 text-center">
-                        <div class="card-body">
-                            <i class="fas fa-file-excel"></i>
-                            <h5 class="card-title">Generate Report</h5>
-                            <p class="card-text">Create a new report</p>
+            </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card bg-light text-center">
+                                <div class="card-body">
+                                    <i class="fas fa-plus-circle fa-3x mb-3"></i>
+                                    <h5 class="mb-0">Create Dataset</h5>
+                                    <a href="{% url 'repository:dataset_create' %}" class="btn btn-primary mt-3">Create</a>
+                                </div>
+                            </div>
                         </div>
-                    </a>
-                </div>
-                <div class="col-md-3">
-                    <a href="{% url 'profiles:notifications' %}" class="quick-action-card card h-100 text-center">
-                        <div class="card-body">
-                            <i class="fas fa-bell"></i>
-                            <h5 class="card-title">Notifications</h5>
-                            <p class="card-text">View recent updates</p>
+                        <div class="col-md-4">
+                            <div class="card bg-light text-center">
+                                <div class="card-body">
+                                    <i class="fas fa-map-marker-alt fa-3x mb-3"></i>
+                                    <h5 class="mb-0">View Maps</h5>
+                                    <a href="{% url 'maps:map' %}" class="btn btn-primary mt-3">View Maps</a>
+                                </div>
+                            </div>
                         </div>
-                    </a>
+                        <div class="col-md-4">
+                            <div class="card bg-light text-center">
+                                <div class="card-body">
+                                    <i class="fas fa-bell fa-3x mb-3"></i>
+                                    <h5 class="mb-0">Notifications</h5>
+                                    <a href="{% url 'profiles:notifications' %}" class="btn btn-primary mt-3">View Notifications</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <!-- Recent Activity -->
-            <div class="row">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">Recent Activity</h5>
-                            <a href="{% url 'profiles:dashboard' %}" class="btn btn-sm btn-outline-primary">View All</a>
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Recent Activity</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_activity %}
+                        <div class="list-group">
+                            {% for activity in recent_activity %}
+                            <div class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">{{ activity.action }}</h6>
+                                    <small class="text-muted">{{ activity.timestamp|timesince }} ago</small>
+                                </div>
+                            </div>
+                            {% endfor %}
                         </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th>Type</th>
-                                            <th>Project</th>
-                                            <th>Time</th>
-                                            <th>Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for activity in recent_activity %}
-                                        <tr>
-                                            <td>
-                                                <i class="fas fa-{{ activity.icon }} text-{{ activity.type|lower }}"></i>
-                                                {{ activity.type }}
-                                            </td>
-                                            <td>{{ activity.project.name }}</td>
-                                            <td>{{ activity.timestamp|timesince }}</td>
-                                            <td>
-                                                <span class="badge bg-{{ activity.status|lower }}">
-                                                    {{ activity.status }}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                        {% empty %}
-                                        <tr>
-                                            <td colspan="4" class="text-center text-muted">No recent activity</td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
+                    {% else %}
+                        <p class="text-muted">No recent activity recorded.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Statistics -->
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card bg-light text-center">
+                                <div class="card-body">
+                                    <h2 class="mb-0">{{ user.profile.datasets.count }}</h2>
+                                    <p class="text-muted mb-0">Datasets Created</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light text-center">
+                                <div class="card-body">
+                                    <h2 class="mb-0">{{ user.profile.downloads.count }}</h2>
+                                    <p class="text-muted mb-0">Downloads</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light text-center">
+                                <div class="card-body">
+                                    <h2 class="mb-0">{{ user.profile.contributions.count }}</h2>
+                                    <p class="text-muted mb-0">Contributions</p>
+                                </div>
                             </div>
                         </div>
                     </div>

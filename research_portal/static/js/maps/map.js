@@ -308,16 +308,32 @@ class WeatherStationMap {
                                 type: "Feature",
                                 geometry: {
                                     type: "Point",
-                                    coordinates: [station.longitude, station.latitude]
+                                    coordinates: [station.hotspot_longitude, station.hotspot_latitude]
                                 },
-                                properties: { ...station }
+                                properties: { 
+                                    ...station,
+                                    // Add hotspot coordinates to properties
+                                    hotspot_latitude: station.hotspot_latitude,
+                                    hotspot_longitude: station.hotspot_longitude
+                                }
                             };
                         }
                         return station;
                     });
                 } else if (data.features && Array.isArray(data.features)) {
                     // GeoJSON format
-                    this.stations = data.features;
+                    this.stations = data.features.map(feature => {
+                        const props = feature.properties;
+                        return {
+                            ...feature,
+                            properties: {
+                                ...props,
+                                // Add hotspot coordinates to properties
+                                hotspot_latitude: props.hotspot_latitude,
+                                hotspot_longitude: props.hotspot_longitude
+                            }
+                        };
+                    });
                 } else if (data.results && Array.isArray(data.results)) {
                     // DRF paginated format
                     this.stations = data.results.map(station => {
@@ -327,9 +343,14 @@ class WeatherStationMap {
                                 type: "Feature",
                                 geometry: {
                                     type: "Point",
-                                    coordinates: [station.longitude, station.latitude]
+                                    coordinates: [station.hotspot_longitude, station.hotspot_latitude]
                                 },
-                                properties: { ...station }
+                                properties: { 
+                                    ...station,
+                                    // Add hotspot coordinates to properties
+                                    hotspot_latitude: station.hotspot_latitude,
+                                    hotspot_longitude: station.hotspot_longitude
+                                }
                             };
                         }
                         return station;
@@ -386,7 +407,7 @@ class WeatherStationMap {
     }
     
     /**
-     * Display weather stations on the map
+     * Display weather stations on the map and create station cards
      */
     displayStations() {
         // Clear existing layers
@@ -397,6 +418,12 @@ class WeatherStationMap {
         if (!this.stations || this.stations.length === 0) {
             this.showError("No weather stations found.");
             return;
+        }
+        
+        // Clear existing station cards
+        const stationCardsContainer = document.getElementById('station-cards-container');
+        if (stationCardsContainer) {
+            stationCardsContainer.innerHTML = '';
         }
         
         // Process each station
@@ -420,6 +447,38 @@ class WeatherStationMap {
                 } else {
                     marker.setOpacity(0.5); // Make inactive stations semi-transparent
                     this.stationLayers.inactive.addLayer(marker);
+                }
+
+                // Create station card
+                const props = station.properties || station;
+                const stationCard = `
+                    <div class="col-md-6 station-card">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">${props.name || props.station_name || 'Unnamed Station'}</h5>
+                                <p class="coordinates">
+                                    Coordinates: ${props.hotspot_latitude}, ${props.hotspot_longitude}
+                                </p>
+                                <p class="status ${isActive ? 'active' : 'inactive'}">
+                                    Status: ${isActive ? 'Active' : 'Inactive'}
+                                </p>
+                                <p class="card-text">
+                                    ${props.description || 'No description available.'}
+                                </p>
+                                <div class="mt-3">
+                                    <a href="${this.apiBaseUrl}/stations/${props.id}/statistics/" 
+                                       class="btn btn-sm btn-success">
+                                        <i class="fas fa-chart-bar me-1"></i> View Statistics
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Add station card to container
+                if (stationCardsContainer) {
+                    stationCardsContainer.innerHTML += stationCard;
                 }
             } catch (error) {
                 console.error("Error displaying station:", station, error);
