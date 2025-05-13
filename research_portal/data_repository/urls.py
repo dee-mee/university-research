@@ -14,6 +14,10 @@ urlpatterns = [
     path('dataset/<int:dataset_id>/version/create/', views.version_create, name='version_create'),
     path('dataset/<int:dataset_id>/timeseries/<str:variable>/', views.dataset_timeseries, name='dataset_timeseries'),
     
+    # User-specific views
+    path('my-datasets/', views.my_datasets, name='my_datasets'),
+    path('download-history/', views.download_history, name='download_history'),
+    
     # Category views
     path('category/<slug:category_slug>/', views.category_datasets, name='category_datasets'),
     

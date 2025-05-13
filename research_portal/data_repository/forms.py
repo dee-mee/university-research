@@ -6,11 +6,10 @@ import json
 class DatasetForm(forms.ModelForm):
     class Meta:
         model = Dataset
-        fields = ['title', 'description', 'category', 'is_featured', 'thumbnail', 'metadata', 'doi', 'type', 'simulation', 'model', 'variables']
+        fields = ['title', 'description', 'category', 'is_featured', 'thumbnail', 'metadata', 'doi', 'status']
         widgets = {
             'description': forms.Textarea(attrs={'rows': 4}),
             'metadata': forms.Textarea(attrs={'class': 'json-editor', 'rows': 5}),
-            'variables': forms.Textarea(attrs={'class': 'json-editor', 'rows': 3}),
             'category': forms.Select(attrs={'class': 'form-select'}),
         }
 

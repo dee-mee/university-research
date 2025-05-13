@@ -49,14 +49,53 @@ class Dataset(models.Model):
     thumbnail = models.ImageField(upload_to='dataset_thumbnails/', null=True, blank=True)
     metadata = models.JSONField(default=dict, blank=True)
     doi = models.CharField(max_length=255, blank=True, null=True)
-    type = models.CharField(max_length=50, default='DerivedOutputData')
-    simulation = models.CharField(max_length=50, blank=True, null=True)
-    model = models.CharField(max_length=50, blank=True, null=True)
-    variables = models.JSONField(default=list, blank=True)
+
+    def __str__(self):
+        return self.title
+
+    def get_absolute_url(self):
+        return reverse('repository:dataset_detail', args=[str(self.id)])
+
+class DatasetVersion(models.Model):
+    """Model to track different versions of a dataset."""
+    dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name='versions')
+    version_number = models.IntegerField()
+    release_notes = models.TextField(blank=True)
+    file = models.FileField(upload_to='datasets/versions/')
+    size = models.BigIntegerField()  # Store file size in bytes
+    checksum = models.CharField(max_length=64, blank=True)  # For file integrity verification
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+
+    class Meta:
+        ordering = ['-version_number']
+        unique_together = ['dataset', 'version_number']
+
+    def __str__(self):
+        return f"{self.dataset.title} v{self.version_number}"
+
+class DatasetDownload(models.Model):
+    """Model to track dataset downloads."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE)
+    version = models.ForeignKey(DatasetVersion, on_delete=models.CASCADE)
+    downloaded_at = models.DateTimeField(auto_now_add=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-accessed_at']
+        verbose_name_plural = 'Dataset Downloads'
+
+    def __str__(self):
+        return f"{self.user.username} downloaded {self.dataset.title} (v{self.version.version_number})"
     
     # ISIMIP specific fields
     path = models.CharField(max_length=500, blank=True)
     isimip_id = models.CharField(max_length=200, blank=True)
+    simulation_round = models.CharField(max_length=50, blank=True)
+    model = models.CharField(max_length=50, blank=True)
+    variables = models.JSONField(default=list, blank=True)
     simulation_round = models.CharField(max_length=50, blank=True)
     impact_model = models.CharField(max_length=100, blank=True)
     climate_forcing = models.CharField(max_length=100, blank=True)

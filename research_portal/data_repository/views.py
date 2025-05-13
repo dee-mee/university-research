@@ -10,6 +10,47 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Q
 
+@login_required
+def my_datasets(request):
+    """View to display datasets created by the current user."""
+    user_datasets = Dataset.objects.filter(created_by=request.user).order_by('-created_at')
+    
+    # Pagination
+    paginator = Paginator(user_datasets, 10)  # Show 10 datasets per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'datasets': page_obj,
+        'page_obj': page_obj,
+        'title': 'My Datasets'
+    }
+    return render(request, 'data_repository/my_datasets.html', context)
+
+@login_required
+def download_history(request):
+    """View to display user's download history."""
+    # Get download history for the current user
+    downloads = DatasetDownload.objects.filter(user=request.user).order_by('-downloaded_at')
+    
+    # Add dataset versions to the context for each download
+    for download in downloads:
+        download.version = download.dataset.versions.first()  # Get the latest version
+        download.dataset_title = download.dataset.title
+        download.version_size = download.version.size
+    
+    # Pagination
+    paginator = Paginator(downloads, 10)  # Show 10 downloads per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'downloads': page_obj,
+        'page_obj': page_obj,
+        'title': 'Download History'
+    }
+    return render(request, 'data_repository/download_history.html', context)
+
 import json
 import os
 
