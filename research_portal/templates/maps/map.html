@@ -7,7 +7,6 @@
 <title>Weather Stations Map</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-<!-- Replace the old Font Awesome with a CDN link that works without registration -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="stylesheet" href="{% static 'css/map-markers.css' %}">
 <link rel="stylesheet" href="{% static 'css/hotspot.css' %}">
@@ -21,9 +20,10 @@
  width: 100%;
  height: 100vh;
  }
+ 
+ /* Info container styles */
  .info-container {
  padding: 6px 8px;
- background: white;
  background: rgba(255,255,255,0.8);
  box-shadow: 0 0 15px rgba(0,0,0,0.2);
  border-radius: 5px;
@@ -33,34 +33,13 @@
  margin: 0 0 5px;
  color: #777;
  }
- .station-inactive {
- opacity: 0.5;
- }
- .legend {
- line-height: 18px;
- color: #555;
- }
- .legend i {
- width: 18px;
- height: 18px;
- float: left;
- margin-right: 8px;
- opacity: 0.7;
- }
-
- /* Field device status colors */
- .status-active {
- color: #28a745;
- }
- .status-maintenance {
- color: #ffc107;
- }
- .status-inactive {
- color: #dc3545;
- }
- .status-lost {
- color: #6c757d;
- }
+ 
+ /* Status indicators */
+ .station-inactive { opacity: 0.5; }
+ .status-active { color: #28a745; }
+ .status-maintenance { color: #ffc107; }
+ .status-inactive { color: #dc3545; }
+ .status-lost { color: #6c757d; }
 
  /* Battery indicators */
  .battery-indicator {
@@ -71,15 +50,9 @@
  bottom: 2px;
  right: 2px;
  }
- .battery-good {
- background-color: #28a745;
- }
- .battery-low {
- background-color: #ffc107;
- }
- .battery-critical {
- background-color: #dc3545;
- }
+ .battery-good { background-color: #28a745; }
+ .battery-low { background-color: #ffc107; }
+ .battery-critical { background-color: #dc3545; }
 
  /* Filter panel styles */
  .filter-panel {
@@ -94,11 +67,7 @@
  z-index: 1000;
  transition: transform 0.3s ease;
  }
-
- .filter-panel.hidden {
- transform: translateX(110%);
- }
-
+ .filter-panel.hidden { transform: translateX(110%); }
  .filter-toggle {
  position: absolute;
  top: 10px;
@@ -112,40 +81,23 @@
  cursor: pointer;
  transition: all 0.3s ease;
  }
-
- .filter-toggle:hover {
- background: #f8f9fa;
- }
-
- .filter-toggle i {
- font-size: 1.2em;
- }
-
- .filter-section {
- margin-bottom: 15px;
- }
- .filter-section h6 {
- margin-bottom: 10px;
- }
- .filter-checkbox {
- margin-bottom: 5px;
- }
- .filter-badge {
- font-size: 12px;
- margin-left: 5px;
- }
+ .filter-toggle:hover { background: #f8f9fa; }
+ .filter-toggle i { font-size: 1.2em; }
+ .filter-section { margin-bottom: 15px; }
+ .filter-section h6 { margin-bottom: 10px; }
+ .filter-checkbox { margin-bottom: 5px; }
+ .filter-badge { font-size: 12px; margin-left: 5px; }
 
  /* Custom navbar styles */
  .custom-navbar {
    position: fixed;
    top: 0;
    width: 100%;
-   z-index: 1500; /* Increased z-index to be higher than the map's 1000 */
+   z-index: 1500;
    transition: all 0.3s ease;
-   background-color: rgba(255, 255, 255, 0.95); /* More opaque background */
-   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2); /* Enhanced shadow for better visibility */
+   background-color: rgba(255, 255, 255, 0.95);
+   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
  }
- 
  .custom-navbar.scrolled {
    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
    background-color: rgba(255, 255, 255, 0.95);
@@ -180,7 +132,6 @@
    font-size: 18px;
    transition: background-color 0.3s;
  }
- 
  #scrollToTopBtn:hover {
    background-color: rgba(0, 0, 0, 0.8);
  }
@@ -195,6 +146,8 @@
      width: auto;
    }
  }
+ 
+ /* Station selector styles */
  .station-selector {
   position: absolute;
   top: 80px;
@@ -205,90 +158,18 @@
   box-shadow: 0 0 10px rgba(0,0,0,0.1);
   padding: 10px;
   width: 250px;
-}
-
-@media (max-width: 768px) {
+ }
+ @media (max-width: 768px) {
   .station-selector {
     top: auto;
     bottom: 80px;
     left: 10px;
     width: auto;
   }
-}
-.marker-label {
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.7);
-    color: white;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 12px;
-    white-space: nowrap;
-}
+ }
 
-/* Added styles for the map overlay */
-.map-wrapper {
-  position: relative;
-  width: 100%;
-  height: 600px;
-}
-
-#map {
-  height: 100%;
-  width: 100%;
-}
-
-/* Station Info Cards Styles */
-#station-info-cards {
-  z-index: 1000;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-}
-
-.station-card {
-  margin-bottom: 1rem;
-}
-
-.station-card .coordinates {
-  font-size: 0.85rem;
-  color: #666;
-}
-
-.station-card .status {
-  font-weight: 500;
-}
-
-.station-card .status.active {
-  color: #28a745;
-}
-
-.station-card .status.inactive {
-  color: #dc3545;
-}
-
-.custom-marker-icon {
-  background: transparent;
-  border: none;
-}
-
-.marker-content {
-  color: #E03616;
-  font-size: 16px;
-  text-align: center;
-  text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-}
-
-.marker-content.active {
-  color: #E03616;
-}
-
-.marker-content.inactive {
-  color: #999;
-}
-
-.marker-label {
+ /* Marker label styles */
+ .marker-label {
   position: absolute;
   bottom: 100%;
   left: 50%;
@@ -300,85 +181,122 @@
   font-size: 12px;
   white-space: nowrap;
   pointer-events: none;
-}
+ }
 
-/* Add styles for marker toggle control */
-.map-toggle-controls {
-    position: absolute;
-    bottom: 30px;
-    left: 10px;
-    z-index: 1001;
-}
+ /* Map wrapper styles */
+ .map-wrapper {
+  position: relative;
+  width: 100%;
+  height: 600px;
+ }
+ #map {
+  height: 100%;
+  width: 100%;
+ }
 
-.map-toggle-controls .btn {
-    background: rgba(255, 255, 255, 0.7);
-    border: 1px solid rgba(0, 0, 0, 0.2);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-}
+ /* Station info cards styles */
+ #station-info-cards {
+  z-index: 1000;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+ }
+ .station-card {
+  margin-bottom: 1rem;
+ }
+ .station-card .coordinates {
+  font-size: 0.85rem;
+  color: #666;
+ }
+ .station-card .status {
+  font-weight: 500;
+ }
 
-.map-toggle-controls .btn:hover {
-    background: rgba(255, 255, 255, 0.9);
-}
+ /* Custom marker styles */
+ .custom-marker-icon {
+  background: transparent;
+  border: none;
+ }
+ .marker-content {
+  color: #E03616;
+  font-size: 16px;
+  text-align: center;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+ }
+ .marker-content.active {
+  color: #E03616;
+ }
+ .marker-content.inactive {
+  color: #999;
+ }
 
-/* Ensure map container has proper stacking */
-#map-container {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 1000;
-    pointer-events: auto;
-    background: transparent !important;
-}
+ /* Map toggle controls */
+ .map-toggle-controls {
+  position: absolute;
+  bottom: 30px;
+  left: 10px;
+  z-index: 1001;
+ }
+ .map-toggle-controls .btn {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+ }
+ .map-toggle-controls .btn:hover {
+  background: rgba(255, 255, 255, 0.9);
+ }
 
-/* Make Leaflet controls more transparent */
-.leaflet-control {
-    background: rgba(255, 255, 255, 0.7) !important;
-}
+ /* Map container styles */
+ #map-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1000;
+  pointer-events: auto;
+  background: transparent !important;
+ }
 
-/* Make markers more visible with white halo */
-.custom-marker-icon i {
-    filter: drop-shadow(0px 0px 3px white);
-}
+ /* Leaflet control styles */
+ .leaflet-control {
+  background: rgba(255, 255, 255, 0.7) !important;
+ }
+ .custom-marker-icon i {
+  filter: drop-shadow(0px 0px 3px white);
+ }
 
-/* Add styles for station buttons */
-.station-stats-btn {
+ /* Station button styles */
+ .station-stats-btn {
   background-color: #198754;
   border-color: #198754;
   color: white;
   transition: all 0.3s;
-}
-
-.station-stats-btn:hover {
+ }
+ .station-stats-btn:hover {
   background-color: #157347;
   border-color: #146c43;
   transform: scale(1.05);
-}
-
-.info-container .btn {
+ }
+ .info-container .btn {
   white-space: nowrap;
-}
-
-/* Make buttons in popups more visible */
-.leaflet-popup-content .btn {
+ }
+ 
+ /* Popup buttons styles */
+ .leaflet-popup-content .btn {
   margin-top: 8px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-}
-
-/* Add a slight animation to buttons */
-.leaflet-popup-content .btn:hover {
+ }
+ .leaflet-popup-content .btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   transition: all 0.3s;
-}
+ }
 
-/* Enhanced styling for station buttons */
-.button-container {
+ /* Station buttons enhanced styles */
+ .button-container {
   margin-top: 15px !important;
-}
-
-.station-stats-direct-link {
+ }
+ .station-stats-direct-link {
   background-color: #198754 !important;
   border-color: #198754 !important;
   color: white !important;
@@ -392,47 +310,42 @@
   text-align: center !important;
   z-index: 1100 !important;
   position: relative !important;
-}
-
-.station-stats-direct-link:hover {
+ }
+ .station-stats-direct-link:hover {
   background-color: #157347 !important;
   border-color: #146c43 !important;
   transform: translateY(-2px) !important;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
-}
+ }
 
-.leaflet-popup {
+ /* Leaflet popup styles */
+ .leaflet-popup {
   z-index: 1000 !important;
-}
-
-.leaflet-popup-content {
+ }
+ .leaflet-popup-content {
   margin: 10px 12px !important;
   min-width: 200px !important;
-}
-
-/* Make buttons in popups stand out */
-.leaflet-popup-content .btn {
+ }
+ .leaflet-popup-content .btn {
   margin-top: 8px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3) !important;
   display: block;
   width: 100%;
   text-align: center;
-}
+ }
 
-/* Ensure dropdown menus also appear above the map */
-.dropdown-menu {
-   z-index: 1600 !important;
-   background-color: rgba(255, 255, 255, 0.95);
-   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
+ /* Dropdown menu styles */
+ .dropdown-menu {
+  z-index: 1600 !important;
+  background-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+ }
+ .main-container {
+  margin-top: 70px; /* Adjust based on navbar height */
+ }
 
-/* Add margin-top to container to prevent content from being hidden under navbar */
-.main-container {
-   margin-top: 70px; /* Adjust this value based on your navbar height */
-}
-
-/* Add spinner styles */
-.spinner-border {
+ /* Spinner styles */
+ .spinner-border {
   display: inline-block;
   width: 2rem;
   height: 2rem;
@@ -441,13 +354,11 @@
   border-right-color: transparent;
   border-radius: 50%;
   animation: spinner-border .75s linear infinite;
-}
-
-@keyframes spinner-border {
+ }
+ @keyframes spinner-border {
   to { transform: rotate(360deg); }
-}
-
-.visually-hidden {
+ }
+ .visually-hidden {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -456,36 +367,30 @@
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   border: 0;
-}
+ }
 
-/* Alert styles for messages in popups */
-.info-container .alert {
+ /* Alert styles */
+ .info-container .alert {
   padding: 0.5rem 0.75rem;
   margin-bottom: 0.75rem;
   border: 1px solid transparent;
   border-radius: 0.25rem;
-}
-
-.alert-warning {
+ }
+ .alert-warning {
   color: #856404;
   background-color: #fff3cd;
   border-color: #ffeeba;
-}
-
-.alert-danger {
+ }
+ .alert-danger {
   color: #721c24;
   background-color: #f8d7da;
   border-color: #f5c6cb;
-}
+ }
 </style>
 
-<!-- Add a small debugging block near the top of the page -->
 <script>
   console.log("Map page loaded. If you don't see the 'View Statistics' button, please try clearing your browser cache.");
 </script>
-<script src="{% static 'js/maps/map.js' %}"></script>
-<script src="{% static 'js/maps/hotspot.js' %}"></script>
-<script src="{% static 'js/maps/custom-hotspots.js' %}"></script>
 </head>
 <body>
 <!-- Navigation bar -->
@@ -632,53 +537,7 @@
                                 <i class="fas fa-map-marker-alt"></i>
                             </button>
                         </div>
-                            <button id="toggle-markers" class="btn btn-sm btn-light" title="Toggle Markers">
-                                <i class="fas fa-map-marker-alt"></i>
-                            </button>
-                        </div>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Information about locations -->
-<div class="container mt-4">
-    <div class="row">
-        <div class="col-md-4 mb-3">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">JOOUST</h5>
-                </div>
-                <div class="card-body">
-                    <p><strong>Coordinates:</strong> -0.503, 34.847</p>
-                    <p><strong>Description:</strong> Jaramogi Oginga Odinga University of Science and Technology</p>
-                    <button class="btn btn-sm btn-outline-primary" onclick="centerMap(-0.503, 34.847, 'JOOUST')">View on Map</button>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">Mianthe</h5>
-                </div>
-                <div class="card-body">
-                    <p><strong>Coordinates:</strong> -0.45, 34.8</p>
-                    <p><strong>Description:</strong> Mianthe Weather Station</p>
-                    <button class="btn btn-sm btn-outline-primary" onclick="centerMap(-0.45, 34.8, 'Mianthe')">View on Map</button>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">Bondo</h5>
-                </div>
-                <div class="card-body">
-                    <p><strong>Coordinates:</strong> -0.55, 34.9</p>
-                    <p><strong>Description:</strong> Bondo Weather Station</p>
-                    <button class="btn btn-sm btn-outline-primary" onclick="centerMap(-0.55, 34.9, 'Bondo')">View on Map</button>
                 </div>
             </div>
         </div>
@@ -687,14 +546,13 @@
 
 <!-- Scroll to top button -->
 <button id="scrollToTopBtn" title="Go to top">↑</button>
-<!-- Add this before your other scripts if you want to use the heatmap feature -->
+
+<!-- Script includes -->
+<script src="{% static 'js/maps/map.js' %}"></script>
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<!-- Add Chart.js for data visualization -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<!-- Replace old Font Awesome script with empty script to keep compatibility -->
-<script>/* Font Awesome is now loaded via CSS */</script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -776,30 +634,6 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     }
   });
-  
-  function centerMap(lat, lon, locationName) {
-    // Get the iframe element
-    const iframe = document.getElementById('windy-map');
-    
-    // Update the iframe src to center on the specified coordinates
-    const currentSrc = iframe.src;
-    const newSrc = currentSrc.replace(/lat=([^&]*)/, `lat=${lat}`)
-                           .replace(/lon=([^&]*)/, `lon=${lon}`)
-                           .replace(/detailLat=([^&]*)/, `detailLat=${lat}`)
-                           .replace(/detailLon=([^&]*)/, `detailLon=${lon}`)
-                           .replace(/marker=([^&]*)/, `marker=${lat},${lon}`)
-                           .replace(/message=([^&]*)/, `message=${locationName}`);
-    
-    iframe.src = newSrc;
-    
-    // Scroll to the map
-    iframe.scrollIntoView({ behavior: 'smooth' });
-  }
-
-  // Initialize with JOOUST marker
-  setTimeout(() => {
-    centerMap(-0.503, 34.847, 'JOOUST');
-  }, 1000); // Slight delay to ensure map is loaded
 
   // Filter panel toggle functionality
   const filterPanel = document.getElementById('filterPanel');
@@ -817,7 +651,6 @@ document.addEventListener('DOMContentLoaded', function() {
     useWindyOverlay: true,
     windyMapId: 'windy-map',
     mapContainerId: 'map-container',
-    initialView: [-0.503, 34.847], // JOOUST coordinates
     initialZoom: 9
   };
   

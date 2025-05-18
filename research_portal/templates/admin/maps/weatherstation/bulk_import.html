@@ -1,0 +1,159 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .import-instructions {
+        background-color: #f9f9f9;
+        border-left: 4px solid #2271b1;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .csv-example {
+        font-family: monospace;
+        background-color: #f5f5f5;
+        padding: 10px;
+        border: 1px solid #ddd;
+        overflow-x: auto;
+        margin-bottom: 20px;
+    }
+    
+    .field-info {
+        margin-bottom: 20px;
+    }
+    
+    .field-info table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .field-info th, .field-info td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+    }
+    
+    .field-info th {
+        background-color: #f2f2f2;
+    }
+    
+    .field-info tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <h1>{% trans "Bulk Import Weather Stations" %}</h1>
+    
+    <div class="import-instructions">
+        <h3>{% trans "Instructions" %}</h3>
+        <p>{% trans "Upload a CSV file containing weather station data. The file must include the following columns:" %}</p>
+        <ul>
+            <li><strong>name</strong> - {% trans "The name of the weather station (required)" %}</li>
+            <li><strong>latitude</strong> - {% trans "Latitude in decimal degrees (required)" %}</li>
+            <li><strong>longitude</strong> - {% trans "Longitude in decimal degrees (required)" %}</li>
+        </ul>
+        <p>{% trans "Optional columns include: station_id, description, altitude, is_active, has_temperature, has_precipitation, has_humidity, has_wind, has_air_quality, has_soil_moisture, has_water_level" %}</p>
+    </div>
+    
+    <div class="field-info">
+        <h3>{% trans "Field Descriptions" %}</h3>
+        <table>
+            <tr>
+                <th>{% trans "Field" %}</th>
+                <th>{% trans "Type" %}</th>
+                <th>{% trans "Description" %}</th>
+                <th>{% trans "Example" %}</th>
+            </tr>
+            <tr>
+                <td>name</td>
+                <td>{% trans "Text" %}</td>
+                <td>{% trans "Name of the weather station" %}</td>
+                <td>Central City Station</td>
+            </tr>
+            <tr>
+                <td>station_id</td>
+                <td>{% trans "Text" %}</td>
+                <td>{% trans "Unique identifier for the station (optional)" %}</td>
+                <td>STA-001</td>
+            </tr>
+            <tr>
+                <td>latitude</td>
+                <td>{% trans "Decimal" %}</td>
+                <td>{% trans "Latitude coordinate" %}</td>
+                <td>37.7749</td>
+            </tr>
+            <tr>
+                <td>longitude</td>
+                <td>{% trans "Decimal" %}</td>
+                <td>{% trans "Longitude coordinate" %}</td>
+                <td>-122.4194</td>
+            </tr>
+            <tr>
+                <td>description</td>
+                <td>{% trans "Text" %}</td>
+                <td>{% trans "Brief description of the station" %}</td>
+                <td>Main monitoring station in Central City</td>
+            </tr>
+            <tr>
+                <td>altitude</td>
+                <td>{% trans "Decimal" %}</td>
+                <td>{% trans "Altitude in meters above sea level" %}</td>
+                <td>15.4</td>
+            </tr>
+            <tr>
+                <td>is_active</td>
+                <td>{% trans "Boolean" %}</td>
+                <td>{% trans "Whether the station is active (true/false)" %}</td>
+                <td>true</td>
+            </tr>
+            <tr>
+                <td>has_temperature</td>
+                <td>{% trans "Boolean" %}</td>
+                <td>{% trans "Whether the station provides temperature data" %}</td>
+                <td>true</td>
+            </tr>
+            <tr>
+                <td>has_precipitation</td>
+                <td>{% trans "Boolean" %}</td>
+                <td>{% trans "Whether the station provides precipitation data" %}</td>
+                <td>true</td>
+            </tr>
+            <tr>
+                <td>has_humidity</td>
+                <td>{% trans "Boolean" %}</td>
+                <td>{% trans "Whether the station provides humidity data" %}</td>
+                <td>true</td>
+            </tr>
+        </table>
+    </div>
+    
+    <div class="csv-example">
+        <h3>{% trans "Example CSV Format" %}</h3>
+        <pre>name,station_id,latitude,longitude,description,altitude,is_active,has_temperature
+"Central City Station","STA-001",37.7749,-122.4194,"Main monitoring station",15.4,true,true
+"North Station","STA-002",37.8012,-122.4594,"North area monitoring",22.1,true,true
+"South Station","STA-003",37.7349,-122.3894,"South area monitoring",10.2,false,true</pre>
+    </div>
+    
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        <div class="form-row">
+            <div class="fieldWrapper">
+                <label for="id_csv_file">{% trans "CSV File" %}:</label>
+                <input type="file" name="csv_file" id="id_csv_file" required accept=".csv">
+            </div>
+        </div>
+        
+        <div class="submit-row">
+            <input type="submit" value="{% trans 'Import' %}" class="default" name="_import">
+            <a class="button" href="{% url 'admin:maps_weatherstation_changelist' %}">{% trans "Cancel" %}</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
