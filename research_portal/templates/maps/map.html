@@ -646,40 +646,9 @@
 <!-- Information about locations -->
 <div class="container mt-4">
     <div class="row">
-        <div class="col-md-4 mb-3">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">JOOUST</h5>
-                </div>
-                <div class="card-body">
-                    <p><strong>Coordinates:</strong> -0.503, 34.847</p>
-                    <p><strong>Description:</strong> Jaramogi Oginga Odinga University of Science and Technology</p>
-                    <button class="btn btn-sm btn-outline-primary" onclick="centerMap(-0.503, 34.847, 'JOOUST')">View on Map</button>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">Mianthe</h5>
-                </div>
-                <div class="card-body">
-                    <p><strong>Coordinates:</strong> -0.45, 34.8</p>
-                    <p><strong>Description:</strong> Mianthe Weather Station</p>
-                    <button class="btn btn-sm btn-outline-primary" onclick="centerMap(-0.45, 34.8, 'Mianthe')">View on Map</button>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">Bondo</h5>
-                </div>
-                <div class="card-body">
-                    <p><strong>Coordinates:</strong> -0.55, 34.9</p>
-                    <p><strong>Description:</strong> Bondo Weather Station</p>
-                    <button class="btn btn-sm btn-outline-primary" onclick="centerMap(-0.55, 34.9, 'Bondo')">View on Map</button>
-                </div>
+        <div class="col-12">
+            <div class="alert alert-info">
+                Weather station locations will appear here when available in the database.
             </div>
         </div>
     </div>
@@ -796,10 +765,7 @@ document.addEventListener('DOMContentLoaded', function() {
     iframe.scrollIntoView({ behavior: 'smooth' });
   }
 
-  // Initialize with JOOUST marker
-  setTimeout(() => {
-    centerMap(-0.503, 34.847, 'JOOUST');
-  }, 1000); // Slight delay to ensure map is loaded
+  // Map will be centered based on loaded data
 
   // Filter panel toggle functionality
   const filterPanel = document.getElementById('filterPanel');
@@ -817,8 +783,8 @@ document.addEventListener('DOMContentLoaded', function() {
     useWindyOverlay: true,
     windyMapId: 'windy-map',
     mapContainerId: 'map-container',
-    initialView: [-0.503, 34.847], // JOOUST coordinates
-    initialZoom: 9
+    initialView: [0, 0], // Default to world view
+    initialZoom: 2
   };
   
   // The map will be initialized by the map.js script
