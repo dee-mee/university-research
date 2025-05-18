@@ -4,11 +4,12 @@ from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from .models import (
     Country, WeatherStation, ClimateData, WeatherDataType,
-    DataExport, WeatherAlert
+    DataExport, WeatherAlert, Hotspot
 )
 from .field_models import (
     DeviceType, FieldDevice, DeviceCalibration, FieldDataUpload
 )
+from .hotspot_admin import HotspotAdmin
 
 #@admin.register(Country)
 #class CountryAdmin(OSMGeoAdmin):
@@ -372,3 +373,7 @@ class WeatherAlertAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+
+# Register the Hotspot model with its custom admin class
+admin.site.register(Hotspot, HotspotAdmin)
