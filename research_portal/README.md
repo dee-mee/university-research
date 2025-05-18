@@ -41,9 +41,9 @@ This project is a Django-based web application designed to facilitate research a
 
 ## Collaborators
 - [DEREK MURIUKI]
-- [FIDEL ELIUD]
+- [BENARD KARANJA] n-cognto
 - [KELVIN NAMBALE]
-- [BENARD KARANJA]
+- [FIDEL ELIUD]
 
 ## License
 This project is licensed under the MIT License.
