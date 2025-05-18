@@ -3,7 +3,8 @@ from django.urls import path
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django import forms
-from .models import Profile
+from django.contrib.auth.admin import UserAdmin  # Add this import for UserAdmin
+from .models import Profile, Notification
 import csv
 import io
 from django.contrib.auth.models import User
@@ -108,5 +109,45 @@ class ProfileAdmin(admin.ModelAdmin):
         return render(
             request, "admin/csv_form.html", payload
         )
+
+# Extend the User admin with Profile information
+class ProfileInline(admin.StackedInline):
+    model = Profile
+    can_delete = False
+    verbose_name_plural = 'Profile'
+    fk_name = 'user'
+
+class CustomUserAdmin(UserAdmin):
+    inlines = (ProfileInline,)
+    list_display = ('username', 'email', 'first_name', 'last_name', 'get_role', 'get_department', 'is_staff')
+    list_select_related = ('profile',)
+    
+    def get_role(self, instance):
+        return instance.profile.get_role_display_name()
+    get_role.short_description = 'Role'
+    
+    def get_department(self, instance):
+        return instance.profile.department
+    get_department.short_description = 'Department'
+
+# Re-register UserAdmin
+admin.site.unregister(User)
+admin.site.register(User, CustomUserAdmin)
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ('title', 'user', 'read', 'created_at')
+    list_filter = ('read', 'created_at')
+    search_fields = ('title', 'message', 'user__username')
+    readonly_fields = ('created_at', 'updated_at')
+    
+    fieldsets = (
+        (None, {
+            'fields': ('user', 'title', 'message')
+        }),
+        ('Details', {
+            'fields': ('link', 'read', 'created_at', 'updated_at')
+        }),
+    )
 
 admin.site.register(Profile, ProfileAdmin)
