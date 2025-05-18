@@ -4,6 +4,7 @@ from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.contrib.postgres.fields import ArrayField
+from django.db.models import JSONField
 import json
 import logging
 from datetime import datetime
@@ -12,6 +13,62 @@ from django.conf import settings
 
 # Set up logger
 logger = logging.getLogger(__name__)
+
+class Hotspot(models.Model):
+    """Geographical hotspot for monitoring or analysis"""
+    STATUS_CHOICES = [
+        ('active', _('Active')),
+        ('inactive', _('Inactive')),
+        ('under_review', _('Under Review')),
+        ('resolved', _('Resolved')),
+    ]
+    
+    PRIORITY_CHOICES = [
+        ('low', _('Low')),
+        ('medium', _('Medium')),
+        ('high', _('High')),
+        ('critical', _('Critical')),
+    ]
+    
+    name = models.CharField(max_length=255, help_text=_("Name or identifier for the hotspot"))
+    description = models.TextField(blank=True, null=True, help_text=_("Detailed description of the hotspot"))
+    location = models.PointField(srid=4326, geography=True, spatial_index=True, help_text=_("Geographic location of the hotspot"))
+    radius = models.FloatField(default=100.0, help_text=_("Radius of the hotspot in meters"))
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active', help_text=_("Current status of the hotspot"))
+    priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='medium', help_text=_("Priority level"))
+    start_date = models.DateTimeField(help_text=_("When the hotspot was first identified"))
+    end_date = models.DateTimeField(null=True, blank=True, help_text=_("When the hotspot was resolved or deactivated"))
+    metadata = JSONField(blank=True, null=True, help_text=_("Additional metadata in JSON format"))
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_hotspots')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    # Relationships
+    related_stations = models.ManyToManyField('WeatherStation', blank=True, related_name='hotspots', 
+                                            help_text=_("Weather stations associated with this hotspot"))
+    
+    class Meta:
+        verbose_name = _("Hotspot")
+        verbose_name_plural = _("Hotspots")
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['status']),
+            models.Index(fields=['priority']),
+            models.Index(fields=['start_date', 'end_date']),
+        ]
+    
+    def __str__(self):
+        return f"{self.name} ({self.get_status_display()})"
+    
+    @property
+    def is_active(self):
+        return self.status == 'active'
+    
+    def save(self, *args, **kwargs):
+        if self.status == 'resolved' and not self.end_date:
+            self.end_date = timezone.now()
+        super().save(*args, **kwargs)
+
 
 class Country(models.Model):
     """Country information for geographic filtering"""
