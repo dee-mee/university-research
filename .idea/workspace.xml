@@ -5,8 +5,14 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="5616868c-0e04-4780-b508-932d49d2fbb8" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/research_portal/maps/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/research_portal/maps/views.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/research_portal/research_portal/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/research_portal/research_portal/settings.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/university-research.iml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/university_research.iml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/install_geodjango.sh" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -16,6 +22,18 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
+  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
+  "lastFilter": {
+    "state": "OPEN",
+    "assignee": "n-cognto"
+  }
+}]]></component>
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/dee-mee/university-research.git",
+    "accountId": "f0a21d56-573a-4c20-98c2-58b51c0bc4eb"
+  }
+}]]></component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 7
 }</component>
@@ -29,13 +47,13 @@
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.git.unshallow": "true",
     "git-widget-placeholder": "master",
-    "last_opened_file_path": "/home/deemee/git/university-research"
+    "last_opened_file_path": "/home/ncognto/Documents/university-research"
   }
 }]]></component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-python-sdk-4f4e415b4190-aa17d162503b-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-243.26053.29" />
+        <option value="bundled-python-sdk-348a24fa61fa-5312c7369657-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-251.23774.444" />
       </set>
     </attachedChunks>
   </component>

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.contrib.gis.admin import OSMGeoAdmin
+from django.contrib.gis.admin import GISModelAdmin
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.contrib.gis import forms
@@ -18,7 +18,7 @@ from .field_models import (
 )
 
 @admin.register(Country)
-class CountryAdmin(OSMGeoAdmin):
+class CountryAdmin(GISModelAdmin):
     list_display = ('name', 'code', 'is_southern_hemisphere')
     search_fields = ('name', 'code')
     list_filter = ('is_southern_hemisphere',)
@@ -33,7 +33,7 @@ class CountryAdmin(OSMGeoAdmin):
     )
 
 @admin.register(WeatherStation)
-class WeatherStationAdmin(OSMGeoAdmin):
+class WeatherStationAdmin(GISModelAdmin):
     list_display = ('name', 'station_id', 'country', 'is_active', 'date_installed', 'stack_info')
     list_filter = ('is_active', 'country', 'date_installed', 'has_temperature', 'has_precipitation')
     search_fields = ('name', 'station_id', 'description')
@@ -526,7 +526,7 @@ class DeviceTypeAdmin(admin.ModelAdmin):
     )
 
 @admin.register(FieldDevice)
-class FieldDeviceAdmin(OSMGeoAdmin):
+class FieldDeviceAdmin(GISModelAdmin):
     list_display = ('name', 'device_id', 'device_type', 'status', 'battery_level', 'signal_strength', 'last_communication')
     list_display_links = ('name',)
     list_filter = ('status', 'device_type')
