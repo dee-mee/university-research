@@ -510,37 +510,8 @@ class ClimateData(models.Model):
             self.year = self.timestamp.year
             self.month = self.timestamp.month
             
-            # Only set season if the field exists in the database
-            try:
-                # Determine whether station is in Southern Hemisphere
-                is_southern = self.station.is_southern_hemisphere
-                
-                # Determine season based on month and hemisphere
-                if is_southern:
-                    # Southern Hemisphere has opposite seasons
-                    if self.month in [12, 1, 2]:
-                        self.season = 'summer'
-                    elif self.month in [3, 4, 5]:
-                        self.season = 'autumn'
-                    elif self.month in [6, 7, 8]:
-                        self.season = 'winter'
-                    else:  # 9, 10, 11
-                        self.season = 'spring'
-                else:
-                    # Northern Hemisphere seasons
-                    if self.month in [12, 1, 2]:
-                        self.season = 'winter'
-                    elif self.month in [3, 4, 5]:
-                        self.season = 'spring'
-                    elif self.month in [6, 7, 8]:
-                        self.season = 'summer'
-                    else:  # 9, 10, 11
-                        self.season = 'autumn'
-            except Exception:
-                # If the season field doesn't exist yet (e.g., during migrations),
-                # just skip setting it rather than failing
-                logger.debug("Could not set season field, it may not exist yet", exc_info=True)
-                pass
+            # No regional season determination - each station stands alone
+            # Season needs to be explicitly set if required
                 
         super().save(*args, **kwargs)
 

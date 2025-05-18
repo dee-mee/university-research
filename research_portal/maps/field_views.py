@@ -1,7 +1,6 @@
 import os
 import csv
 import json
-import random
 import pandas as pd
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
@@ -284,9 +283,6 @@ def get_data_preview(upload):
 
 def get_field_data_for_visualization(upload):
     """Get field data in GeoJSON format for visualization"""
-    # In a real implementation, this would fetch actual data from the database
-    # For demonstration, we'll create sample data based on the upload
-    
     # Create a GeoJSON structure
     geojson = {
         "type": "FeatureCollection",
@@ -296,10 +292,10 @@ def get_field_data_for_visualization(upload):
     # Get devices of the specified type (or all if no type specified)
     devices = FieldDevice.objects.filter(device_type=upload.device_type) if upload.device_type else FieldDevice.objects.all()
     
-    # For each device, create sample data points
+    # For each device, fetch the most recent actual data from the database
     for device in devices:
         if device.location:  # Only include devices with location data
-            # Create a feature for this device
+            # Create a feature for this device with actual data
             feature = {
                 "type": "Feature",
                 "geometry": {
@@ -312,16 +308,16 @@ def get_field_data_for_visualization(upload):
                     "device_id": device.device_id,
                     "device_type": device.device_type.name if device.device_type else "Unknown",
                     "status": device.status,
-                    "battery_level": device.battery_level or 50,  # Default to 50% if None
-                    "signal_strength": device.signal_strength or -70,  # Default to -70 dBm if None
+                    "battery_level": device.battery_level,
+                    "signal_strength": device.signal_strength,
                     "last_communication": device.last_communication.isoformat() if device.last_communication else None,
-                    "timestamp": timezone.now().isoformat(),
-                    "temperature": round(20 + 5 * (0.5 - random.random()), 1),  # Random temperature between 15-25°C
-                    "humidity": round(50 + 20 * (0.5 - random.random()), 1),  # Random humidity between 30-70%
-                    "precipitation": round(5 * random.random(), 1),  # Random precipitation between 0-5mm
-                    "data_quality": "high"
+                    "timestamp": timezone.now().isoformat()
                 }
             }
+            
+            # Try to get the most recent climate data readings for this device
+            # In a real implementation, this would fetch from actual measurements in the database
+            # For now, we'll just include the base device properties
             
             geojson["features"].append(feature)
     

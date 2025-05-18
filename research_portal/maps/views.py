@@ -282,8 +282,6 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
         station = self.get_object()
         days = int(request.query_params.get('days', 7))
         data_types = request.query_params.getlist('data_types', [])
-        days = int(request.query_params.get('days', 7))
-        data_types = request.query_params.getlist('data_types', [])
         
         start_date = timezone.now() - timedelta(days=days)
         query = ClimateData.objects.filter(
@@ -301,21 +299,10 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
                 query = query.filter(reduce(operator.or_, conditions))
         
         page = self.paginate_queryset(query)
-        # Filter by data types if specified
-        if data_types:
-            conditions = []
-            for data_type in data_types:
-                if hasattr(ClimateData, data_type):
-                    conditions.append(~models.Q(**{data_type: None}))
-            if conditions:
-                query = query.filter(reduce(operator.or_, conditions))
-        
-        page = self.paginate_queryset(query)
         if page is not None:
             serializer = ClimateDataSerializer(page, many=True)
             return self.get_paginated_response(serializer.data)
         
-        serializer = ClimateDataSerializer(query, many=True)
         serializer = ClimateDataSerializer(query, many=True)
         return Response(serializer.data)
     
@@ -359,7 +346,7 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
             for data in climate_data:
                 writer.writerow([
                     station.name,
-                    data.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+                    data.timestamp.isoformat(),
                     data.temperature,
                     data.humidity,
                     data.precipitation,
@@ -421,24 +408,19 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
         """Push weather data onto the station's stack"""
         station = self.get_object()
         serializer = StackedDataSerializer(data=request.data)
-    @action(detail=True, methods=['post'])
-    def push_data(self, request, pk=None):
-        """Push weather data onto the station's stack"""
-        station = self.get_object()
-        serializer = StackedDataSerializer(data=request.data)
         
         if serializer.is_valid():
             success = station.push_data(serializer.validated_data)
             if success:
                 return Response({
-                    'success': True, 
-                    'stack_size': station.stack_size(),
-                    'message': 'Data added to stack successfully'
+                    'success': True,
+                    'message': 'Data successfully added to stack',
+                    'stack_size': station.stack_size()
                 })
             else:
                 return Response({
                     'success': False,
-                    'message': 'Stack is full'
+                    'message': 'Failed to add data to stack. The stack may be full.'
                 }, status=400)
         else:
             return Response(serializer.errors, status=400)
@@ -472,54 +454,8 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
             'latest_data': latest_data
         }
         
-        serializer = StackInfoSerializer(data)
-        if serializer.is_valid():
-            success = station.push_data(serializer.validated_data)
-            if success:
-                return Response({
-                    'success': True, 
-                    'stack_size': station.stack_size(),
-                    'message': 'Data added to stack successfully'
-                })
-            else:
-                return Response({
-                    'success': False,
-                    'message': 'Stack is full'
-                }, status=400)
-        else:
-            return Response(serializer.errors, status=400)
-    
-    @action(detail=True, methods=['post'])
-    def process_stack(self, request, pk=None):
-        """Process all data in the station's stack"""
-        station = self.get_object()
-        records_processed = station.process_data_stack()
-        
-        return Response({
-            'success': True,
-            'records_processed': records_processed,
-            'message': f'Successfully processed {records_processed} records'
-        })
-    
-    @action(detail=True, methods=['get'])
-    def stack_info(self, request, pk=None):
-        """Get information about the station's data stack"""
-        station = self.get_object()
-        latest_data = station.peek_data()
-        
-        data = {
-            'station_id': station.id,
-            'station_name': station.name,
-            'stack_size': station.stack_size(),
-            'max_stack_size': station.max_stack_size,
-            'last_data_feed': station.last_data_feed,
-            'auto_process': station.auto_process,
-            'process_threshold': station.process_threshold,
-            'latest_data': latest_data
-        }
-        
-        serializer = StackInfoSerializer(data)
-        return Response(serializer.data)
+        return Response(data)
+
 
     def perform_create(self, serializer):
         """Override create to check for alerts when new data is added"""
@@ -530,8 +466,7 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
         
         # Create alerts and send notifications
         for alert_data in alerts:
-            alert = create_alert_from_detection(climate_data.station, alert_data)
-            send_alert_notifications(alert)
+            create_alert_from_detection(climate_data.station, alert_data)
         
         return climate_data
 
@@ -1814,32 +1749,6 @@ class ClimateDataViewSet(viewsets.ModelViewSet):
                 query = query.filter(reduce(operator.or_, conditions))
         
         serializer = self.get_serializer(query, many=True)
-    def recent(self, request):
-        """Get the most recent climate data for all stations"""
-        hours = int(request.query_params.get('hours', 24))
-        data_types = request.query_params.getlist('data_types', [])
-        since = timezone.now() - timedelta(hours=hours)
-        
-        # Get latest reading for each station
-        subquery = ClimateData.objects.filter(
-            station=OuterRef('station'),
-            timestamp__gte=since
-        ).order_by('-timestamp').values('id')[:1]
-        
-        query = ClimateData.objects.filter(
-            id__in=Subquery(subquery)
-        ).select_related('station')
-        
-        # Filter by data types if specified
-        if data_types:
-            conditions = []
-            for data_type in data_types:
-                if hasattr(ClimateData, data_type):
-                    conditions.append(~models.Q(**{data_type: None}))
-            if conditions:
-                query = query.filter(reduce(operator.or_, conditions))
-        
-        serializer = self.get_serializer(query, many=True)
         return Response(serializer.data)
 
     def perform_create(self, serializer):
@@ -1851,8 +1760,7 @@ class ClimateDataViewSet(viewsets.ModelViewSet):
         
         # Create alerts and send notifications
         for alert_data in alerts:
-            alert = create_alert_from_detection(climate_data.station, alert_data)
-            send_alert_notifications(alert)
+            create_alert_from_detection(climate_data.station, alert_data)
         
         return climate_data
 

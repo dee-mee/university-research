@@ -186,22 +186,50 @@ def _process_stations_data_in_batches(stations, api_key, batch_size, delay):
 
 
 def _map_api_response_to_climate_data(station, data):
+    """
+    Map the API response data to our climate data model format
+    
+    Args:
+        station: WeatherStation object
+        data: API response data dictionary
+        
+    Returns:
+        Dictionary of mapped climate data
+    """
+    # Create a base mapping with the station and timestamp
     climate_data = {
         'station': station,
         'timestamp': timezone.now(),
-        'temperature': data.get('main', {}).get('temp'),
-        'humidity': data.get('main', {}).get('humidity'),
-        'wind_speed': data.get('wind', {}).get('speed'),
-        'wind_direction': data.get('wind', {}).get('deg'),
-        'barometric_pressure': data.get('main', {}).get('pressure'),
-        'cloud_cover': data.get('clouds', {}).get('all'),
         'data_quality': 'high'
     }
     
+    # Map primary measurements if available
+    if 'main' in data:
+        main_data = data['main']
+        climate_data.update({
+            'temperature': main_data.get('temp'),
+            'humidity': main_data.get('humidity'),
+            'barometric_pressure': main_data.get('pressure')
+        })
+    
+    # Map wind data if available
+    if 'wind' in data:
+        wind_data = data['wind']
+        climate_data.update({
+            'wind_speed': wind_data.get('speed'),
+            'wind_direction': wind_data.get('deg')
+        })
+    
+    # Map precipitation if available
     if 'rain' in data and '1h' in data['rain']:
         climate_data['precipitation'] = data['rain']['1h']
     
-    return climate_data
+    # Map cloud cover if available
+    if 'clouds' in data and 'all' in data['clouds']:
+        climate_data['cloud_cover'] = data['clouds']['all']
+    
+    # Remove None values
+    return {k: v for k, v in climate_data.items() if v is not None}
 
 
 # ----------------------
