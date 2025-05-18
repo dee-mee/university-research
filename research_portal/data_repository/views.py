@@ -219,22 +219,245 @@ def generate_stacked_dataset(request, stacked_dataset_id):
 
 @login_required
 def dataset_version_create(request, dataset_id):
+    """View for creating a new version of a dataset with enhanced file handling and metadata extraction."""
     dataset = get_object_or_404(Dataset, pk=dataset_id, created_by=request.user)
     
     if request.method == 'POST':
         form = DatasetVersionForm(request.POST, request.FILES)
         if form.is_valid():
-            version = form.save(commit=False)
-            version.dataset = dataset
-            version.created_by = request.user
-            
-            # Set all other versions as not current
-            dataset.versions.update(is_current=False)
-            version.is_current = True
-            version.save()
-            
-            messages.success(request, 'New version uploaded successfully.')
-            return redirect('repository:dataset_detail', slug=dataset.slug)
+            try:
+                # Create version but don't save to DB yet
+                version = form.save(commit=False)
+                version.dataset = dataset
+                version.created_by = request.user
+                
+                # Process uploaded file
+                uploaded_file = request.FILES.get('file_path')
+                if uploaded_file:
+                    # Validate file size
+                    if uploaded_file.size > 1024 * 1024 * 100:  # 100 MB limit
+                        messages.error(request, 'File too large. Maximum file size is 100 MB.')
+                        return render(request, 'data_repository/version_form.html', {
+                            'form': form, 'dataset': dataset
+                        })
+                    
+                    # Set file size
+                    version.file_size = uploaded_file.size
+                    
+                    # Try to extract additional metadata based on file type
+                    file_ext = os.path.splitext(uploaded_file.name)[1].lower()
+                    metadata = version.metadata or {}
+                    
+                    try:
+                        from .csv_import import extract_csv_metadata, csv_to_time_series_json
+                        
+                        # Extract metadata based on file type
+                        if file_ext in ['.csv', '.txt']:
+                            # Use our specialized CSV metadata extractor
+                            csv_metadata = extract_csv_metadata(uploaded_file)
+                            
+                            # Add extracted metadata
+                            for key, value in csv_metadata.items():
+                                if key not in ['sample_rows']:  # Skip raw data
+                                    metadata[key] = value
+                                        
+                            # Add time series data if detected
+                            if csv_metadata.get('time_columns') and csv_metadata.get('value_columns'):
+                                try:
+                                    # Reset file pointer
+                                    uploaded_file.seek(0)
+                                    
+                                    # Convert to time series JSON for preview
+                                    time_column = csv_metadata['time_columns'][0] if csv_metadata['time_columns'] else None
+                                    value_columns = csv_metadata['value_columns']
+                                    
+                                    # Generate time series preview
+                                    time_series_data = csv_to_time_series_json(uploaded_file, time_column, value_columns)
+                                    metadata['time_series_preview'] = time_series_data
+                                except Exception as e:
+                                    metadata['time_series_error'] = str(e)
+                            
+                        elif file_ext in ['.json']:
+                            # Reset file position to beginning
+                            uploaded_file.seek(0)
+                            sample = uploaded_file.read(10000)
+                            uploaded_file.seek(0)
+                            
+                            # Try to parse JSON structure
+                            import json
+                            try:
+                                json_data = json.loads(sample)
+                                if isinstance(json_data, dict):
+                                    # Extract metadata if present in the file
+                                    if 'metadata' in json_data and isinstance(json_data['metadata'], dict):
+                                        file_metadata = json_data.get('metadata', {})
+                                        for key, value in file_metadata.items():
+                                            metadata[f'file_{key}'] = value
+                                    
+                                    # Look for variables
+                                    if 'variables' in json_data and isinstance(json_data['variables'], list):
+                                        metadata['detected_variables'] = json_data['variables']
+                                    
+                                    # Look for time series data
+                                    if 'data' in json_data and isinstance(json_data['data'], dict):
+                                        metadata['contains_time_series'] = True
+                                        
+                                        # Sample some variables
+                                        variable_samples = []
+                                        for var, data in json_data['data'].items():
+                                            if isinstance(data, dict) and 'times' in data and 'values' in data:
+                                                variable_samples.append(var)
+                                                if len(variable_samples) >= 5:  # Limit to 5 samples
+                                                    break
+                                        
+                                        if variable_samples:
+                                            metadata['variable_samples'] = variable_samples
+                                
+                                metadata['file_format'] = 'json'
+                            except json.JSONDecodeError:
+                                # Not valid JSON or only partial content read
+                                metadata['file_format'] = 'json'
+                                metadata['parse_error'] = 'Could not parse JSON structure from sample'
+                            
+                        elif file_ext in ['.nc', '.netcdf']:
+                            metadata['file_format'] = 'netcdf'
+                            
+                            # Try to extract NetCDF metadata if netCDF4 is available
+                            try:
+                                import netCDF4 as nc
+                                import numpy as np
+                                import tempfile
+                                
+                                # Save to temp file since netCDF4 needs a file path
+                                with tempfile.NamedTemporaryFile(delete=False) as tmp:
+                                    for chunk in uploaded_file.chunks():
+                                        tmp.write(chunk)
+                                    tmp_path = tmp.name
+                                
+                                try:
+                                    # Extract metadata from NetCDF file
+                                    with nc.Dataset(tmp_path, 'r') as nc_data:
+                                        # Get global attributes
+                                        global_attrs = {}
+                                        for attr in nc_data.ncattrs():
+                                            global_attrs[attr] = nc_data.getncattr(attr)
+                                        
+                                        metadata['global_attributes'] = global_attrs
+                                        
+                                        # Get dimensions
+                                        dimensions = {}
+                                        for dim_name, dim in nc_data.dimensions.items():
+                                            dimensions[dim_name] = {
+                                                'size': len(dim),
+                                                'unlimited': dim.isunlimited()
+                                            }
+                                        
+                                        metadata['dimensions'] = dimensions
+                                        
+                                        # Get variables
+                                        variables = []
+                                        for var_name, var in nc_data.variables.items():
+                                            variables.append(var_name)
+                                        
+                                        metadata['variables'] = variables
+                                        
+                                        # Look for time dimension
+                                        time_var = None
+                                        for var_name in nc_data.variables:
+                                            if var_name.lower() == 'time' or 'time' in nc_data.variables[var_name].ncattrs():
+                                                time_var = nc_data.variables[var_name]
+                                                break
+                                        
+                                        if time_var is not None:
+                                            # Try to extract time information
+                                            time_attrs = {}
+                                            for attr in time_var.ncattrs():
+                                                time_attrs[attr] = time_var.getncattr(attr)
+                                            
+                                            metadata['time_attributes'] = time_attrs
+                                finally:
+                                    # Clean up temp file
+                                    os.unlink(tmp_path)
+                                    
+                            except ImportError:
+                                metadata['netcdf_note'] = 'NetCDF library not available for metadata extraction'
+                            except Exception as e:
+                                metadata['netcdf_error'] = str(e)
+                                
+                        elif file_ext in ['.xls', '.xlsx']:
+                            metadata['file_format'] = 'excel'
+                            
+                            try:
+                                import pandas as pd
+                                
+                                # Read Excel file
+                                df = pd.read_excel(uploaded_file, nrows=5)
+                                
+                                # Get column names
+                                metadata['sheet_columns'] = list(df.columns)
+                                
+                                # Detect possible time columns
+                                time_cols = []
+                                for col in df.columns:
+                                    if col.lower().find('time') >= 0 or col.lower().find('date') >= 0:
+                                        time_cols.append(col)
+                                
+                                if time_cols:
+                                    metadata['possible_time_columns'] = time_cols
+                                
+                                # Get sheet names
+                                uploaded_file.seek(0)
+                                xls = pd.ExcelFile(uploaded_file)
+                                metadata['sheet_names'] = xls.sheet_names
+                                
+                            except ImportError:
+                                metadata['excel_note'] = 'Pandas library not available for Excel metadata extraction'
+                            except Exception as e:
+                                metadata['excel_error'] = str(e)
+                        
+                        # Update metadata in version
+                        version.metadata = metadata
+                    except Exception as e:
+                        # Log error but continue with upload
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.error(f"Error extracting metadata: {str(e)}")
+                        
+                        # Add error note to metadata
+                        metadata['metadata_extraction_error'] = str(e)
+                        version.metadata = metadata
+                
+                # Set all other versions as not current
+                dataset.versions.update(is_current=False)
+                version.is_current = True
+                
+                # Save the version
+                version.save()
+                
+                # Success message
+                file_format = metadata.get('file_format', 'unknown')
+                success_message = f'New version {version.version_number} uploaded successfully!'
+                
+                # Add additional details based on file type
+                if file_format == 'csv':
+                    row_count = metadata.get('row_count', 0)
+                    if row_count:
+                        success_message += f' Detected {row_count} rows of data.'
+                    
+                    col_count = len(metadata.get('headers', []))
+                    if col_count:
+                        success_message += f' Found {col_count} columns.'
+                
+                messages.success(request, success_message)
+                return redirect('repository:dataset_detail', dataset_id=dataset.id)
+                
+            except Exception as e:
+                messages.error(request, f'Error saving dataset version: {str(e)}')
+                return render(request, 'data_repository/version_form.html', {
+                    'form': form, 'dataset': dataset
+                })
+        else:
+            messages.error(request, 'Please correct the errors below.')
     else:
         form = DatasetVersionForm()
     
@@ -242,34 +465,6 @@ def dataset_version_create(request, dataset_id):
         'form': form,
         'dataset': dataset
     })
-
-@login_required
-def dataset_download(request, dataset_id, version_id):
-    dataset = get_object_or_404(Dataset, pk=dataset_id)
-    version = get_object_or_404(DatasetVersion, pk=version_id, dataset=dataset)
-    
-    # Check access permissions
-    access = DatasetAccess.objects.get_or_create(dataset=dataset)[0]
-    if access.access_type != 'public' and request.user != dataset.created_by and request.user not in access.allowed_users.all():
-        messages.error(request, 'You do not have permission to download this dataset.')
-        return redirect('repository:dataset_detail', slug=dataset.slug)
-    
-    # Record the download
-    DatasetDownload.objects.create(
-        dataset=dataset,
-        version=version,
-        user=request.user,
-        ip_address=request.META.get('REMOTE_ADDR')
-    )
-    
-    # Serve the file
-    try:
-        response = FileResponse(version.file_path, as_attachment=True)
-        response['Content-Disposition'] = f'attachment; filename="{version.file_path.name}"'
-        return response
-    except Exception as e:
-        messages.error(request, 'Error downloading file. Please try again later.')
-        return redirect('repository:dataset_detail', slug=dataset.slug)
 
 def category_datasets(request, category_slug):
     category = get_object_or_404(DatasetCategory, slug=category_slug)
@@ -360,6 +555,131 @@ def dataset_download(request, dataset_id, version_id=None):
     response = HttpResponse(version.file, content_type='application/octet-stream')
     response['Content-Disposition'] = f'attachment; filename="{version.file.name}"'
     return response
+
+@login_required
+def dataset_create(request):
+    """View for creating a new dataset."""
+    if request.method == 'POST':
+        form = DatasetForm(request.POST, request.FILES)
+        if form.is_valid():
+            dataset = form.save(commit=False)
+            dataset.created_by = request.user
+            dataset.save()
+            messages.success(request, f'Dataset "{dataset.title}" was successfully created.')
+            return redirect('repository:dataset_detail', dataset_id=dataset.id)
+        else:
+            messages.error(request, 'There was an error creating your dataset. Please check the form and try again.')
+    else:
+        form = DatasetForm()
+    
+    return render(request, 'data_repository/dataset_form.html', {'form': form})
+
+@login_required
+def version_create(request, dataset_id):
+    """View for creating a new version of a dataset."""
+    dataset = get_object_or_404(Dataset, id=dataset_id)
+    if request.user != dataset.created_by:
+        messages.error(request, 'You do not have permission to add versions to this dataset.')
+        return HttpResponse("Access denied", status=403)
+    
+    if request.method == 'POST':
+        form = DatasetVersionForm(request.POST, request.FILES)
+        if form.is_valid():
+            version = form.save(commit=False)
+            version.dataset = dataset
+            version.created_by = request.user
+            
+            # Update current version
+            dataset.versions.filter(is_current=True).update(is_current=False)
+            version.is_current = True
+            version.save()
+            
+            messages.success(request, f'Version {version.version_number} was successfully uploaded.')
+            return redirect('repository:dataset_detail', dataset_id=dataset.id)
+        else:
+            messages.error(request, 'There was an error uploading your dataset version. Please check the form and try again.')
+    else:
+        form = DatasetVersionForm()
+    
+    return render(request, 'data_repository/version_form.html', {'form': form, 'dataset': dataset})
+
+def get_dataset_details(request, dataset_id):
+    """API endpoint for getting dataset details."""
+    dataset = get_object_or_404(Dataset, id=dataset_id)
+    current_version = dataset.versions.filter(is_current=True).first()
+    
+    data = {
+        'id': dataset.id,
+        'title': dataset.title,
+        'description': dataset.description,
+        'category': dataset.category.name,
+        'created_by': dataset.created_by.get_full_name(),
+        'created_at': dataset.created_at.isoformat(),
+        'current_version': {
+            'id': current_version.id,
+            'version_number': current_version.version_number,
+            'file_size': current_version.file_size,
+            'created_at': current_version.created_at.isoformat(),
+        } if current_version else None,
+    }
+    return JsonResponse(data)
+
+def dataset_timeseries(request, dataset_id, variable):
+    """API endpoint to get time series data for a specific variable of a dataset."""
+    dataset = get_object_or_404(Dataset, id=dataset_id)
+    current_version = dataset.versions.filter(is_current=True).first()
+    
+    if not current_version or not current_version.has_time_series:
+        return JsonResponse({'error': 'No time series data available for this dataset'}, status=404)
+    
+    # Get time series data for the specified variable
+    time_series_data = current_version.get_time_series_data(variable)
+    
+    if not time_series_data:
+        return JsonResponse({'error': f'No data available for variable {variable}'}, status=404)
+    
+    # Create response with different time aggregations
+    response_data = {
+        'dataset_id': dataset_id,
+        'variable': variable,
+        'version': current_version.version_number,
+        'time_resolution': current_version.time_resolution,
+        'time_start': current_version.time_start,
+        'time_end': current_version.time_end,
+        'data': time_series_data
+    }
+    
+    return JsonResponse(response_data)
+
+def api_dataset_timeseries(request, dataset_id):
+    """API endpoint to get time series data for all variables of a dataset."""
+    dataset = get_object_or_404(Dataset, id=dataset_id)
+    current_version = dataset.versions.filter(is_current=True).first()
+    
+    if not current_version or not current_version.has_time_series:
+        return JsonResponse({'error': 'No time series data available for this dataset'}, status=404)
+    
+    # Get available variables
+    variables = current_version.variables
+    
+    if not variables:
+        return JsonResponse({'error': 'No variables available for this dataset'}, status=404)
+    
+    # Get time series data for all variables
+    time_series_data = {}
+    for variable in variables:
+        variable_data = current_version.get_time_series_data(variable)
+        if variable_data:
+            time_series_data[variable] = {
+                'all': variable_data,
+                # You can add more aggregations here if needed
+            }
+    response_data = {
+        'dataset_id': dataset_id,
+        'version': current_version.version_number,
+        'time_resolution': current_version.time_resolution,
+        'time_start': current_version.time_start,
+        '
 
 @login_required
 def dataset_create(request):
