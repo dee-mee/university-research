@@ -2297,4 +2297,3 @@ def process_station_stack(request, station_id):
     
     # Redirect back to the data entry page
     return redirect(reverse('maps:stack_data_entry'))
-

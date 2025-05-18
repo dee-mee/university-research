@@ -71,6 +71,65 @@ class WeatherStationAdmin(GISModelAdmin):
         ]
         return custom_urls + urls
     
+    def geocode_api(self, request):
+        """API endpoint to geocode addresses or place names"""
+        try:
+            if 'query' not in request.GET:
+                return JsonResponse({'error': 'Missing query parameter'}, status=400)
+                
+            query = request.GET.get('query')
+            
+            # First try with geopy if installed
+            try:
+                from geopy.geocoders import Nominatim
+                
+                user_agent = 'research_portal_geocoder/1.0'
+                geolocator = Nominatim(user_agent=user_agent)
+                
+                location = geolocator.geocode(query)
+                
+                if location:
+                    return JsonResponse({
+                        'success': True,
+                        'lat': location.latitude,
+                        'lng': location.longitude,
+                        'display_name': location.address
+                    })
+            except ImportError:
+                # Fall back to direct calls to Nominatim API
+                import requests
+                
+                base_url = 'https://nominatim.openstreetmap.org/search'
+                params = {
+                    'q': query,
+                    'format': 'json',
+                    'limit': 1
+                }
+                
+                response = requests.get(base_url, params=params, headers={
+                    'User-Agent': 'research_portal_geocoder/1.0'
+                })
+                
+                if response.status_code == 200 and response.json():
+                    result = response.json()[0]
+                    return JsonResponse({
+                        'success': True,
+                        'lat': float(result['lat']),
+                        'lng': float(result['lon']),
+                        'display_name': result['display_name']
+                    })
+                
+            # If we got here, no results were found
+            return JsonResponse({'success': False, 'error': 'No results found'}, status=404)
+                
+        except Exception as e:
+            import traceback
+            return JsonResponse({
+                'success': False,
+                'error': str(e),
+                'traceback': traceback.format_exc()
+            }, status=500)
+    
     def stack_size(self, obj):
         """Display the current size of the data stack"""
         return obj.stack_size()
@@ -312,60 +371,246 @@ class WeatherStationAdmin(GISModelAdmin):
             try:
                 import csv
                 from io import TextIOWrapper
-                from django.contrib.gis.geos import Point
+                from django.contrib.gis.geos import Point, GEOSGeometry
+                import re
                 
+                # Use utf-8-sig to handle BOM characters that might be present in CSV files
                 csv_file = TextIOWrapper(file, encoding='utf-8-sig')
                 reader = csv.DictReader(csv_file)
                 
+                # Verify required headers
+                required_headers = ['name']
+                location_headers = ['latitude,longitude', 'location']
+                has_location_columns = False
+                
+                # Check for required headers
+                headers = reader.fieldnames
+                if not headers:
+                    messages.error(request, "CSV file has no headers")
+                    return redirect('admin:maps_weatherstation_bulk_import')
+                
+                # Check if name column exists
+                if 'name' not in headers:
+                    messages.error(request, "CSV file must contain 'name' column")
+                    return redirect('admin:maps_weatherstation_bulk_import')
+                
+                # Check if at least one location format is provided
+                if ('latitude' in headers and 'longitude' in headers) or 'location' in headers:
+                    has_location_columns = True
+                
+                if not has_location_columns:
+                    messages.error(request, "CSV file must contain either 'latitude' and 'longitude' columns, or a 'location' column")
+                    return redirect('admin:maps_weatherstation_bulk_import')
+                
+                # Reset file pointer to beginning for processing
+                csv_file.seek(0)
+                # Skip header row which was already read
+                next(reader)
+                
                 stations_created = 0
+                stations_updated = 0
                 errors = []
                 
-                for row in reader:
+                # Enumeration for better error reporting with line numbers
+                for i, row in enumerate(reader, start=2):  # Start from 2 for human-readable line numbers (accounting for header)
                     try:
                         # Get required fields
-                        name = row.get('name')
-                        latitude = float(row.get('latitude', 0))
-                        longitude = float(row.get('longitude', 0))
+                        name = row.get('name', '').strip()
                         
-                        if not name or not latitude or not longitude:
-                            errors.append(f"Row {reader.line_num}: Missing required fields")
+                        if not name:
+                            errors.append(f"Row {i}: Missing required field 'name'")
                             continue
                         
-                        # Create the station
-                        station = WeatherStation(
-                            name=name,
-                            station_id=row.get('station_id'),
-                            description=row.get('description', ''),
-                            location=Point(longitude, latitude, srid=4326),
-                            altitude=float(row.get('altitude', 0)) if row.get('altitude') else None,
-                            is_active=row.get('is_active', '').lower() == 'true'
-                        )
+                        # Parse location - handle multiple formats
+                        location = None
                         
-                        # Handle optional data type flags
-                        for data_type in ['has_temperature', 'has_precipitation', 'has_humidity', 
-                                          'has_wind', 'has_air_quality', 'has_soil_moisture', 'has_water_level']:
-                            if data_type in row:
-                                setattr(station, data_type, row[data_type].lower() == 'true')
+                        # Format 1: latitude and longitude columns
+                        if 'latitude' in row and 'longitude' in row and row.get('latitude') and row.get('longitude'):
+                            try:
+                                latitude = float(row.get('latitude', 0))
+                                longitude = float(row.get('longitude', 0))
+                                location = Point(longitude, latitude, srid=4326)  # Note: longitude first in Point
+                            except (ValueError, TypeError) as e:
+                                errors.append(f"Row {i}: Invalid latitude/longitude values - {str(e)}")
+                                continue
                         
-                        station.save()
-                        stations_created += 1
+                        # Format 2: location column with WKT format "POINT(lon lat)" or simple "lon,lat" format
+                        elif 'location' in row and row.get('location'):
+                            loc_value = row.get('location', '').strip()
+                            try:
+                                # Try WKT format first
+                                if loc_value.upper().startswith('POINT'):
+                                    location = GEOSGeometry(loc_value, srid=4326)
+                                # Then try simple "lon,lat" format
+                                elif ',' in loc_value:
+                                    lon, lat = map(float, loc_value.split(','))
+                                    location = Point(lon, lat, srid=4326)
+                                else:
+                                    raise ValueError("Location must be in WKT format (POINT(lon lat)) or simple format (lon,lat)")
+                            except Exception as e:
+                                errors.append(f"Row {i}: Invalid location format - {str(e)}")
+                                continue
+                        
+                        if not location:
+                            errors.append(f"Row {i}: Missing or invalid location data")
+                            continue
+                        
+                        # Parse boolean fields
+                        is_active = self._parse_boolean(row.get('is_active', 'true'))
+                        
+                        # Parse or create station_id
+                        station_id = row.get('station_id')
+                        if not station_id:
+                            # Generate a station ID based on name
+                            import uuid
+                            station_id = f"STA-{uuid.uuid4().hex[:8].upper()}"
+                        
+                        # Handle altitude
+                        altitude = None
+                        if 'altitude' in row and row.get('altitude'):
+                            try:
+                                altitude = float(row.get('altitude'))
+                            except (ValueError, TypeError):
+                                errors.append(f"Row {i}: Invalid altitude value - must be a number")
+                                # Continue anyway with altitude as None
+                        
+                        # Handle dates
+                        date_installed = None
+                        date_decommissioned = None
+                        
+                        if 'date_installed' in row and row.get('date_installed'):
+                            try:
+                                from datetime import datetime
+                                date_str = row.get('date_installed')
+                                # Try different date formats
+                                for fmt in ['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', '%Y/%m/%d']:
+                                    try:
+                                        date_installed = datetime.strptime(date_str, fmt).date()
+                                        break
+                                    except ValueError:
+                                        continue
+                                if not date_installed:
+                                    errors.append(f"Row {i}: Invalid date_installed format - must be YYYY-MM-DD")
+                            except Exception as e:
+                                errors.append(f"Row {i}: Error parsing date_installed - {str(e)}")
+                        
+                        if 'date_decommissioned' in row and row.get('date_decommissioned'):
+                            try:
+                                from datetime import datetime
+                                date_str = row.get('date_decommissioned')
+                                # Try different date formats
+                                for fmt in ['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', '%Y/%m/%d']:
+                                    try:
+                                        date_decommissioned = datetime.strptime(date_str, fmt).date()
+                                        break
+                                    except ValueError:
+                                        continue
+                                if not date_decommissioned:
+                                    errors.append(f"Row {i}: Invalid date_decommissioned format - must be YYYY-MM-DD")
+                            except Exception as e:
+                                errors.append(f"Row {i}: Error parsing date_decommissioned - {str(e)}")
+                        
+                        # Handle country
+                        country = None
+                        if 'country' in row and row.get('country'):
+                            from .models import Country
+                            country_val = row.get('country')
+                            try:
+                                # Try to find country by code or name
+                                country = Country.objects.filter(code__iexact=country_val).first() or \
+                                          Country.objects.filter(name__iexact=country_val).first()
+                                if not country:
+                                    errors.append(f"Row {i}: Country not found: {country_val}")
+                            except Exception as e:
+                                errors.append(f"Row {i}: Error finding country: {str(e)}")
+                        
+                        # Check if station with this name or ID already exists - update if it does
+                        from .models import WeatherStation
+                        existing_station = None
+                        if station_id:
+                            existing_station = WeatherStation.objects.filter(station_id=station_id).first()
+                        if not existing_station:
+                            existing_station = WeatherStation.objects.filter(name=name).first()
+                        
+                        if existing_station:
+                            # Update existing station
+                            existing_station.name = name
+                            existing_station.station_id = station_id
+                            existing_station.description = row.get('description', '')
+                            existing_station.location = location
+                            if altitude is not None:
+                                existing_station.altitude = altitude
+                            existing_station.is_active = is_active
+                            if date_installed:
+                                existing_station.date_installed = date_installed
+                            if date_decommissioned:
+                                existing_station.date_decommissioned = date_decommissioned
+                            if country:
+                                existing_station.country = country
+                            existing_station.region = row.get('region', '')
+                            
+                            # Handle data type flags
+                            self._update_data_type_flags(existing_station, row)
+                            
+                            existing_station.save()
+                            stations_updated += 1
+                        else:
+                            # Create the station
+                            station = WeatherStation(
+                                name=name,
+                                station_id=station_id,
+                                description=row.get('description', ''),
+                                location=location,
+                                altitude=altitude,
+                                is_active=is_active,
+                                date_installed=date_installed,
+                                date_decommissioned=date_decommissioned,
+                                country=country,
+                                region=row.get('region', '')
+                            )
+                            
+                            # Handle data type flags
+                            self._update_data_type_flags(station, row)
+                            
+                            station.save()
+                            stations_created += 1
                         
                     except Exception as e:
-                        errors.append(f"Row {reader.line_num}: {str(e)}")
+                        errors.append(f"Row {i}: {str(e)}")
                 
                 # Report results
+                result_messages = []
                 if stations_created > 0:
-                    messages.success(request, f"Successfully created {stations_created} weather stations")
+                    result_messages.append(f"Created {stations_created} weather stations")
+                if stations_updated > 0:
+                    result_messages.append(f"Updated {stations_updated} existing stations")
+                
+                if result_messages:
+                    messages.success(request, "Import successful: " + "; ".join(result_messages))
+                else:
+                    messages.warning(request, "No stations were created or updated")
                 
                 if errors:
-                    messages.warning(request, f"Encountered {len(errors)} errors: {'; '.join(errors[:5])}")
-                    if len(errors) > 5:
-                        messages.warning(request, f"...and {len(errors) - 5} more errors")
+                    if len(errors) > 10:
+                        error_display = '; '.join(errors[:10]) + f" and {len(errors) - 10} more errors"
+                    else:
+                        error_display = '; '.join(errors)
+                    messages.warning(request, f"Encountered {len(errors)} errors during import: {error_display}")
+                    # Log all errors for admin review
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    for error in errors:
+                        logger.warning(f"CSV import error: {error}")
                 
                 return redirect('admin:maps_weatherstation_changelist')
                 
             except Exception as e:
+                import traceback
                 messages.error(request, f"Error processing CSV file: {str(e)}")
+                # Log the full traceback for debugging
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"CSV import error: {str(e)}\n{traceback.format_exc()}")
                 return redirect('admin:maps_weatherstation_bulk_import')
         
         return render(request, 'admin/maps/weatherstation/bulk_import.html', {
@@ -373,46 +618,23 @@ class WeatherStationAdmin(GISModelAdmin):
             'opts': self.model._meta,
         })
     
-    def geocode_api(self, request):
-        """API endpoint for geocoding location names"""
-        if 'q' not in request.GET:
-            return JsonResponse({'error': 'Missing query parameter'}, status=400)
-        
-        query = request.GET['q']
-        
-        try:
-            # Simple example using Nominatim (for production use a paid API with proper error handling)
-            import requests
-            
-            response = requests.get(
-                'https://nominatim.openstreetmap.org/search',
-                params={
-                    'q': query,
-                    'format': 'json',
-                    'limit': 5,
-                },
-                headers={'User-Agent': 'WeatherStationAdmin/1.0'}
-            )
-            
-            if response.status_code == 200:
-                results = []
-                for item in response.json():
-                    results.append({
-                        'name': item.get('display_name'),
-                        'lat': float(item.get('lat')),
-                        'lon': float(item.get('lon')),
-                    })
-                return JsonResponse({'results': results})
-            else:
-                return JsonResponse({'error': 'Geocoding service error'}, status=502)
-                
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
+    def _update_data_type_flags(self, station, row):
+        """Helper method to update data type flags on a station"""
+        # Handle boolean data type flags
+        for data_type in ['has_temperature', 'has_precipitation', 'has_humidity', 
+                         'has_wind', 'has_air_quality', 'has_soil_moisture', 'has_water_level']:
+            if data_type in row and row[data_type]:
+                setattr(station, data_type, self._parse_boolean(row[data_type]))
     
-    def get_form(self, request, obj=None, **kwargs):
-        """Override form to use a more enhanced map widget"""
-        form = super().get_form(request, obj, **kwargs)
-        return form
+    def _parse_boolean(self, value):
+        """Parse various boolean string representations"""
+        if isinstance(value, bool):
+            return value
+        if not value:
+            return False
+        
+        true_values = ['true', 'yes', 't', 'y', '1', 'on']
+        return str(value).lower() in true_values
 
     def latitude(self, obj):
         """Display the latitude of the weather station"""
@@ -502,8 +724,8 @@ class DeviceTypeAdmin(admin.ModelAdmin):
     
     fieldsets = (
         (None, {
-            'fields': ('name', 'manufacturer', 'model_number', 'description')
-        }),
+            'fields': ('name', 'manufacturer', 'model_number', 'description'
+        )}),
         ('Technical Specifications', {
             'fields': (
                 'communication_protocol',
@@ -667,3 +889,29 @@ class FieldDataRecordAdmin(admin.ModelAdmin):
             'fields': ('created_at', 'updated_at')
         }),
     )
+
+@admin.action(description="Process data stacks for all stations")
+def process_all_data_stacks(modeladmin, request, queryset):
+    """Process the data stacks for all weather stations with data"""
+    from .climate_data_processor import bulk_process_stacks
+    
+    # Process all data stacks
+    results = bulk_process_stacks()
+    
+    if results['stations_processed'] > 0:
+        modeladmin.message_user(
+            request, 
+            f"Successfully processed {results['records_processed']} readings from {results['stations_processed']} stations."
+        )
+    else:
+        modeladmin.message_user(
+            request, 
+            "No data found to process in any stations."
+        )
+    
+    if results['errors']:
+        for error in results['errors']:
+            modeladmin.message_user(request, error, level=messages.WARNING)
+
+# Add the action to WeatherStationAdmin
+WeatherStationAdmin.actions.append(process_all_data_stacks)

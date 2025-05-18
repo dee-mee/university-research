@@ -1383,3 +1383,189 @@ def _process_climate_data_row_enhanced(row, line_num, progress, update_existing=
         if isinstance(e, CSVImportError):
             raise e
         raise CSVImportError(str(e), row=row, line_num=line_num)
+
+def import_data_from_path(path):
+    """
+    Import data files from a specified path (e.g., flash drive)
+    
+    Args:
+        path: Path to the directory containing data files
+        
+    Returns:
+        Dictionary with the results of the import
+    """
+    import os
+    import logging
+    import time
+    import glob
+    from datetime import datetime
+    from django.core.files.uploadedfile import UploadedFile
+    from django.core.files.storage import FileSystemStorage
+    
+    logger = logging.getLogger(__name__)
+    
+    results = {
+        'files_processed': 0,
+        'stations_created': 0,
+        'climate_records_created': 0,
+        'errors': []
+    }
+    
+    # Check if the path exists
+    if not os.path.exists(path) or not os.path.isdir(path):
+        results['errors'].append(f"Path {path} does not exist or is not a directory")
+        return results
+    
+    # Create a temporary directory for processed files
+    import tempfile
+    temp_dir = os.path.join(tempfile.gettempdir(), 'research_portal_imports')
+    os.makedirs(temp_dir, exist_ok=True)
+    
+    # Get all CSV files in the directory and subdirectories
+    csv_files = []
+    for root, _, files in os.walk(path):
+        for file in files:
+            if file.lower().endswith('.csv'):
+                csv_files.append(os.path.join(root, file))
+    
+    if not csv_files:
+        logger.debug(f"No CSV files found in {path}")
+        return results
+    
+    # Process each CSV file
+    for file_path in csv_files:
+        try:
+            # Determine file type based on filename or content
+            file_type = determine_file_type(file_path)
+            
+            if not file_type:
+                logger.warning(f"Could not determine type for file: {file_path}")
+                results['errors'].append(f"Unknown file type: {file_path}")
+                continue
+                
+            # Create a file-like object to use with our existing processing functions
+            with open(file_path, 'rb') as f:
+                file_content = f.read()
+                
+            # Use SimpleUploadedFile to mimic the behavior of a form-uploaded file
+            from django.core.files.uploadedfile import SimpleUploadedFile
+            file_name = os.path.basename(file_path)
+            uploaded_file = SimpleUploadedFile(file_name, file_content, content_type='text/csv')
+            
+            # Process the file based on its type
+            if file_type == 'stations':
+                from .csv_utils import process_csv_in_batches
+                from .utils import _process_station_row_enhanced
+                
+                logger.info(f"Processing stations file: {file_path}")
+                
+                def row_processor(row, line_num, progress):
+                    return _process_station_row_enhanced(
+                        row, line_num, progress, update_existing=True,
+                        required_fields=['name', 'latitude', 'longitude']
+                    )
+                
+                file_result = process_csv_in_batches(
+                    uploaded_file,
+                    row_processor,
+                    batch_size=100,
+                    required_fields=['name']
+                )
+                
+                results['stations_created'] += file_result.get('success', 0)
+                if file_result.get('errors'):
+                    results['errors'].extend(
+                        [f"{file_name}: {e.get('message', 'Unknown error')}" for e in file_result.get('errors', [])]
+                    )
+                
+            elif file_type == 'climate_data':
+                from .csv_utils import process_csv_in_batches
+                from .climate_data_processor import process_climate_data_row
+                
+                logger.info(f"Processing climate data file: {file_path}")
+                
+                file_result = process_csv_in_batches(
+                    uploaded_file,
+                    process_climate_data_row,
+                    batch_size=100,
+                    required_fields=['timestamp', 'station_name', 'station_id', 'station']
+                )
+                
+                results['climate_records_created'] += file_result.get('success', 0)
+                if file_result.get('errors'):
+                    results['errors'].extend(
+                        [f"{file_name}: {e.get('message', 'Unknown error')}" for e in file_result.get('errors', [])]
+                    )
+            
+            # Move processed file to avoid reprocessing
+            processed_path = os.path.join(temp_dir, f"{file_name}_{datetime.now().strftime('%Y%m%d%H%M%S')}")
+            try:
+                import shutil
+                shutil.move(file_path, processed_path)
+                logger.info(f"Moved processed file to {processed_path}")
+            except Exception as e:
+                logger.warning(f"Could not move processed file: {str(e)}")
+            
+            results['files_processed'] += 1
+            
+        except Exception as e:
+            logger.exception(f"Error processing file {file_path}: {str(e)}")
+            results['errors'].append(f"Error with {file_path}: {str(e)}")
+    
+    return results
+
+def determine_file_type(file_path):
+    """
+    Determine the type of data in a CSV file based on its content or filename
+    
+    Args:
+        file_path: Path to the CSV file
+        
+    Returns:
+        String indicating the file type ('stations', 'climate_data', None for unknown)
+    """
+    import os
+    import csv
+    
+    # First check the filename for clues
+    filename = os.path.basename(file_path).lower()
+    
+    if any(keyword in filename for keyword in ['station', 'locations', 'sites']):
+        return 'stations'
+    
+    if any(keyword in filename for keyword in ['climate', 'weather', 'data', 'readings', 'measurements']):
+        return 'climate_data'
+    
+    # If filename doesn't give enough clues, check the content
+    try:
+        with open(file_path, 'r', encoding='utf-8-sig') as f:
+            # Read the header row
+            sample = f.readline()
+            if not sample:
+                return None
+                
+            # Try as CSV
+            try:
+                dialect = csv.Sniffer().sniff(sample)
+                f.seek(0)
+                reader = csv.reader(f, dialect)
+                header = next(reader, [])
+                header_lower = [h.lower() for h in header]
+                
+                # Check for station-specific fields
+                if 'latitude' in header_lower and 'longitude' in header_lower:
+                    return 'stations'
+                
+                # Check for climate data fields
+                if ('timestamp' in header_lower or 'date' in header_lower) and any(
+                    field in header_lower for field in 
+                    ['temperature', 'precipitation', 'humidity', 'wind_speed']
+                ):
+                    return 'climate_data'
+            except:
+                pass
+    except Exception:
+        pass
+    
+    # If we get here, we couldn't determine the type
+    return None
