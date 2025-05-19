@@ -67,35 +67,33 @@ class CustomPasswordResetForm(PasswordResetForm):
     email = forms.EmailField(max_length=254)
 
 class LoginForm(forms.Form):
-    id_number = forms.CharField(max_length=50, label="ID Number")
+    identifier = forms.CharField(max_length=50, label="ID Number or Email")
     password = forms.CharField(widget=forms.PasswordInput)
-    
+
     def clean(self):
         cleaned_data = super().clean()
-        id_number = cleaned_data.get('id_number')
+        identifier = cleaned_data.get('identifier')
         password = cleaned_data.get('password')
-        
-        if id_number and password:
+
+        if identifier and password:
             try:
-                # Find the user associated with this ID number
-                profile = Profile.objects.get(id_number=id_number)
-                # Then try to authenticate with their username (email)
-                user = authenticate(username=profile.user.username, password=password)
-                
-                if not user:
-                    raise forms.ValidationError("Invalid credentials. Please check your ID number and password.")
-                elif not user.is_active:
-                    raise forms.ValidationError("This account is inactive.")
-                else:
-                    # Store the authenticated user in cleaned_data
-                    cleaned_data['user'] = user
+                # Try to find user by ID number first
+                profile = Profile.objects.get(id_number=identifier)
+                user = profile.user
             except Profile.DoesNotExist:
-                raise forms.ValidationError(f"No user found with ID number: {id_number}")
-            except Exception as e:
-                import logging
-                logging.getLogger(__name__).error(f"Authentication error: {str(e)}")
-                raise forms.ValidationError(f"Authentication error: {str(e)}")
-                
+                # If not found, try email
+                try:
+                    user = User.objects.get(email=identifier)
+                except User.DoesNotExist:
+                    raise forms.ValidationError("Invalid ID number or email.")
+
+            # Check password
+            if not user.check_password(password):
+                raise forms.ValidationError("Invalid password.")
+            
+            # Store the authenticated user in cleaned_data
+            cleaned_data['user'] = user
+            
         return cleaned_data
 
 class ProfileEditForm(forms.ModelForm):

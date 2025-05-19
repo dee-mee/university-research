@@ -1,0 +1,555 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Field Data Analysis{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css">
+<style>
+    .chart-container {
+        height: 400px;
+        margin-bottom: 30px;
+        background-color: #f8f9fa;
+        border-radius: 5px;
+        padding: 15px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .filter-card {
+        background-color: #fff;
+        border-radius: 5px;
+        padding: 15px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .data-card {
+        background-color: #fff;
+        border-radius: 5px;
+        padding: 15px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .metric-card {
+        background-color: #f8f9fa;
+        border-radius: 5px;
+        padding: 15px;
+        margin-bottom: 15px;
+        text-align: center;
+    }
+    
+    .metric-value {
+        font-size: 24px;
+        font-weight: bold;
+        color: #007bff;
+    }
+    
+    .metric-label {
+        font-size: 14px;
+        color: #6c757d;
+    }
+    
+    .device-select {
+        width: 100%;
+        margin-bottom: 15px;
+    }
+    
+    .date-range {
+        width: 100%;
+        margin-bottom: 15px;
+    }
+    
+    .sensor-checkbox {
+        margin-right: 15px;
+    }
+    
+    #map-container {
+        height: 400px;
+        margin-bottom: 20px;
+    }
+    
+    .table-container {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    
+    .battery-good {
+        color: #28a745;
+    }
+    
+    .battery-medium {
+        color: #ffc107;
+    }
+    
+    .battery-low {
+        color: #dc3545;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <h1 class="mb-4">Field Data Analysis</h1>
+    
+    <div class="row">
+        <!-- Filters -->
+        <div class="col-md-3">
+            <div class="filter-card">
+                <h5>Filters</h5>
+                <form id="filter-form">
+                    <div class="form-group">
+                        <label for="device-select">Device</label>
+                        <select id="device-select" class="form-control device-select">
+                            <option value="all">All Devices</option>
+                            {% for device in devices %}
+                            <option value="{{ device.id }}">{{ device.name }} ({{ device.device_id }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="date-range">Date Range</label>
+                        <input type="text" id="date-range" class="form-control date-range" />
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Data Types</label>
+                        <div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input sensor-checkbox" type="checkbox" id="temperature-check" checked>
+                                <label class="form-check-label" for="temperature-check">Temperature</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input sensor-checkbox" type="checkbox" id="humidity-check" checked>
+                                <label class="form-check-label" for="humidity-check">Humidity</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input sensor-checkbox" type="checkbox" id="battery-check" checked>
+                                <label class="form-check-label" for="battery-check">Battery</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input sensor-checkbox" type="checkbox" id="signal-check" checked>
+                                <label class="form-check-label" for="signal-check">Signal</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Apply Filters</button>
+                    <button type="button" id="reset-filters" class="btn btn-secondary">Reset</button>
+                </form>
+            </div>
+            
+            <div class="data-card">
+                <h5>Summary</h5>
+                <div class="metric-card">
+                    <div class="metric-value" id="total-readings">0</div>
+                    <div class="metric-label">Total Readings</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="avg-temperature">--</div>
+                    <div class="metric-label">Avg. Temperature</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="avg-humidity">--</div>
+                    <div class="metric-label">Avg. Humidity</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="avg-battery">--</div>
+                    <div class="metric-label">Avg. Battery</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Charts and Data -->
+        <div class="col-md-9">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <canvas id="temperature-chart"></canvas>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <canvas id="humidity-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <canvas id="battery-chart"></canvas>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <canvas id="signal-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="data-card">
+                        <h5>Device Locations</h5>
+                        <div id="map-container"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="data-card">
+                        <h5>Recent Data</h5>
+                        <div class="table-container">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Device</th>
+                                        <th>Timestamp</th>
+                                        <th>Temperature</th>
+                                        <th>Humidity</th>
+                                        <th>Battery</th>
+                                        <th>Signal</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="data-table-body">
+                                    <!-- Data will be loaded here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/moment/min/moment.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+<script>
+    // Initialize date range picker
+    $('#date-range').daterangepicker({
+        startDate: moment().subtract(7, 'days'),
+        endDate: moment(),
+        ranges: {
+           'Today': [moment(), moment()],
+           'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+           'Last 7 Days': [moment().subtract(6, 'days'), moment()],
+           'Last 30 Days': [moment().subtract(29, 'days'), moment()],
+           'This Month': [moment().startOf('month'), moment().endOf('month')],
+           'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+        }
+    });
+    
+    // Chart configuration
+    const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            x: {
+                type: 'time',
+                time: {
+                    unit: 'day'
+                }
+            }
+        }
+    };
+    
+    // Initialize charts
+    const temperatureChart = new Chart(
+        document.getElementById('temperature-chart').getContext('2d'),
+        {
+            type: 'line',
+            data: {
+                datasets: []
+            },
+            options: {
+                ...chartOptions,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Temperature (°C)'
+                    }
+                },
+                scales: {
+                    ...chartOptions.scales,
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Temperature (°C)'
+                        }
+                    }
+                }
+            }
+        }
+    );
+    
+    const humidityChart = new Chart(
+        document.getElementById('humidity-chart').getContext('2d'),
+        {
+            type: 'line',
+            data: {
+                datasets: []
+            },
+            options: {
+                ...chartOptions,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Humidity (%)'
+                    }
+                },
+                scales: {
+                    ...chartOptions.scales,
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Humidity (%)'
+                        },
+                        min: 0,
+                        max: 100
+                    }
+                }
+            }
+        }
+    );
+    
+    const batteryChart = new Chart(
+        document.getElementById('battery-chart').getContext('2d'),
+        {
+            type: 'line',
+            data: {
+                datasets: []
+            },
+            options: {
+                ...chartOptions,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Battery Voltage (V)'
+                    }
+                },
+                scales: {
+                    ...chartOptions.scales,
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Battery Voltage (V)'
+                        }
+                    }
+                }
+            }
+        }
+    );
+    
+    const signalChart = new Chart(
+        document.getElementById('signal-chart').getContext('2d'),
+        {
+            type: 'line',
+            data: {
+                datasets: []
+            },
+            options: {
+                ...chartOptions,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Signal Strength (dBm)'
+                    }
+                },
+                scales: {
+                    ...chartOptions.scales,
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Signal Strength (dBm)'
+                        }
+                    }
+                }
+            }
+        }
+    );
+    
+    // Initialize map
+    const map = L.map('map-container').setView([0, 0], 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+    
+    // Device markers
+    const deviceMarkers = {};
+    
+    // Load data function
+    function loadData() {
+        const deviceId = $('#device-select').val();
+        const dateRange = $('#date-range').val();
+        const [startDate, endDate] = dateRange.split(' - ');
+        
+        const showTemperature = $('#temperature-check').is(':checked');
+        const showHumidity = $('#humidity-check').is(':checked');
+        const showBattery = $('#battery-check').is(':checked');
+        const showSignal = $('#signal-check').is(':checked');
+        
+        // Clear existing markers
+        Object.values(deviceMarkers).forEach(marker => map.removeLayer(marker));
+        
+        // Fetch data from API
+        fetch(`/maps/api/field-data/analysis/?device_id=${deviceId}&start_date=${startDate}&end_date=${endDate}`)
+            .then(response => response.json())
+            .then(data => {
+                // Update summary metrics
+                $('#total-readings').text(data.summary.total_readings);
+                $('#avg-temperature').text(data.summary.avg_temperature ? data.summary.avg_temperature.toFixed(1) + '°C' : '--');
+                $('#avg-humidity').text(data.summary.avg_humidity ? data.summary.avg_humidity.toFixed(1) + '%' : '--');
+                $('#avg-battery').text(data.summary.avg_battery ? data.summary.avg_battery.toFixed(2) + 'V' : '--');
+                
+                // Update charts
+                updateCharts(data, showTemperature, showHumidity, showBattery, showSignal);
+                
+                // Update map
+                updateMap(data.devices);
+                
+                // Update table
+                updateTable(data.recent_data);
+            })
+            .catch(error => {
+                console.error('Error loading data:', error);
+            });
+    }
+    
+    // Update charts function
+    function updateCharts(data, showTemperature, showHumidity, showBattery, showSignal) {
+        // Temperature chart
+        temperatureChart.data.datasets = data.devices.map(device => ({
+            label: device.name,
+            data: device.temperature_data.map(item => ({
+                x: new Date(item.timestamp),
+                y: item.value
+            })),
+            borderColor: device.color,
+            backgroundColor: device.color + '20',
+            tension: 0.1
+        }));
+        temperatureChart.update();
+        
+        // Humidity chart
+        humidityChart.data.datasets = data.devices.map(device => ({
+            label: device.name,
+            data: device.humidity_data.map(item => ({
+                x: new Date(item.timestamp),
+                y: item.value
+            })),
+            borderColor: device.color,
+            backgroundColor: device.color + '20',
+            tension: 0.1
+        }));
+        humidityChart.update();
+        
+        // Battery chart
+        batteryChart.data.datasets = data.devices.map(device => ({
+            label: device.name,
+            data: device.battery_data.map(item => ({
+                x: new Date(item.timestamp),
+                y: item.value
+            })),
+            borderColor: device.color,
+            backgroundColor: device.color + '20',
+            tension: 0.1
+        }));
+        batteryChart.update();
+        
+        // Signal chart
+        signalChart.data.datasets = data.devices.map(device => ({
+            label: device.name,
+            data: device.signal_data.map(item => ({
+                x: new Date(item.timestamp),
+                y: item.value
+            })),
+            borderColor: device.color,
+            backgroundColor: device.color + '20',
+            tension: 0.1
+        }));
+        signalChart.update();
+    }
+    
+    // Update map function
+    function updateMap(devices) {
+        const bounds = L.latLngBounds();
+        
+        devices.forEach(device => {
+            if (device.latitude && device.longitude) {
+                const marker = L.marker([device.latitude, device.longitude])
+                    .bindPopup(`<b>${device.name}</b><br>ID: ${device.device_id}`);
+                
+                deviceMarkers[device.id] = marker;
+                marker.addTo(map);
+                bounds.extend([device.latitude, device.longitude]);
+            }
+        });
+        
+        if (bounds.isValid()) {
+            map.fitBounds(bounds);
+        }
+    }
+    
+    // Update table function
+    function updateTable(data) {
+        const tableBody = $('#data-table-body');
+        tableBody.empty();
+        
+        data.forEach(item => {
+            const batteryClass = getBatteryClass(item.battery_voltage);
+            
+            const row = `
+                <tr>
+                    <td>${item.device_name}</td>
+                    <td>${moment(item.timestamp).format('YYYY-MM-DD HH:mm')}</td>
+                    <td>${item.temperature !== null ? item.temperature.toFixed(1) + '°C' : '--'}</td>
+                    <td>${item.humidity !== null ? item.humidity.toFixed(1) + '%' : '--'}</td>
+                    <td class="${batteryClass}">${item.battery_voltage !== null ? item.battery_voltage.toFixed(2) + 'V' : '--'}</td>
+                    <td>${item.signal_strength !== null ? item.signal_strength + ' dBm' : '--'}</td>
+                    <td>
+                        <a href="/maps/field-data/${item.id}/" class="btn btn-sm btn-primary">View</a>
+                    </td>
+                </tr>
+            `;
+            
+            tableBody.append(row);
+        });
+    }
+    
+    // Helper function to get battery class
+    function getBatteryClass(voltage) {
+        if (voltage === null) return '';
+        if (voltage > 3.8) return 'battery-good';
+        if (voltage > 3.5) return 'battery-medium';
+        return 'battery-low';
+    }
+    
+    // Event listeners
+    $('#filter-form').on('submit', function(e) {
+        e.preventDefault();
+        loadData();
+    });
+    
+    $('#reset-filters').on('click', function() {
+        $('#device-select').val('all');
+        $('#date-range').data('daterangepicker').setStartDate(moment().subtract(7, 'days'));
+        $('#date-range').data('daterangepicker').setEndDate(moment());
+        $('.sensor-checkbox').prop('checked', true);
+        loadData();
+    });
+    
+    // Initial data load
+    $(document).ready(function() {
+        loadData();
+    });
+</script>
+{% endblock %}

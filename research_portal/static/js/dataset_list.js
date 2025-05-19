@@ -5,80 +5,87 @@ document.addEventListener('DOMContentLoaded', function() {
     const sidebarContent = document.querySelector('.sidebar-content');
     const datasetList = document.querySelector('.dataset-list');
 
-    function initializeTreeView() {
-        // Create tree structure
-        const tree = {
-            'JOOUST2a': {
-                'DerivedOutputData': {
-                    'Research2023': ['GSWP3', 'GFDL-ESM4'],
-                    'Other2023': ['GSWP3', 'WATCH']
-                },
-                'OutputData': {
-                    'CLM4.0': ['historical', 'rcp85']
-                }
-            },
-            'JOOUST2b': {
-                'OutputData': {
-                    'WATERGAP2-4c': ['GFDL-ESM4', 'IPSL-CM6A']
-                }
-            },
-            'JOOUST3a': {},
-            'JOOUST3b': {}
-        };
+    // View mode handling
+    let currentViewMode = 'grid';
 
-        function createTreeNode(key, value) {
-            const item = document.createElement('div');
-            item.className = 'tree-item';
-            
-            const content = document.createElement('div');
-            content.className = 'tree-content';
-            
-            const toggle = document.createElement('span');
-            toggle.className = 'tree-toggle';
-            toggle.textContent = typeof value === 'object' ? '▶' : '•';
-            toggle.style.cursor = typeof value === 'object' ? 'pointer' : 'default';
-            
-            const label = document.createElement('span');
-            label.className = 'tree-label';
-            label.textContent = key;
-            
-            content.appendChild(toggle);
-            content.appendChild(label);
-            item.appendChild(content);
-            
-            if (typeof value === 'object') {
-                const children = document.createElement('div');
-                children.className = 'tree-children';
-                children.style.display = 'none';
-                
-                if (Array.isArray(value)) {
-                    value.forEach(child => {
-                        children.appendChild(createTreeNode(child, null));
-                    });
-                } else {
-                    Object.entries(value).forEach(([childKey, childValue]) => {
-                        children.appendChild(createTreeNode(childKey, childValue));
-                    });
-                }
-                
-                item.appendChild(children);
-                
-                toggle.addEventListener('click', () => {
-                    const isExpanded = toggle.textContent === '▼';
-                    toggle.textContent = isExpanded ? '▶' : '▼';
-                    children.style.display = isExpanded ? 'none' : 'block';
-                });
-            }
-            
-            return item;
+    function toggleViewMode(mode) {
+        currentViewMode = mode;
+        const gridView = document.getElementById('datasetGrid');
+        const treeView = document.getElementById('datasetTree');
+        const gridBtn = document.querySelector('button[onclick="toggleViewMode(\'grid\')"]');
+        const treeBtn = document.querySelector('button[onclick="toggleViewMode(\'tree\')"]');
+
+        if (mode === 'grid') {
+            gridView.style.display = 'block';
+            treeView.style.display = 'none';
+            gridBtn.classList.add('active');
+            treeBtn.classList.remove('active');
+        } else {
+            gridView.style.display = 'none';
+            treeView.style.display = 'block';
+            gridBtn.classList.remove('active');
+            treeBtn.classList.add('active');
+            initializeTreeView();
         }
+    }
 
-        // Clear existing content
-        sidebarContent.innerHTML = '';
-        
-        // Create and append tree structure
-        Object.entries(tree).forEach(([key, value]) => {
-            sidebarContent.appendChild(createTreeNode(key, value));
+    function initializeTreeView() {
+        $('#jstree').jstree({
+            'core': {
+                'data': [
+                    {
+                        'text': 'Research Datasets',
+                        'state': { 'opened': true },
+                        'children': [
+                            {
+                                'text': 'Floods',
+                                'state': { 'opened': true },
+                                'children': [
+                                    { 'text': 'Short Prediction', 'icon': 'fas fa-file-alt' },
+                                    { 'text': '1 Week Prediction', 'icon': 'fas fa-file-alt' }
+                                ]
+                            },
+                            {
+                                'text': 'Drought',
+                                'state': { 'opened': true },
+                                'children': [
+                                    { 'text': 'Short Prediction', 'icon': 'fas fa-file-alt' },
+                                    { 'text': '1 Week Prediction', 'icon': 'fas fa-file-alt' }
+                                ]
+                            },
+                            {
+                                'text': 'Rainfall',
+                                'state': { 'opened': true },
+                                'children': [
+                                    { 'text': 'Short Prediction', 'icon': 'fas fa-file-alt' },
+                                    { 'text': '1 Week Prediction', 'icon': 'fas fa-file-alt' }
+                                ]
+                            },
+                            {
+                                'text': 'Water Quality',
+                                'state': { 'opened': true },
+                                'children': [
+                                    { 'text': 'Short Prediction', 'icon': 'fas fa-file-alt' },
+                                    { 'text': '1 Week Prediction', 'icon': 'fas fa-file-alt' }
+                                ]
+                            },
+                            {
+                                'text': 'Carbon Flux',
+                                'state': { 'opened': true },
+                                'children': [
+                                    { 'text': 'Short Prediction', 'icon': 'fas fa-file-alt' },
+                                    { 'text': '1 Week Prediction', 'icon': 'fas fa-file-alt' }
+                                ]
+                            }
+                        ]
+                    }
+                ],
+                'themes': {
+                    'name': 'default',
+                    'responsive': true
+                }
+            },
+            'plugins': ['search', 'state', 'types', 'wholerow']
         });
     }
 
@@ -229,4 +236,120 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    // Initialize view mode on page load
+    toggleViewMode('grid');
+
+    // Filter functionality
+    function applyFilters() {
+        const selectedCategories = Array.from(document.querySelectorAll('.category-filter:checked'))
+            .map(checkbox => checkbox.value);
+        const selectedLicenses = Array.from(document.querySelectorAll('.license-filter:checked'))
+            .map(checkbox => checkbox.value);
+        const startDate = document.getElementById('startDate').value;
+        const endDate = document.getElementById('endDate').value;
+
+        // Get all dataset cards
+        const datasetCards = document.querySelectorAll('#datasetGrid .col-md-4');
+        
+        datasetCards.forEach(card => {
+            const categoryId = card.dataset.categoryId;
+            const licenseType = card.dataset.licenseType;
+            const datasetDate = new Date(card.dataset.date);
+            
+            let showCard = true;
+
+            // Category filter
+            if (selectedCategories.length > 0 && !selectedCategories.includes(categoryId)) {
+                showCard = false;
+            }
+
+            // License filter
+            if (selectedLicenses.length > 0 && !selectedLicenses.includes(licenseType)) {
+                showCard = false;
+            }
+
+            // Date range filter
+            if (startDate) {
+                const start = new Date(startDate);
+                if (datasetDate < start) {
+                    showCard = false;
+                }
+            }
+            if (endDate) {
+                const end = new Date(endDate);
+                if (datasetDate > end) {
+                    showCard = false;
+                }
+            }
+
+            // Show/hide card based on filters
+            card.style.display = showCard ? 'block' : 'none';
+        });
+
+        // Update tree view if active
+        if (currentViewMode === 'tree') {
+            updateTreeView();
+        }
+
+        // Show message if no results
+        const visibleCards = document.querySelectorAll('#datasetGrid .col-md-4[style="display: block"]');
+        const noResultsMessage = document.getElementById('noResultsMessage');
+        
+        if (visibleCards.length === 0) {
+            if (!noResultsMessage) {
+                const message = document.createElement('div');
+                message.id = 'noResultsMessage';
+                message.className = 'col-12 alert alert-info';
+                message.innerHTML = `
+                    <h4 class="alert-heading">No datasets found</h4>
+                    <p>There are currently no datasets matching your filter criteria. Try adjusting your filters.</p>
+                `;
+                document.getElementById('datasetGrid').appendChild(message);
+            }
+        } else if (noResultsMessage) {
+            noResultsMessage.remove();
+        }
+    }
+
+    function resetFilters() {
+        // Reset category filters
+        document.querySelectorAll('.category-filter').forEach(checkbox => {
+            checkbox.checked = false;
+        });
+
+        // Reset license filters
+        document.querySelectorAll('.license-filter').forEach(checkbox => {
+            checkbox.checked = false;
+        });
+
+        // Reset date range
+        document.getElementById('startDate').value = '';
+        document.getElementById('endDate').value = '';
+
+        // Show all cards
+        document.querySelectorAll('#datasetGrid .col-md-4').forEach(card => {
+            card.style.display = 'block';
+        });
+
+        // Remove no results message if exists
+        const noResultsMessage = document.getElementById('noResultsMessage');
+        if (noResultsMessage) {
+            noResultsMessage.remove();
+        }
+
+        // Update tree view if active
+        if (currentViewMode === 'tree') {
+            updateTreeView();
+        }
+    }
+
+    function updateTreeView() {
+        // Get filtered dataset IDs
+        const visibleCards = document.querySelectorAll('#datasetGrid .col-md-4[style="display: block"]');
+        const visibleDatasetIds = Array.from(visibleCards).map(card => card.dataset.id);
+
+        // Update tree view to show only filtered datasets
+        $('#jstree').jstree(true).refresh();
+    }
 }); 

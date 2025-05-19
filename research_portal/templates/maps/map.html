@@ -7,7 +7,9 @@
 <title>Weather Stations Map</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="stylesheet" href="{% static 'css/map-markers.css' %}">
+<link rel="stylesheet" href="{% static 'css/hotspot.css' %}">
 <style>
  body, html {
  margin: 0;
@@ -18,9 +20,10 @@
  width: 100%;
  height: 100vh;
  }
+ 
+ /* Info container styles */
  .info-container {
  padding: 6px 8px;
- background: white;
  background: rgba(255,255,255,0.8);
  box-shadow: 0 0 15px rgba(0,0,0,0.2);
  border-radius: 5px;
@@ -30,31 +33,71 @@
  margin: 0 0 5px;
  color: #777;
  }
- .station-inactive {
- opacity: 0.5;
- }
- .legend {
- line-height: 18px;
- color: #555;
- }
- .legend i {
- width: 18px;
- height: 18px;
- float: left;
- margin-right: 8px;
- opacity: 0.7;
- }
  
+ /* Status indicators */
+ .station-inactive { opacity: 0.5; }
+ .status-active { color: #28a745; }
+ .status-maintenance { color: #ffc107; }
+ .status-inactive { color: #dc3545; }
+ .status-lost { color: #6c757d; }
+
+ /* Battery indicators */
+ .battery-indicator {
+ width: 10px;
+ height: 10px;
+ border-radius: 50%;
+ position: absolute;
+ bottom: 2px;
+ right: 2px;
+ }
+ .battery-good { background-color: #28a745; }
+ .battery-low { background-color: #ffc107; }
+ .battery-critical { background-color: #dc3545; }
+
+ /* Filter panel styles */
+ .filter-panel {
+ position: absolute;
+ top: 10px;
+ right: 10px;
+ width: 300px;
+ background: white;
+ padding: 15px;
+ border-radius: 5px;
+ box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+ z-index: 1000;
+ transition: transform 0.3s ease;
+ }
+ .filter-panel.hidden { transform: translateX(110%); }
+ .filter-toggle {
+ position: absolute;
+ top: 10px;
+ right: 320px;
+ z-index: 1001;
+ background: white;
+ border: none;
+ border-radius: 5px;
+ padding: 8px 12px;
+ box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+ cursor: pointer;
+ transition: all 0.3s ease;
+ }
+ .filter-toggle:hover { background: #f8f9fa; }
+ .filter-toggle i { font-size: 1.2em; }
+ .filter-section { margin-bottom: 15px; }
+ .filter-section h6 { margin-bottom: 10px; }
+ .filter-checkbox { margin-bottom: 5px; }
+ .filter-badge { font-size: 12px; margin-left: 5px; }
+
  /* Custom navbar styles */
  .custom-navbar {
    position: fixed;
    top: 0;
    width: 100%;
-   z-index: 1000;
+   z-index: 1500;
    transition: all 0.3s ease;
-   background-color: rgba(255, 255, 255, 0.9);
+   background-color: rgba(255, 255, 255, 0.95);
+   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
  }
- 
  .custom-navbar.scrolled {
    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
    background-color: rgba(255, 255, 255, 0.95);
@@ -89,7 +132,6 @@
    font-size: 18px;
    transition: background-color 0.3s;
  }
- 
  #scrollToTopBtn:hover {
    background-color: rgba(0, 0, 0, 0.8);
  }
@@ -104,6 +146,8 @@
      width: auto;
    }
  }
+ 
+ /* Station selector styles */
  .station-selector {
   position: absolute;
   top: 80px;
@@ -114,66 +158,18 @@
   box-shadow: 0 0 10px rgba(0,0,0,0.1);
   padding: 10px;
   width: 250px;
-}
-
-@media (max-width: 768px) {
+ }
+ @media (max-width: 768px) {
   .station-selector {
     top: auto;
     bottom: 80px;
     left: 10px;
     width: auto;
   }
-}
-.marker-label {
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.7);
-    color: white;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 12px;
-    white-space: nowrap;
-}
+ }
 
-/* Added styles for the map overlay */
-.map-wrapper {
-  position: relative;
-  width: 100%;
-  height: 450px;
-}
-
-#map-container {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 1000;
-}
-
-.custom-marker-icon {
-  background: transparent;
-  border: none;
-}
-
-.marker-content {
-  color: #E03616;
-  font-size: 16px;
-  text-align: center;
-  text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-}
-
-.marker-content.active {
-  color: #E03616;
-}
-
-.marker-content.inactive {
-  color: #999;
-}
-
-.marker-label {
+ /* Marker label styles */
+ .marker-label {
   position: absolute;
   bottom: 100%;
   left: 50%;
@@ -185,31 +181,240 @@
   font-size: 12px;
   white-space: nowrap;
   pointer-events: none;
-}
+ }
+
+ /* Map wrapper styles */
+ .map-wrapper {
+  position: relative;
+  width: 100%;
+  height: 600px;
+ }
+ #map {
+  height: 100%;
+  width: 100%;
+ }
+
+ /* Station info cards styles */
+ #station-info-cards {
+  z-index: 1000;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+ }
+ .station-card {
+  margin-bottom: 1rem;
+ }
+ .station-card .coordinates {
+  font-size: 0.85rem;
+  color: #666;
+ }
+ .station-card .status {
+  font-weight: 500;
+ }
+
+ /* Custom marker styles */
+ .custom-marker-icon {
+  background: transparent;
+  border: none;
+ }
+ .marker-content {
+  color: #E03616;
+  font-size: 16px;
+  text-align: center;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+ }
+ .marker-content.active {
+  color: #E03616;
+ }
+ .marker-content.inactive {
+  color: #999;
+ }
+
+ /* Map toggle controls */
+ .map-toggle-controls {
+  position: absolute;
+  bottom: 30px;
+  left: 10px;
+  z-index: 1001;
+ }
+ .map-toggle-controls .btn {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+ }
+ .map-toggle-controls .btn:hover {
+  background: rgba(255, 255, 255, 0.9);
+ }
+
+ /* Map container styles */
+ #map-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1000;
+  pointer-events: auto;
+  background: transparent !important;
+ }
+
+ /* Leaflet control styles */
+ .leaflet-control {
+  background: rgba(255, 255, 255, 0.7) !important;
+ }
+ .custom-marker-icon i {
+  filter: drop-shadow(0px 0px 3px white);
+ }
+
+ /* Station button styles */
+ .station-stats-btn {
+  background-color: #198754;
+  border-color: #198754;
+  color: white;
+  transition: all 0.3s;
+ }
+ .station-stats-btn:hover {
+  background-color: #157347;
+  border-color: #146c43;
+  transform: scale(1.05);
+ }
+ .info-container .btn {
+  white-space: nowrap;
+ }
+ 
+ /* Popup buttons styles */
+ .leaflet-popup-content .btn {
+  margin-top: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+ }
+ .leaflet-popup-content .btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s;
+ }
+
+ /* Station buttons enhanced styles */
+ .button-container {
+  margin-top: 15px !important;
+ }
+ .station-stats-direct-link {
+  background-color: #198754 !important;
+  border-color: #198754 !important;
+  color: white !important;
+  font-weight: bold !important;
+  padding: 10px !important;
+  margin-bottom: 8px !important;
+  font-size: 16px !important;
+  border-radius: 6px !important;
+  text-decoration: none !important;
+  display: inline-block !important;
+  text-align: center !important;
+  z-index: 1100 !important;
+  position: relative !important;
+ }
+ .station-stats-direct-link:hover {
+  background-color: #157347 !important;
+  border-color: #146c43 !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
+ }
+
+ /* Leaflet popup styles */
+ .leaflet-popup {
+  z-index: 1000 !important;
+ }
+ .leaflet-popup-content {
+  margin: 10px 12px !important;
+  min-width: 200px !important;
+ }
+ .leaflet-popup-content .btn {
+  margin-top: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3) !important;
+  display: block;
+  width: 100%;
+  text-align: center;
+ }
+
+ /* Dropdown menu styles */
+ .dropdown-menu {
+  z-index: 1600 !important;
+  background-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+ }
+ .main-container {
+  margin-top: 70px; /* Adjust based on navbar height */
+ }
+
+ /* Spinner styles */
+ .spinner-border {
+  display: inline-block;
+  width: 2rem;
+  height: 2rem;
+  vertical-align: text-bottom;
+  border: 0.25em solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spinner-border .75s linear infinite;
+ }
+ @keyframes spinner-border {
+  to { transform: rotate(360deg); }
+ }
+ .visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+ }
+
+ /* Alert styles */
+ .info-container .alert {
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 0.25rem;
+ }
+ .alert-warning {
+  color: #856404;
+  background-color: #fff3cd;
+  border-color: #ffeeba;
+ }
+ .alert-danger {
+  color: #721c24;
+  background-color: #f8d7da;
+  border-color: #f5c6cb;
+ }
 </style>
-<script src="{% static 'js/maps/map.js' %}"></script>
+
+<script>
+  console.log("Map page loaded. If you don't see the 'View Statistics' button, please try clearing your browser cache.");
+</script>
 </head>
 <body>
 <!-- Navigation bar -->
 <nav class="navbar navbar-expand-lg custom-navbar">
   <div class="container">
-    <a class="navbar-brand" href="#">Weather Station Network</a>
+    <a class="navbar-brand" href="/">Weather Station Network</a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
     <div class="collapse navbar-collapse" id="navbarNav">
       <ul class="navbar-nav ms-auto">
         <li class="nav-item">
-          <a class="nav-link active" href="#">Map</a>
+          <a class="nav-link active" href="/maps/map/">Map</a>
         </li>
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" id="stationsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
             Stations
           </a>
           <ul class="dropdown-menu" aria-labelledby="stationsDropdown">
-            <li><a class="dropdown-item" href="#">All Stations</a></li>
-            <li><a class="dropdown-item" href="#">Active Stations</a></li>
-            <li><a class="dropdown-item" href="#">Inactive Stations</a></li>
+            <li><a class="dropdown-item" href="/maps/stations/">All Stations</a></li>
+            <li><a class="dropdown-item" href="/maps/stations/?status=active">Active Stations</a></li>
+            <li><a class="dropdown-item" href="/maps/stations/?status=inactive">Inactive Stations</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="/maps/stations/comparison/">Compare Stations</a></li>
           </ul>
         </li>
         <li class="nav-item dropdown">
@@ -217,14 +422,16 @@
             Data
           </a>
           <ul class="dropdown-menu" aria-labelledby="dataDropdown">
-            <li><a class="dropdown-item" href="#">Temperature</a></li>
-            <li><a class="dropdown-item" href="#">Precipitation</a></li>
-            <li><a class="dropdown-item" href="#">Wind Speed</a></li>
-            <li><a class="dropdown-item" href="#">Humidity</a></li>
+            <li><a class="dropdown-item" href="/maps/data/temperature/">Temperature</a></li>
+            <li><a class="dropdown-item" href="/maps/data/precipitation/">Precipitation</a></li>
+            <li><a class="dropdown-item" href="/maps/data/wind/">Wind Speed</a></li>
+            <li><a class="dropdown-item" href="/maps/data/humidity/">Humidity</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="/maps/data/export/">Export Data</a></li>
           </ul>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="#">About</a>
+          <a class="nav-link" href="/maps/about/">About</a>
         </li>
       </ul>
     </div>
@@ -243,62 +450,94 @@
 </div>
 
 <!-- Map container -->
-<div class="container-fluid">
+<div class="container-fluid main-container">
     <div class="row">
         <div class="col-12">
-            <h1 class="my-4">Interactive Weather Map</h1>
+            <h1 class="mb-4">Interactive Weather Map with Hotspots</h1>
             <div class="card">
                 <div class="card-body">
+                    <p class="mb-3">This map displays weather stations with hotspot features. Hotspots are color-coded based on temperature and rainfall data. Click on a station to view detailed parameter data.</p>
                     <div class="map-wrapper">
-                        <iframe id="windy-map" width="100%" height="100%" 
-                                src="https://embed.windy.com/embed.html?lat=-0.503&lon=34.847&detailLat=-0.503&detailLon=34.847&width=650&height=450&zoom=9&level=surface&overlay=rain&product=ecmwf&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=kt&metricTemp=%C2%B0C&radarRange=-1" 
-                                frameborder="0">
-                        </iframe>
-                        <!-- This div will contain our Leaflet map overlay -->
-                        <div id="map-container"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+                        <!-- Map container -->
+                        <div id="map"></div>
+                        
+                        <!-- Station Info Cards -->
+                        <div id="station-info-cards" class="position-absolute top-100 start-0 w-100 p-3">
+                            <div class="row" id="station-cards-container">
+                                <!-- Station cards will be populated dynamically -->
+                            </div>
+                        </div>
+                        
+                        <!-- Filter Toggle Button -->
+                        <button class="filter-toggle" title="Toggle Filter Panel">
+                            <i class="fas fa-sliders-h"></i>
+                        </button>
+                        
+                        <!-- Filter Panel -->
+                        <div class="filter-panel" id="filterPanel">
+                            <div class="filter-section">
+                                <h6>Data Sources</h6>
+                                <div class="filter-checkbox">
+                                    <input type="checkbox" id="filter-weather-stations" checked>
+                                    <label for="filter-weather-stations">Weather Stations <span class="filter-badge" id="weather-station-count">0</span></label>
+                                </div>
+                                <div class="filter-checkbox">
+                                    <input type="checkbox" id="filter-field-devices" checked>
+                                    <label for="filter-field-devices">Field Devices <span class="filter-badge" id="field-device-count">0</span></label>
+                                </div>
+                                <div class="filter-checkbox">
+                                    <input type="checkbox" id="filter-manual-entries" checked>
+                                    <label for="filter-manual-entries">Manual Entries <span class="filter-badge" id="manual-entry-count">0</span></label>
+                                </div>
+                            </div>
 
-<!-- Information about locations -->
-<div class="container mt-4">
-    <div class="row">
-        <div class="col-md-4 mb-3">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">JOOUST</h5>
-                </div>
-                <div class="card-body">
-                    <p><strong>Coordinates:</strong> -0.503, 34.847</p>
-                    <p><strong>Description:</strong> Jaramogi Oginga Odinga University of Science and Technology</p>
-                    <button class="btn btn-sm btn-outline-primary" onclick="centerMap(-0.503, 34.847, 'JOOUST')">View on Map</button>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">Mianthe</h5>
-                </div>
-                <div class="card-body">
-                    <p><strong>Coordinates:</strong> -0.45, 34.8</p>
-                    <p><strong>Description:</strong> Mianthe Weather Station</p>
-                    <button class="btn btn-sm btn-outline-primary" onclick="centerMap(-0.45, 34.8, 'Mianthe')">View on Map</button>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">Bondo</h5>
-                </div>
-                <div class="card-body">
-                    <p><strong>Coordinates:</strong> -0.55, 34.9</p>
-                    <p><strong>Description:</strong> Bondo Weather Station</p>
-                    <button class="btn btn-sm btn-outline-primary" onclick="centerMap(-0.55, 34.9, 'Bondo')">View on Map</button>
+                            <div class="filter-section">
+                                <h6>Field Device Status</h6>
+                                <div class="filter-checkbox">
+                                    <input type="checkbox" id="filter-status-active" checked>
+                                    <label for="filter-status-active">Active <span class="filter-badge" id="status-active-count">0</span></label>
+                                </div>
+                                <div class="filter-checkbox">
+                                    <input type="checkbox" id="filter-status-maintenance">
+                                    <label for="filter-status-maintenance">Maintenance <span class="filter-badge" id="status-maintenance-count">0</span></label>
+                                </div>
+                                <div class="filter-checkbox">
+                                    <input type="checkbox" id="filter-status-inactive">
+                                    <label for="filter-status-inactive">Inactive <span class="filter-badge" id="status-inactive-count">0</span></label>
+                                </div>
+                                <div class="filter-checkbox">
+                                    <input type="checkbox" id="filter-status-lost">
+                                    <label for="filter-status-lost">Lost <span class="filter-badge" id="status-lost-count">0</span></label>
+                                </div>
+                            </div>
+
+                            <div class="filter-section">
+                                <h6>Battery Level</h6>
+                                <div class="filter-checkbox">
+                                    <input type="checkbox" id="filter-battery-good" checked>
+                                    <label for="filter-battery-good">Good (≥ 40%) <span class="filter-badge" id="battery-good-count">0</span></label>
+                                </div>
+                                <div class="filter-checkbox">
+                                    <input type="checkbox" id="filter-battery-low">
+                                    <label for="filter-battery-low">Low (20-39%) <span class="filter-badge" id="battery-low-count">0</span></label>
+                                </div>
+                                <div class="filter-checkbox">
+                                    <input type="checkbox" id="filter-battery-critical">
+                                    <label for="filter-battery-critical">Critical (< 20%) <span class="filter-badge" id="battery-critical-count">0</span></label>
+                                </div>
+                            </div>
+
+                            <div class="filter-section">
+                                <button id="reset-filters" class="btn btn-sm btn-secondary w-100">Reset Filters</button>
+                            </div>
+                        </div>
+                        <!-- Add marker toggle control -->
+                        <div class="map-toggle-controls">
+                            <button id="toggle-markers" class="btn btn-sm btn-light" title="Toggle Markers">
+                                <i class="fas fa-map-marker-alt"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -307,12 +546,14 @@
 
 <!-- Scroll to top button -->
 <button id="scrollToTopBtn" title="Go to top">↑</button>
-<!-- Add this before your other scripts if you want to use the heatmap feature -->
+
+<!-- Script includes -->
+<script src="{% static 'js/maps/map.js' %}"></script>
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<!-- Font Awesome for markers -->
-<script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   // Navbar scroll effect
@@ -393,41 +634,47 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     }
   });
-  
-  function centerMap(lat, lon, locationName) {
-    // Get the iframe element
-    const iframe = document.getElementById('windy-map');
-    
-    // Update the iframe src to center on the specified coordinates
-    const currentSrc = iframe.src;
-    const newSrc = currentSrc.replace(/lat=([^&]*)/, `lat=${lat}`)
-                           .replace(/lon=([^&]*)/, `lon=${lon}`)
-                           .replace(/detailLat=([^&]*)/, `detailLat=${lat}`)
-                           .replace(/detailLon=([^&]*)/, `detailLon=${lon}`)
-                           .replace(/marker=([^&]*)/, `marker=${lat},${lon}`)
-                           .replace(/message=([^&]*)/, `message=${locationName}`);
-    
-    iframe.src = newSrc;
-    
-    // Scroll to the map
-    iframe.scrollIntoView({ behavior: 'smooth' });
-  }
 
-  // Initialize with JOOUST marker
-  setTimeout(() => {
-    centerMap(-0.503, 34.847, 'JOOUST');
-  }, 1000); // Slight delay to ensure map is loaded
+  // Filter panel toggle functionality
+  const filterPanel = document.getElementById('filterPanel');
+  const filterToggle = document.querySelector('.filter-toggle');
+  let isPanelOpen = true;
+
+  filterToggle.addEventListener('click', function() {
+    isPanelOpen = !isPanelOpen;
+    filterPanel.classList.toggle('hidden');
+    filterToggle.innerHTML = isPanelOpen ? '<i class="fas fa-sliders-h"></i>' : '<i class="fas fa-times"></i>';
+  });
 
   // Initialize map with Windy overlay mode enabled
   const mapOptions = {
     useWindyOverlay: true,
     windyMapId: 'windy-map',
     mapContainerId: 'map-container',
-    initialView: [-0.503, 34.847], // JOOUST coordinates
     initialZoom: 9
   };
   
   // The map will be initialized by the map.js script
+
+  // Add marker toggle functionality
+  const toggleMarkersBtn = document.getElementById('toggle-markers');
+  if (toggleMarkersBtn) {
+      let markersVisible = true;
+      toggleMarkersBtn.addEventListener('click', function() {
+          markersVisible = !markersVisible;
+          const mapContainer = document.getElementById('map-container');
+          
+          if (mapContainer) {
+              if (markersVisible) {
+                  mapContainer.style.opacity = '1';
+                  toggleMarkersBtn.innerHTML = '<i class="fas fa-map-marker-alt"></i>';
+              } else {
+                  mapContainer.style.opacity = '0';
+                  toggleMarkersBtn.innerHTML = '<i class="fas fa-eye-slash"></i>';
+              }
+          }
+      });
+  }
 });
 </script>
 </body>

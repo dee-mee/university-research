@@ -1,0 +1,67 @@
+/* Sidebar Styles */
+.sidebar {
+    min-height: 100vh;
+    width: 250px;
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 1000;
+    background: #ffff00 !important;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+    padding: 1rem;
+}
+
+.sidebar .sidebar-header {
+    background: #0425df !important;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.sidebar .sidebar-header img {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #0d5dc5;
+    margin-bottom: 1rem;
+}
+
+/* Navigation Links */
+.sidebar .nav-link {
+    color: #000000 !important;
+    font-weight: 500 !important;
+    padding: 0.75rem 1rem !important;
+    border-radius: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
+    transition: all 0.3s ease !important;
+    background-color: transparent !important;
+}
+
+.sidebar .nav-link i {
+    color: #000000 !important;
+    margin-right: 0.5rem !important;
+}
+
+.sidebar .nav-link:hover {
+    color: #0d5dc5 !important;
+    background-color: rgba(13, 93, 197, 0.1) !important;
+    transform: translateX(5px) !important;
+}
+
+.sidebar .nav-link.active {
+    color: #0d5dc5 !important;
+    background-color: rgba(13, 93, 197, 0.1) !important;
+    border-left: 3px solid #0d5dc5 !important;
+}
+
+/* Responsive Design */
+@media (max-width: 991.98px) {
+    .sidebar {
+        width: 100%;
+        position: static;
+        margin-bottom: 1rem;
+        padding: 0.5rem;
+    }
+}

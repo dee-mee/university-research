@@ -4,8 +4,7 @@ import json
 import pytz
 import logging
 import io
-import pandas as pd
-import xlsxwriter
+import random
 import pandas as pd
 import xlsxwriter
 from datetime import datetime, timedelta
@@ -37,7 +36,7 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from .utils import fetch_environmental_data, calculate_statistics
 from .models import DataExport, WeatherAlert, WeatherStation, ClimateData, Country, WeatherDataType
-from .models import DataExport, WeatherAlert, WeatherStation, ClimateData, Country, WeatherDataType
+from .field_models import DeviceType, FieldDevice, DeviceCalibration, FieldDataUpload
 from .forms import CSVUploadForm, FlashDriveImportForm
 from .serializers import (
     WeatherAlertSerializer,
@@ -51,7 +50,10 @@ from .serializers import (
 )
 from .permissions import IsAdminOrReadOnly
 from django.urls import reverse_lazy, reverse
-from django.urls import reverse_lazy, reverse
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
+from .field_models import FieldDataUpload, FieldDataRecord, FieldDevice, DeviceType
 
 
 # views.py (improved debug_stations)
@@ -76,6 +78,96 @@ def debug_stations(request):
     })
 
 # views.py (improved MapView)
+@api_view(['POST'])
+def field_data_upload(request):
+    """
+    Endpoint for field devices to upload data
+    """
+    try:
+        device_id = request.data.get('device_id')
+        timestamp = request.data.get('timestamp')
+        latitude = request.data.get('latitude')
+        longitude = request.data.get('longitude')
+        data = request.data.get('data')
+
+        if not all([device_id, timestamp, latitude, longitude, data]):
+            return Response(
+                {'error': 'Missing required fields', 'received_data': request.data},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Get or create device
+        device = FieldDevice.objects.filter(device_id=device_id).first()
+        if not device:
+            # Create new device if it doesn't exist
+            device_type = DeviceType.objects.first()  # Use default device type
+            if not device_type:
+                return Response(
+                    {
+                        'error': 'No device type configured',
+                        'device_id': device_id,
+                        'available_device_types': list(DeviceType.objects.values_list('name', flat=True))
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            
+            device = FieldDevice.objects.create(
+                device_id=device_id,
+                device_type=device_type,
+                name=f"Device {device_id}",
+                location=Point(longitude, latitude)
+            )
+
+        # Update device location and last communication
+        device.location = Point(longitude, latitude)
+        device.last_communication = timezone.now()
+        device.save()
+
+        # Create or get data upload
+        upload, created = FieldDataUpload.objects.get_or_create(
+            title=f"Data Upload for {device_id}",
+            defaults={
+                'description': f"Automatic upload from device {device_id}",
+                'status': 'completed'
+            }
+        )
+
+        # Create data record
+        try:
+            record = FieldDataRecord.objects.create(
+                upload=upload,
+                device=device,
+                timestamp=timezone.make_aware(datetime.fromisoformat(timestamp)),
+                latitude=latitude,
+                longitude=longitude,
+                data=data
+            )
+            
+            return Response(
+                {
+                    'status': 'success',
+                    'message': 'Data uploaded successfully',
+                    'device_status': device.status,
+                    'record_id': record.id
+                },
+                status=status.HTTP_201_CREATED
+            )
+        except Exception as e:
+            return Response(
+                {
+                    'error': f'Failed to create data record: {str(e)}',
+                    'device_id': device_id,
+                    'timestamp': timestamp
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
 class MapView(TemplateView):
     template_name = 'maps/map.html'
     
@@ -190,8 +282,6 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
         station = self.get_object()
         days = int(request.query_params.get('days', 7))
         data_types = request.query_params.getlist('data_types', [])
-        days = int(request.query_params.get('days', 7))
-        data_types = request.query_params.getlist('data_types', [])
         
         start_date = timezone.now() - timedelta(days=days)
         query = ClimateData.objects.filter(
@@ -209,21 +299,10 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
                 query = query.filter(reduce(operator.or_, conditions))
         
         page = self.paginate_queryset(query)
-        # Filter by data types if specified
-        if data_types:
-            conditions = []
-            for data_type in data_types:
-                if hasattr(ClimateData, data_type):
-                    conditions.append(~models.Q(**{data_type: None}))
-            if conditions:
-                query = query.filter(reduce(operator.or_, conditions))
-        
-        page = self.paginate_queryset(query)
         if page is not None:
             serializer = ClimateDataSerializer(page, many=True)
             return self.get_paginated_response(serializer.data)
         
-        serializer = ClimateDataSerializer(query, many=True)
         serializer = ClimateDataSerializer(query, many=True)
         return Response(serializer.data)
     
@@ -267,7 +346,7 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
             for data in climate_data:
                 writer.writerow([
                     station.name,
-                    data.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+                    data.timestamp.isoformat(),
                     data.temperature,
                     data.humidity,
                     data.precipitation,
@@ -329,24 +408,19 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
         """Push weather data onto the station's stack"""
         station = self.get_object()
         serializer = StackedDataSerializer(data=request.data)
-    @action(detail=True, methods=['post'])
-    def push_data(self, request, pk=None):
-        """Push weather data onto the station's stack"""
-        station = self.get_object()
-        serializer = StackedDataSerializer(data=request.data)
         
         if serializer.is_valid():
             success = station.push_data(serializer.validated_data)
             if success:
                 return Response({
-                    'success': True, 
-                    'stack_size': station.stack_size(),
-                    'message': 'Data added to stack successfully'
+                    'success': True,
+                    'message': 'Data successfully added to stack',
+                    'stack_size': station.stack_size()
                 })
             else:
                 return Response({
                     'success': False,
-                    'message': 'Stack is full'
+                    'message': 'Failed to add data to stack. The stack may be full.'
                 }, status=400)
         else:
             return Response(serializer.errors, status=400)
@@ -380,54 +454,8 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
             'latest_data': latest_data
         }
         
-        serializer = StackInfoSerializer(data)
-        if serializer.is_valid():
-            success = station.push_data(serializer.validated_data)
-            if success:
-                return Response({
-                    'success': True, 
-                    'stack_size': station.stack_size(),
-                    'message': 'Data added to stack successfully'
-                })
-            else:
-                return Response({
-                    'success': False,
-                    'message': 'Stack is full'
-                }, status=400)
-        else:
-            return Response(serializer.errors, status=400)
-    
-    @action(detail=True, methods=['post'])
-    def process_stack(self, request, pk=None):
-        """Process all data in the station's stack"""
-        station = self.get_object()
-        records_processed = station.process_data_stack()
-        
-        return Response({
-            'success': True,
-            'records_processed': records_processed,
-            'message': f'Successfully processed {records_processed} records'
-        })
-    
-    @action(detail=True, methods=['get'])
-    def stack_info(self, request, pk=None):
-        """Get information about the station's data stack"""
-        station = self.get_object()
-        latest_data = station.peek_data()
-        
-        data = {
-            'station_id': station.id,
-            'station_name': station.name,
-            'stack_size': station.stack_size(),
-            'max_stack_size': station.max_stack_size,
-            'last_data_feed': station.last_data_feed,
-            'auto_process': station.auto_process,
-            'process_threshold': station.process_threshold,
-            'latest_data': latest_data
-        }
-        
-        serializer = StackInfoSerializer(data)
-        return Response(serializer.data)
+        return Response(data)
+
 
     def perform_create(self, serializer):
         """Override create to check for alerts when new data is added"""
@@ -438,8 +466,7 @@ class WeatherStationViewSet(viewsets.ModelViewSet):
         
         # Create alerts and send notifications
         for alert_data in alerts:
-            alert = create_alert_from_detection(climate_data.station, alert_data)
-            send_alert_notifications(alert)
+            create_alert_from_detection(climate_data.station, alert_data)
         
         return climate_data
 
@@ -465,9 +492,50 @@ class WeatherAlertViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def active(self, request):
         """Get all active alerts"""
-        alerts = WeatherAlert.objects.filter(status='active')
-        serializer = self.get_serializer(alerts, many=True)
+        queryset = self.queryset.filter(status='active')
+        serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAdminOrReadOnly])
+def climate_data_station(request, station_id=None):
+    """
+    Get climate data for a specific station with options for filtering by time period
+    """
+    try:
+        # Get parameters
+        hours = int(request.query_params.get('hours', 72))
+        days = int(request.query_params.get('days', 0))
+        
+        # Calculate time period
+        time_delta = timedelta(hours=hours, days=days)
+        since = timezone.now() - time_delta
+        
+        # Get station
+        station = WeatherStation.objects.get(id=station_id)
+        
+        # Get climate data for this station within the time period
+        climate_data = ClimateData.objects.filter(
+            station=station,
+            timestamp__gte=since
+        ).order_by('timestamp')
+        
+        # Serialize the data
+        serializer = ClimateDataSerializer(climate_data, many=True)
+        
+        return Response(serializer.data)
+    
+    except WeatherStation.DoesNotExist:
+        return Response(
+            {"error": f"Weather station with ID {station_id} not found"},
+            status=404
+        )
+    except Exception as e:
+        return Response(
+            {"error": str(e)},
+            status=500
+        )
     
 # views.py (new map_data endpoint)
 @api_view(['GET'])
@@ -1169,13 +1237,8 @@ def flash_drive_import_view(request):
 
 def setup_automated_imports(flash_drive_path=None, import_interval=3600):
     """
-    Set up scheduled imports from a flash drive with improved configuration and error handling
-
-
-    This function should be called from your app's AppConfig.ready() method
-    to set up scheduled tasks when the application starts.
-
-
+    Sets up an automated background job to import CSV files from a flash drive.
+    
     Parameters:
     - flash_drive_path: Path to monitor for CSV files, defaults to environment variable or '/media/usb'
     - import_interval: How often to check for new files (in seconds), defaults to environment variable or 3600
@@ -1299,9 +1362,9 @@ def setup_automated_imports(flash_drive_path=None, import_interval=3600):
         logging.info(f"Scheduled automated CSV imports from {flash_drive_path} every {import_interval} seconds")
         
     except ImportError:
-        logging.warning("APScheduler not installed. Automated imports will not run.")
+        print("APScheduler not installed. Automated imports will not run.")
     except Exception as e:
-        logging.error(f"Error setting up automated imports: {str(e)}")
+        print(f"Error setting up automated imports: {str(e)}")
 
 
 def station_statistics_view(request, station_id):
@@ -1686,32 +1749,6 @@ class ClimateDataViewSet(viewsets.ModelViewSet):
                 query = query.filter(reduce(operator.or_, conditions))
         
         serializer = self.get_serializer(query, many=True)
-    def recent(self, request):
-        """Get the most recent climate data for all stations"""
-        hours = int(request.query_params.get('hours', 24))
-        data_types = request.query_params.getlist('data_types', [])
-        since = timezone.now() - timedelta(hours=hours)
-        
-        # Get latest reading for each station
-        subquery = ClimateData.objects.filter(
-            station=OuterRef('station'),
-            timestamp__gte=since
-        ).order_by('-timestamp').values('id')[:1]
-        
-        query = ClimateData.objects.filter(
-            id__in=Subquery(subquery)
-        ).select_related('station')
-        
-        # Filter by data types if specified
-        if data_types:
-            conditions = []
-            for data_type in data_types:
-                if hasattr(ClimateData, data_type):
-                    conditions.append(~models.Q(**{data_type: None}))
-            if conditions:
-                query = query.filter(reduce(operator.or_, conditions))
-        
-        serializer = self.get_serializer(query, many=True)
         return Response(serializer.data)
 
     def perform_create(self, serializer):
@@ -1723,8 +1760,7 @@ class ClimateDataViewSet(viewsets.ModelViewSet):
         
         # Create alerts and send notifications
         for alert_data in alerts:
-            alert = create_alert_from_detection(climate_data.station, alert_data)
-            send_alert_notifications(alert)
+            create_alert_from_detection(climate_data.station, alert_data)
         
         return climate_data
 
@@ -2120,6 +2156,79 @@ class ImportSuccessView(TemplateView):
         context['import_type'] = self.request.session.get('import_type', 'data')
         return context
 
+
+def station_data_view(request):
+    """
+    View for displaying detailed station data with download options
+    """
+    station_id = request.GET.get('id')
+    
+    # For custom stations, we'll handle the data in JavaScript
+    # This view just renders the template
+    
+    context = {
+        'title': 'Weather Station Data',
+        'station_id': station_id
+    }
+    
+    return render(request, 'maps/station_data.html', context)
+
+
+def station_statistics_view(request, station_id):
+    """
+    View for displaying station statistics
+    Can handle both numeric IDs (database stations) and string IDs (custom stations)
+    """
+    # Check if station_id is a string ID for custom stations
+    if isinstance(station_id, str) or (isinstance(station_id, int) and station_id < 0):
+        # This is a custom station (like 'jooust-station', 'kisumu-station', etc.)
+        # We'll use the station_data_view to handle it
+        return redirect(f'/maps/station-data/?id={station_id}')
+    
+    # For regular database stations with numeric IDs
+    try:
+        station = get_object_or_404(WeatherStation, id=station_id)
+        
+        # Get climate data for this station
+        recent_data = ClimateData.objects.filter(
+            station=station,
+            timestamp__gte=timezone.now() - timedelta(days=30)
+        ).order_by('-timestamp')
+        
+        # Calculate statistics
+        stats = {
+            'readings_count': recent_data.count(),
+            'temperature': {
+                'avg': recent_data.aggregate(Avg('temperature'))['temperature__avg'],
+                'max': recent_data.aggregate(Max('temperature'))['temperature__max'],
+                'min': recent_data.aggregate(Min('temperature'))['temperature__min'],
+            },
+            'precipitation': {
+                'avg': recent_data.aggregate(Avg('precipitation'))['precipitation__avg'],
+                'max': recent_data.aggregate(Max('precipitation'))['precipitation__max'],
+                'min': recent_data.aggregate(Min('precipitation'))['precipitation__min'],
+                'total': recent_data.aggregate(Sum('precipitation'))['precipitation__sum'],
+            },
+            'humidity': {
+                'avg': recent_data.aggregate(Avg('humidity'))['humidity__avg'],
+                'max': recent_data.aggregate(Max('humidity'))['humidity__max'],
+                'min': recent_data.aggregate(Min('humidity'))['humidity__min'],
+            },
+        }
+        
+        context = {
+            'station': station,
+            'recent_data': recent_data[:10],  # Show only the 10 most recent readings
+            'stats': stats,
+            'title': f'{station.name} Statistics',
+        }
+        
+        return render(request, 'maps/station_statistics.html', context)
+        
+    except Exception as e:
+        messages.error(request, f"Error retrieving station statistics: {str(e)}")
+        return redirect('maps:map')  # Make sure 'maps:map' is the correct namespace
+
 # ...existing code...
 
 @login_required
@@ -2188,4 +2297,3 @@ def process_station_stack(request, station_id):
     
     # Redirect back to the data entry page
     return redirect(reverse('maps:stack_data_entry'))
-

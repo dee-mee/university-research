@@ -1,0 +1,539 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Batch Device Operations{% endblock %}
+
+{% block extra_css %}
+<style>
+    .device-card {
+        margin-bottom: 15px;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .device-card .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .device-list {
+        max-height: 600px;
+        overflow-y: auto;
+    }
+    
+    .operation-card {
+        margin-bottom: 20px;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .status-active {
+        color: #28a745;
+    }
+    
+    .status-maintenance {
+        color: #ffc107;
+    }
+    
+    .status-inactive {
+        color: #6c757d;
+    }
+    
+    .status-lost {
+        color: #dc3545;
+    }
+    
+    .device-checkbox {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .filter-section {
+        margin-bottom: 20px;
+        padding: 15px;
+        background-color: #f8f9fa;
+        border-radius: 5px;
+    }
+    
+    .batch-result {
+        margin-top: 20px;
+        padding: 15px;
+        border-radius: 5px;
+        display: none;
+    }
+    
+    .batch-success {
+        background-color: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+    }
+    
+    .batch-error {
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+    }
+    
+    .operation-log {
+        max-height: 200px;
+        overflow-y: auto;
+        font-family: monospace;
+        font-size: 0.9rem;
+        background-color: #f8f9fa;
+        padding: 10px;
+        border-radius: 5px;
+        margin-top: 10px;
+    }
+    
+    .log-entry {
+        margin-bottom: 5px;
+    }
+    
+    .log-success {
+        color: #28a745;
+    }
+    
+    .log-error {
+        color: #dc3545;
+    }
+    
+    .log-warning {
+        color: #ffc107;
+    }
+    
+    .log-info {
+        color: #17a2b8;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <h1 class="mb-4">Batch Device Operations</h1>
+    
+    <div class="row">
+        <!-- Device Selection -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Select Devices</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Filter Section -->
+                    <div class="filter-section">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="device-type-filter">Device Type</label>
+                                    <select id="device-type-filter" class="form-control">
+                                        <option value="all">All Types</option>
+                                        {% for device_type in device_types %}
+                                        <option value="{{ device_type.id }}">{{ device_type.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="status-filter">Status</label>
+                                    <select id="status-filter" class="form-control">
+                                        <option value="all">All Statuses</option>
+                                        <option value="active">Active</option>
+                                        <option value="maintenance">Maintenance</option>
+                                        <option value="inactive">Inactive</option>
+                                        <option value="lost">Lost</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="search-filter">Search</label>
+                                    <input type="text" id="search-filter" class="form-control" placeholder="Device ID or name">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-12">
+                                <button id="apply-filters" class="btn btn-primary">Apply Filters</button>
+                                <button id="reset-filters" class="btn btn-secondary">Reset</button>
+                                <button id="select-all" class="btn btn-outline-primary float-right">Select All</button>
+                                <button id="deselect-all" class="btn btn-outline-secondary float-right mr-2">Deselect All</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Device List -->
+                    <div class="device-list">
+                        <div class="row" id="device-container">
+                            {% for device in devices %}
+                            <div class="col-md-6 device-item" 
+                                 data-device-id="{{ device.id }}"
+                                 data-device-type="{{ device.device_type.id }}"
+                                 data-status="{{ device.status }}">
+                                <div class="card device-card">
+                                    <div class="card-header">
+                                        <div class="custom-control custom-checkbox">
+                                            <input type="checkbox" class="device-checkbox" id="device-{{ device.id }}" data-device-id="{{ device.id }}">
+                                            <label class="ml-2" for="device-{{ device.id }}">{{ device.name }}</label>
+                                        </div>
+                                        <span class="status-{{ device.status }}">{{ device.get_status_display }}</span>
+                                    </div>
+                                    <div class="card-body">
+                                        <p><strong>Device ID:</strong> {{ device.device_id }}</p>
+                                        <p><strong>Type:</strong> {{ device.device_type.name }}</p>
+                                        <p><strong>Last Communication:</strong> {{ device.last_communication|default:"Never" }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <span id="selected-count">0</span> devices selected
+                </div>
+            </div>
+        </div>
+        
+        <!-- Operations -->
+        <div class="col-md-4">
+            <div class="card operation-card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Operations</h5>
+                </div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <label for="operation-select">Select Operation</label>
+                        <select id="operation-select" class="form-control">
+                            <option value="">-- Select an operation --</option>
+                            <option value="update_status">Update Status</option>
+                            <option value="schedule_calibration">Schedule Calibration</option>
+                            <option value="update_firmware">Update Firmware</option>
+                            <option value="reset_device">Reset Devices</option>
+                            <option value="export_data">Export Data</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Operation-specific parameters (shown/hidden based on selection) -->
+                    <div id="operation-params">
+                        <!-- Update Status Parameters -->
+                        <div id="update-status-params" class="operation-params" style="display: none;">
+                            <div class="form-group">
+                                <label for="new-status">New Status</label>
+                                <select id="new-status" class="form-control">
+                                    <option value="active">Active</option>
+                                    <option value="maintenance">Maintenance</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="status-notes">Notes</label>
+                                <textarea id="status-notes" class="form-control" rows="3" placeholder="Reason for status change"></textarea>
+                            </div>
+                        </div>
+                        
+                        <!-- Schedule Calibration Parameters -->
+                        <div id="schedule-calibration-params" class="operation-params" style="display: none;">
+                            <div class="form-group">
+                                <label for="calibration-date">Calibration Date</label>
+                                <input type="date" id="calibration-date" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label for="calibration-notes">Notes</label>
+                                <textarea id="calibration-notes" class="form-control" rows="3" placeholder="Calibration details"></textarea>
+                            </div>
+                        </div>
+                        
+                        <!-- Update Firmware Parameters -->
+                        <div id="update-firmware-params" class="operation-params" style="display: none;">
+                            <div class="form-group">
+                                <label for="firmware-version">Firmware Version</label>
+                                <select id="firmware-version" class="form-control">
+                                    <option value="1.0.0">1.0.0</option>
+                                    <option value="1.1.0">1.1.0</option>
+                                    <option value="2.0.0">2.0.0</option>
+                                    <option value="2.1.0">2.1.0</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="firmware-notes">Notes</label>
+                                <textarea id="firmware-notes" class="form-control" rows="3" placeholder="Firmware update details"></textarea>
+                            </div>
+                        </div>
+                        
+                        <!-- Reset Device Parameters -->
+                        <div id="reset-device-params" class="operation-params" style="display: none;">
+                            <div class="form-group">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input" id="confirm-reset">
+                                    <label class="custom-control-label" for="confirm-reset">I confirm that I want to reset these devices</label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="reset-notes">Notes</label>
+                                <textarea id="reset-notes" class="form-control" rows="3" placeholder="Reset reason"></textarea>
+                            </div>
+                        </div>
+                        
+                        <!-- Export Data Parameters -->
+                        <div id="export-data-params" class="operation-params" style="display: none;">
+                            <div class="form-group">
+                                <label for="export-start-date">Start Date</label>
+                                <input type="date" id="export-start-date" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label for="export-end-date">End Date</label>
+                                <input type="date" id="export-end-date" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label for="export-format">Format</label>
+                                <select id="export-format" class="form-control">
+                                    <option value="csv">CSV</option>
+                                    <option value="json">JSON</option>
+                                    <option value="excel">Excel</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button id="execute-operation" class="btn btn-success btn-block mt-3" disabled>Execute Operation</button>
+                </div>
+            </div>
+            
+            <!-- Operation Result -->
+            <div id="batch-result" class="batch-result">
+                <h5 id="result-title">Operation Result</h5>
+                <p id="result-message"></p>
+                <div id="operation-log" class="operation-log">
+                    <!-- Log entries will be added here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Operation selection
+        $('#operation-select').on('change', function() {
+            const operation = $(this).val();
+            $('.operation-params').hide();
+            
+            if (operation) {
+                $(`#${operation.replace('_', '-')}-params`).show();
+                $('#execute-operation').prop('disabled', false);
+            } else {
+                $('#execute-operation').prop('disabled', true);
+            }
+        });
+        
+        // Device selection
+        $('.device-checkbox').on('change', function() {
+            updateSelectedCount();
+        });
+        
+        // Select/Deselect All
+        $('#select-all').on('click', function() {
+            $('.device-checkbox:visible').prop('checked', true);
+            updateSelectedCount();
+        });
+        
+        $('#deselect-all').on('click', function() {
+            $('.device-checkbox').prop('checked', false);
+            updateSelectedCount();
+        });
+        
+        // Filtering
+        $('#apply-filters').on('click', function() {
+            applyFilters();
+        });
+        
+        $('#reset-filters').on('click', function() {
+            $('#device-type-filter').val('all');
+            $('#status-filter').val('all');
+            $('#search-filter').val('');
+            applyFilters();
+        });
+        
+        // Execute operation
+        $('#execute-operation').on('click', function() {
+            const operation = $('#operation-select').val();
+            const selectedDevices = getSelectedDevices();
+            
+            if (selectedDevices.length === 0) {
+                alert('Please select at least one device');
+                return;
+            }
+            
+            // Get operation parameters
+            let params = {};
+            
+            switch (operation) {
+                case 'update_status':
+                    params = {
+                        new_status: $('#new-status').val(),
+                        notes: $('#status-notes').val()
+                    };
+                    break;
+                case 'schedule_calibration':
+                    params = {
+                        calibration_date: $('#calibration-date').val(),
+                        notes: $('#calibration-notes').val()
+                    };
+                    break;
+                case 'update_firmware':
+                    params = {
+                        firmware_version: $('#firmware-version').val(),
+                        notes: $('#firmware-notes').val()
+                    };
+                    break;
+                case 'reset_device':
+                    if (!$('#confirm-reset').prop('checked')) {
+                        alert('Please confirm the reset operation');
+                        return;
+                    }
+                    params = {
+                        notes: $('#reset-notes').val()
+                    };
+                    break;
+                case 'export_data':
+                    params = {
+                        start_date: $('#export-start-date').val(),
+                        end_date: $('#export-end-date').val(),
+                        format: $('#export-format').val()
+                    };
+                    break;
+            }
+            
+            // Execute the operation
+            executeBatchOperation(operation, selectedDevices, params);
+        });
+        
+        // Helper functions
+        function updateSelectedCount() {
+            const count = $('.device-checkbox:checked').length;
+            $('#selected-count').text(count);
+            
+            // Disable execute button if no devices selected
+            if (count === 0) {
+                $('#execute-operation').prop('disabled', true);
+            } else if ($('#operation-select').val()) {
+                $('#execute-operation').prop('disabled', false);
+            }
+        }
+        
+        function getSelectedDevices() {
+            const devices = [];
+            $('.device-checkbox:checked').each(function() {
+                devices.push($(this).data('device-id'));
+            });
+            return devices;
+        }
+        
+        function applyFilters() {
+            const deviceType = $('#device-type-filter').val();
+            const status = $('#status-filter').val();
+            const search = $('#search-filter').val().toLowerCase();
+            
+            $('.device-item').each(function() {
+                const $item = $(this);
+                let show = true;
+                
+                // Filter by device type
+                if (deviceType !== 'all' && $item.data('device-type') != deviceType) {
+                    show = false;
+                }
+                
+                // Filter by status
+                if (status !== 'all' && $item.data('status') !== status) {
+                    show = false;
+                }
+                
+                // Filter by search
+                if (search) {
+                    const deviceName = $item.find('label').text().toLowerCase();
+                    const deviceId = $item.find('p:contains("Device ID")').text().toLowerCase();
+                    if (!deviceName.includes(search) && !deviceId.includes(search)) {
+                        show = false;
+                    }
+                }
+                
+                $item.toggle(show);
+            });
+            
+            updateSelectedCount();
+        }
+        
+        function executeBatchOperation(operation, devices, params) {
+            // Show the result container
+            $('#batch-result').removeClass('batch-success batch-error').hide();
+            $('#operation-log').empty();
+            
+            // Send the request to the server
+            $.ajax({
+                url: '/maps/api/batch-operations/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    operation: operation,
+                    devices: devices,
+                    params: params
+                }),
+                beforeSend: function(xhr) {
+                    // Add CSRF token
+                    const csrftoken = $('[name=csrfmiddlewaretoken]').val();
+                    xhr.setRequestHeader('X-CSRFToken', csrftoken);
+                    
+                    // Disable the execute button
+                    $('#execute-operation').prop('disabled', true).text('Processing...');
+                },
+                success: function(response) {
+                    // Show the result
+                    $('#batch-result').addClass('batch-success').show();
+                    $('#result-title').text('Operation Successful');
+                    $('#result-message').text(response.message);
+                    
+                    // Add log entries
+                    response.results.forEach(function(result) {
+                        const logClass = result.success ? 'log-success' : 'log-error';
+                        $('#operation-log').append(
+                            `<div class="log-entry ${logClass}">
+                                <strong>${result.device_name}</strong>: ${result.message}
+                            </div>`
+                        );
+                    });
+                    
+                    // Re-enable the execute button
+                    $('#execute-operation').prop('disabled', false).text('Execute Operation');
+                    
+                    // If it's an export operation with a download URL
+                    if (operation === 'export_data' && response.download_url) {
+                        window.location.href = response.download_url;
+                    }
+                },
+                error: function(xhr) {
+                    // Show the error
+                    $('#batch-result').addClass('batch-error').show();
+                    $('#result-title').text('Operation Failed');
+                    
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        $('#result-message').text(response.error || 'An error occurred');
+                    } catch (e) {
+                        $('#result-message').text('An unexpected error occurred');
+                    }
+                    
+                    // Re-enable the execute button
+                    $('#execute-operation').prop('disabled', false).text('Execute Operation');
+                }
+            });
+        }
+        
+        // Initialize
+        updateSelectedCount();
+    });
+</script>
+{% endblock %}

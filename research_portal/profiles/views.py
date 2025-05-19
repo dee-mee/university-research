@@ -8,7 +8,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.csrf import csrf_protect
 from .serializers import RegisterSerializer, LoginSerializer, PasswordResetSerializer
 from .forms import LoginForm, ProfileEditForm, UserRegistrationForm
-from .models import Profile
+from .models import Profile, Notification
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordResetForm
 from django.core.mail import send_mail
@@ -16,8 +16,51 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse
 from django.core.serializers import serialize
+from django.contrib import messages
+from django.urls import reverse
+from django.utils import timezone
+from maps.models import WeatherStation
 import csv
 import json
+
+@login_required
+def profile_view(request):
+    """Display user's profile page with recent activity and settings."""
+    user = request.user
+    try:
+        profile = user.profile
+    except Profile.DoesNotExist:
+        profile = Profile.objects.create(user=user)
+
+    # Get recent activity (downloads, uploads, etc.)
+    recent_activity = []
+    
+    # Get recent downloads
+    downloads = DatasetDownload.objects.filter(user=user).order_by('-downloaded_at')[:5]
+    for download in downloads:
+        recent_activity.append({
+            'action': f'Downloaded {download.dataset.title} (v{download.version.version_number})',
+            'timestamp': download.downloaded_at
+        })
+    
+    # Get recent dataset creations
+    datasets = Dataset.objects.filter(created_by=user).order_by('-created_at')[:5]
+    for dataset in datasets:
+        recent_activity.append({
+            'action': f'Created dataset: {dataset.title}',
+            'timestamp': dataset.created_at
+        })
+    
+    # Sort activities by timestamp
+    recent_activity.sort(key=lambda x: x['timestamp'], reverse=True)
+
+    context = {
+        'user': user,
+        'profile': profile,
+        'recent_activity': recent_activity,
+        'title': 'Profile'
+    }
+    return render(request, 'profiles/profile.html', context)
 
 
 logger = logging.getLogger(__name__)
@@ -141,31 +184,11 @@ def dashboard_view(request):
         role = user.profile.role
     except:
         role = 'project_member'  # Default role if profile doesn't exist
-    
-    # Determine which dashboard template to use based on role
-    template_map = {
-        'phd_student': 'profiles/dashboards/phd_dashboard.html',
-        'local_coordinator': 'profiles/dashboards/coordinator_dashboard.html',
-        'project_leader': 'profiles/dashboards/leader_dashboard.html',
-        'project_member': 'profiles/dashboards/member_dashboard.html',
-        'admin': 'profiles/dashboards/admin_dashboard.html',
-    }
-    
-    template = template_map.get(role, 'profiles/dashboard.html')
-    
-    # Common context for all dashboards
+
     context = {
-        'user': user,
         'role': role,
-        'role_display': user.profile.get_role_display_name() if hasattr(user, 'profile') else '',
-        'dashboard_url': 'profiles:dashboard',
-        'profile_url': 'profiles:profile',
-        'maps_url': 'maps:map',
-        'repository_url': 'repository:dataset_list',
-        'edit_profile_url': 'profiles:edit_profile',
-        'logout_url': 'profiles:logout'
+        'user': user
     }
-    
     # Add role-specific context
     if role == 'project_leader':
         # For project leaders, add project management info
@@ -174,7 +197,21 @@ def dashboard_view(request):
         # For coordinators, add location-specific info
         context['location_stats'] = []  # Add location statistics
     
-    return render(request, template, context)
+    return render(request, 'profiles/dashboard_bootstrap.html', context)
+
+@login_required
+def mark_notification_as_read(request):
+    """Mark a notification as read"""
+    if request.method == 'POST':
+        notification_id = request.GET.get('id')
+        try:
+            notification = Notification.objects.get(id=notification_id, user=request.user)
+            notification.read = True
+            notification.save()
+            return JsonResponse({'success': True})
+        except Notification.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Notification not found'}, status=404)
+    return JsonResponse({'success': False, 'error': 'Invalid request method'}, status=400)
 
 def homepage_view(request):
     return render(request, 'index.html')
@@ -268,6 +305,10 @@ def edit_profile(request):
             try:
                 # Update profile
                 profile = profile_form.save(commit=False)
+                
+                # Preserve the original role - this ensures the role cannot be changed
+                profile.role = Profile.objects.get(user=request.user).role
+                
                 profile.user = request.user
                 profile.save()
 
@@ -332,3 +373,31 @@ def edit_profile(request):
             'last_name': request.user.last_name
         }
     })
+
+@login_required
+def update_profile_image(request):
+    """
+    Handle profile image updates
+    """
+    if request.method == 'POST' and request.FILES.get('profile_image'):
+        try:
+            profile = request.user.profile
+            # Delete old image if it exists
+            if profile.profile_image:
+                # Don't delete the file if it's a default image that might be used elsewhere
+                if not 'default' in profile.profile_image.name:
+                    try:
+                        profile.profile_image.delete()
+                    except Exception as e:
+                        logger.error(f"Error deleting old profile image: {e}")
+            
+            # Save new image
+            profile.profile_image = request.FILES['profile_image']
+            profile.save()
+            
+            messages.success(request, 'Profile image updated successfully!')
+        except Exception as e:
+            logger.error(f"Error updating profile image: {e}")
+            messages.error(request, f"Error updating profile image: {str(e)}")
+    
+    return redirect('profiles:profile')

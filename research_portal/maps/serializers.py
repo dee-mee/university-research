@@ -7,6 +7,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import serializers
 from rest_framework_gis.serializers import GeoFeatureModelSerializer
 from .models import WeatherAlert, WeatherStation, ClimateData, DataExport, Country, WeatherDataType
+from .field_models import DeviceType, FieldDevice, DeviceCalibration, FieldDataUpload
 
 class CountrySerializer(serializers.ModelSerializer):
     class Meta:
@@ -93,7 +94,7 @@ class DataExportSerializer(serializers.ModelSerializer):
             'country', 'country_name', 'data_types', 'data_type_names',
             'bounding_box', 'date_from', 'date_to', 'years',
             'min_data_quality', 'export_format', 'include_metadata',
-            'file_url', 'status', 'error_message', 'created_at',
+            'file_url', 'status', 'error_log', 'created_at',
             'completed_at'
         )
     
@@ -118,6 +119,64 @@ class WeatherAlertSerializer(serializers.ModelSerializer):
             'notify_email', 'notify_sms', 'notify_push'
         )
 
+
+class DeviceTypeSerializer(serializers.ModelSerializer):
+    """Serializer for DeviceType model"""
+    class Meta:
+        model = DeviceType
+        fields = (
+            'id', 'name', 'manufacturer', 'model_number', 'description',
+            'communication_protocol', 'power_source', 'battery_life_days',
+            'firmware_version', 'has_temperature', 'has_precipitation',
+            'has_humidity', 'has_wind', 'has_air_quality', 'has_soil_moisture',
+            'has_water_level', 'created_at', 'updated_at'
+        )
+
+
+class FieldDeviceSerializer(GeoFeatureModelSerializer):
+    """Serializer for FieldDevice model"""
+    device_type_name = serializers.CharField(source='device_type.name', read_only=True)
+    weather_station_name = serializers.CharField(source='weather_station.name', read_only=True)
+    battery_status = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = FieldDevice
+        geo_field = 'location'
+        fields = (
+            'id', 'device_id', 'name', 'device_type', 'device_type_name',
+            'weather_station', 'weather_station_name', 'location', 'status',
+            'installation_date', 'last_communication', 'battery_level',
+            'battery_status', 'signal_strength', 'firmware_version',
+            'transmission_interval', 'notes', 'created_at', 'updated_at'
+        )
+
+    def get_battery_status(self, obj):
+        """Return battery status as a string with color coding"""
+        if obj.battery_level is None:
+            return "Unknown"
+        elif obj.battery_level < 20:
+            return "Critical"
+        elif obj.battery_level < 40:
+            return "Low"
+        elif obj.battery_level < 70:
+            return "Medium"
+        return "Good"
+
+
+class DeviceCalibrationSerializer(serializers.ModelSerializer):
+    """Serializer for DeviceCalibration model"""
+    device_name = serializers.CharField(source='device.name', read_only=True)
+    performed_by_name = serializers.CharField(source='performed_by.username', read_only=True)
+    
+    class Meta:
+        model = DeviceCalibration
+        fields = (
+            'id', 'device', 'device_name', 'calibration_date',
+            'next_calibration_date', 'performed_by', 'performed_by_name',
+            'temperature_offset', 'humidity_offset', 'pressure_offset',
+            'certificate_number', 'notes', 'created_at', 'updated_at'
+        )
+
 class StackedDataSerializer(serializers.Serializer):
     timestamp = serializers.DateTimeField(required=False)
     temperature = serializers.FloatField(required=False)
@@ -140,6 +199,21 @@ class StackInfoSerializer(serializers.Serializer):
     max_stack_size = serializers.IntegerField(read_only=True)
     last_data_feed = serializers.DateTimeField(read_only=True)
     auto_process = serializers.BooleanField(read_only=True)
+
+class FieldDataUploadSerializer(serializers.ModelSerializer):
+    """Serializer for FieldDataUpload model"""
+    device_type_name = serializers.CharField(source='device_type.name', read_only=True)
+    created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+    
+    class Meta:
+        model = FieldDataUpload
+        fields = (
+            'id', 'title', 'description', 'data_file', 'data_format',
+            'device_type', 'device_type_name', 'upload_date', 'status',
+            'processed_count', 'error_count', 'error_log', 'created_by',
+            'created_by_name'
+        )
+        read_only_fields = ('processed_count', 'error_count', 'error_log', 'status', 'upload_date', 'created_by')
     process_threshold = serializers.IntegerField(read_only=True)
     latest_data = StackedDataSerializer(read_only=True)
 

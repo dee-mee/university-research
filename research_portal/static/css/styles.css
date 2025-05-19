@@ -552,3 +552,42 @@ main.container {
     padding: 0;
     max-width: 1200px; /* Adjust as needed */
 }
+
+/* About Section Styling */
+.about-section {
+    background-color: #f8f9fa;
+    padding: 60px 0;
+}
+
+.about-image {
+    width: 100%;
+    height: 350px;
+    object-fit: cover;
+    object-position: center;
+    transition: transform 0.3s ease;
+    border: 5px solid white;
+}
+
+.about-image:hover {
+    transform: scale(1.02);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2) !important;
+}
+
+.about-section .section-title {
+    color: #04114b;
+    font-size: 2.2rem;
+    margin-bottom: 2rem;
+    position: relative;
+    padding-bottom: 10px;
+}
+
+.about-section .section-title:after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80px;
+    height: 3px;
+    background-color: #0d5dc5;
+}

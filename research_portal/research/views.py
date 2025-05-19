@@ -31,11 +31,18 @@ def research(request):
 def community(request):
     return render(request, 'research/community.html')
 
-def contact(request):
-    return render(request, 'contact/contact.html')
-
 def latest_activities(request):
     return render(request, 'research/latest_activities.html')
 
 def sub_project_detail(request, project_id):
     return render(request, 'research/sub_project_detail.html', {'project_id': project_id})
+
+def alerts(request):
+    # In a real implementation, you would fetch alerts from a database
+    # For now, we're just rendering the template with static data
+    return render(request, 'alerts.html')
+
+def messages(request):
+    # In a real implementation, you would fetch messages from a database
+    # For now, we're just rendering the template with static data
+    return render(request, 'messages.html')

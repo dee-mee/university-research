@@ -4,9 +4,11 @@ import logging
 import chardet
 import codecs
 import time
-from typing import Dict, List, Any, Tuple, Optional, Callable, Iterator
+from typing import Dict, List, Any, Tuple, Optional, Callable, Iterator, Union
 from django.db import transaction, DatabaseError
 from django.core.files.uploadedfile import UploadedFile
+from datetime import datetime, date
+from dateutil import parser
 
 logger = logging.getLogger(__name__)
 
@@ -204,7 +206,8 @@ def process_csv_in_batches(
     csv_file: UploadedFile,
     row_processor: Callable[[Dict[str, str], int, CSVImportProgress], None],
     batch_size: int = 100,
-    progress_callback: Optional[Callable] = None
+    progress_callback: Optional[Callable] = None,
+    required_fields: List[str] = None
 ) -> Dict[str, Any]:
     """
     Process CSV file in batches with transaction support
@@ -214,6 +217,7 @@ def process_csv_in_batches(
         row_processor: Function that processes each row
         batch_size: Number of rows to process in each transaction
         progress_callback: Function to call with progress updates
+        required_fields: List of field names that must be present in the CSV
         
     Returns:
         Dictionary with import summary
@@ -260,12 +264,43 @@ def process_csv_in_batches(
             "warnings": []
         }
     
+    # Validate required fields
+    if required_fields:
+        missing_fields = validate_csv_headers(reader.fieldnames, required_fields)
+        if missing_fields:
+            return {
+                "success": 0,
+                "error": 1,
+                "errors": [f"Missing required fields: {', '.join(missing_fields)}"],
+                "warnings": []
+            }
+    
+    # Clean field names (strip whitespace and handle case variations)
+    cleaned_fieldnames = {field.strip().lower(): field for field in reader.fieldnames}
+    
     # Process in batches with transactions
     batch = []
     batch_num = 0
     
     for i, row in enumerate(reader, start=1):
-        batch.append((row, i))
+        # Normalize field names in the row
+        normalized_row = {}
+        for key, value in row.items():
+            # Keep original field name but clean the value
+            normalized_row[key] = value.strip() if isinstance(value, str) else value
+        
+        # Handle common variations of field names
+        for clean_key, orig_key in cleaned_fieldnames.items():
+            # For example, map "station_name", "stationname", "station name" to the same field
+            key_variations = [
+                clean_key.replace('_', ''),  # Remove underscores
+                clean_key.replace('_', ' ')   # Underscores to spaces
+            ]
+            for alt_key in key_variations:
+                if alt_key in normalized_row and orig_key not in normalized_row:
+                    normalized_row[orig_key] = normalized_row.pop(alt_key)
+        
+        batch.append((normalized_row, i))
         
         # When batch is full or at end of file, process the batch
         if len(batch) >= batch_size:
@@ -325,44 +360,108 @@ def validate_csv_headers(fieldnames: List[str], required_fields: List[str]) -> L
     """
     if not fieldnames:
         return ["No headers found in file"]
+    
+    # Clean and normalize field names for comparison
+    clean_fieldnames = set(f.strip().lower() for f in fieldnames)
+    
+    # Handle special case for station fields - need one of the station identifier fields
+    station_fields = ['station_id', 'station_name', 'station']
+    if all(field in required_fields for field in station_fields):
+        # If all station fields are listed as required, we only need one
+        if any(field.lower() in clean_fieldnames for field in station_fields):
+            # Remove station fields from required list for normal checking
+            required_check = [f for f in required_fields if f not in station_fields]
+        else:
+            # Missing all station fields
+            return [f"One of: {', '.join(station_fields)}"]
+    else:
+        required_check = required_fields
+    
+    # Check each required field
+    missing_fields = []
+    for field in required_check:
+        # Try variations of the field name
+        field_lower = field.lower()
+        field_no_underscore = field_lower.replace('_', '')
+        field_spaced = field_lower.replace('_', ' ')
         
-    missing_fields = [field for field in required_fields if field not in fieldnames]
+        if (field_lower not in clean_fieldnames and 
+            field_no_underscore not in clean_fieldnames and
+            field_spaced not in clean_fieldnames):
+            missing_fields.append(field)
+    
     return missing_fields
 
 
-def parse_numeric(value: str, field_name: str, line_num: int, allow_none: bool = True) -> Optional[float]:
+def parse_numeric(value: Union[str, float, int], field_name: str, line_num: int, 
+                 allow_none: bool = True, min_value: float = None, 
+                 max_value: float = None) -> Optional[float]:
     """
-    Parse numeric value with proper error handling
+    Parse numeric value with proper error handling and validation
     
     Args:
-        value: String value to parse
+        value: Value to parse
         field_name: Name of the field (for error reporting)
         line_num: Line number (for error reporting)
         allow_none: Whether None is allowed for empty values
+        min_value: Minimum allowed value (None for no minimum)
+        max_value: Maximum allowed value (None for no maximum)
         
     Returns:
         Parsed float value or None if empty and allow_none is True
     """
-    if not value and allow_none:
-        return None
-        
-    try:
-        return float(value)
-    except (ValueError, TypeError):
+    if value is None or (isinstance(value, str) and not value.strip()):
+        if allow_none:
+            return None
         raise CSVImportError(
-            f"Invalid numeric value '{value}'", 
+            f"Missing required numeric value", 
             field=field_name, 
             line_num=line_num
         )
+    
+    # Handle numeric types directly
+    if isinstance(value, (int, float)):
+        numeric_value = float(value)
+    else:
+        try:
+            # Handle string representation
+            value_str = str(value).strip()
+            # Handle special case with commas as decimal separator
+            if ',' in value_str and '.' not in value_str:
+                value_str = value_str.replace(',', '.')
+            numeric_value = float(value_str)
+        except (ValueError, TypeError):
+            raise CSVImportError(
+                f"Invalid numeric value '{value}'", 
+                field=field_name, 
+                line_num=line_num
+            )
+    
+    # Validate range
+    if min_value is not None and numeric_value < min_value:
+        raise CSVImportError(
+            f"Value {numeric_value} is below minimum {min_value}", 
+            field=field_name, 
+            line_num=line_num
+        )
+    
+    if max_value is not None and numeric_value > max_value:
+        raise CSVImportError(
+            f"Value {numeric_value} is above maximum {max_value}", 
+            field=field_name, 
+            line_num=line_num
+        )
+    
+    return numeric_value
 
 
-def parse_date(value: str, field_name: str, line_num: int, 
+def parse_date(value: Union[str, datetime, date], field_name: str, line_num: int, 
                formats: List[str] = None, allow_none: bool = True) -> Optional[datetime]:
     """
     Parse date value with multiple format attempts
     
     Args:
-        value: String value to parse
+        value: Value to parse
         field_name: Name of the field (for error reporting)
         line_num: Line number (for error reporting)
         formats: List of date formats to try
@@ -371,13 +470,32 @@ def parse_date(value: str, field_name: str, line_num: int,
     Returns:
         Parsed datetime object or None if empty and allow_none is True
     """
-    from datetime import datetime
-    from dateutil import parser
+    if value is None or (isinstance(value, str) and not value.strip()):
+        if allow_none:
+            return None
+        raise CSVImportError(
+            f"Missing required date value", 
+            field=field_name, 
+            line_num=line_num
+        )
     
-    if not value and allow_none:
-        return None
+    # Handle case where value is already a datetime or date
+    if isinstance(value, datetime):
+        return value
+    elif isinstance(value, date):
+        return datetime.combine(value, datetime.min.time())
     
-    formats = formats or ['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', '%Y%m%d']
+    # Handle string value
+    formats = formats or [
+        '%Y-%m-%d %H:%M:%S',
+        '%Y-%m-%dT%H:%M:%S',
+        '%Y-%m-%d',
+        '%d/%m/%Y %H:%M:%S',
+        '%d/%m/%Y',
+        '%m/%d/%Y %H:%M:%S',
+        '%m/%d/%Y',
+        '%Y%m%d',
+    ]
     
     # First try dateutil parser which handles many formats
     try:
@@ -397,20 +515,174 @@ def parse_date(value: str, field_name: str, line_num: int,
     )
 
 
-def get_bool_value(value: str) -> bool:
+def parse_boolean(value: Union[str, bool, int], field_name: str, line_num: int, 
+                 default: bool = None) -> Optional[bool]:
     """
-    Convert various string representations to boolean
+    Parse boolean value with proper error handling
     
     Args:
-        value: String value to convert
+        value: Value to parse
+        field_name: Name of the field (for error reporting)
+        line_num: Line number (for error reporting)
+        default: Default value if parsing fails
         
     Returns:
-        Boolean representation of the value
+        Parsed boolean value or default
     """
     if isinstance(value, bool):
         return value
     
-    if not value:
+    if value is None or (isinstance(value, str) and not value.strip()):
+        if default is not None:
+            return default
+        raise CSVImportError(
+            f"Missing boolean value", 
+            field=field_name, 
+            line_num=line_num
+        )
+    
+    if isinstance(value, int):
+        return bool(value)
+    
+    # Handle string representations
+    true_values = ['true', 'yes', 'y', 't', '1', 'on']
+    false_values = ['false', 'no', 'n', 'f', '0', 'off']
+    
+    value_lower = str(value).lower().strip()
+    
+    if value_lower in true_values:
+        return True
+    elif value_lower in false_values:
         return False
+    else:
+        if default is not None:
+            return default
+        raise CSVImportError(
+            f"Invalid boolean value '{value}'", 
+            field=field_name, 
+            line_num=line_num
+        )
+
+
+def find_station_by_identifier(identifier: str, field_name: str, line_num: int):
+    """
+    Find a weather station by various identifiers
+    
+    Args:
+        identifier: Station identifier (name, id, or pk)
+        field_name: Name of the field (for error reporting)
+        line_num: Line number (for error reporting)
         
-    return value.lower() in ('true', 'yes', '1', 't', 'y')
+    Returns:
+        WeatherStation object
+    """
+    from .models import WeatherStation
+    
+    if not identifier:
+        raise CSVImportError(
+            "Missing station identifier", 
+            field=field_name, 
+            line_num=line_num
+        )
+    
+    # First try by station_id
+    station = WeatherStation.objects.filter(station_id=identifier).first()
+    
+    if not station:
+        # Then try by name
+        station = WeatherStation.objects.filter(name=identifier).first()
+        
+    if not station and identifier.isdigit():
+        # Finally try by ID if numeric
+        station = WeatherStation.objects.filter(id=int(identifier)).first()
+    
+    if not station:
+        raise CSVImportError(
+            f"Station not found: {identifier}", 
+            field=field_name, 
+            line_num=line_num
+        )
+    
+    return station
+
+
+def get_station_from_row(row: Dict[str, str], line_num: int) -> Any:
+    """
+    Extract a station object from a CSV row
+    
+    Args:
+        row: CSV row as dict
+        line_num: Line number (for error reporting)
+        
+    Returns:
+        WeatherStation object
+    """
+    # Find the station based on available identifiers
+    station_id_fields = ['station_name', 'station_id', 'station']
+    
+    for field in station_id_fields:
+        if field in row and row[field]:
+            return find_station_by_identifier(row[field], field, line_num)
+    
+    raise CSVImportError(
+        f"Missing station identifier (one of {', '.join(station_id_fields)} is required)",
+        line_num=line_num
+    )
+
+
+def validate_column_values(row: Dict[str, str], validations: Dict[str, Dict], line_num: int, progress: CSVImportProgress):
+    """
+    Validate column values against specified criteria
+    
+    Args:
+        row: CSV row as dict
+        validations: Dictionary mapping field names to validation criteria
+        line_num: Line number for error reporting
+        progress: Progress tracker
+    
+    Returns:
+        Dictionary of validated and transformed values
+    """
+    result = {}
+    
+    for field, criteria in validations.items():
+        field_type = criteria.get('type', 'str')
+        required = criteria.get('required', False)
+        
+        # Skip if field not present and not required
+        if field not in row:
+            if required:
+                progress.error(f"Missing required field: {field}", row=row, line_num=line_num)
+            continue
+        
+        value = row[field]
+        
+        # Skip empty values for optional fields
+        if (value is None or (isinstance(value, str) and not value.strip())) and not required:
+            continue
+            
+        try:
+            if field_type == 'numeric':
+                min_val = criteria.get('min')
+                max_val = criteria.get('max')
+                result[field] = parse_numeric(value, field, line_num, min_value=min_val, max_value=max_val)
+            elif field_type == 'date':
+                formats = criteria.get('formats')
+                result[field] = parse_date(value, field, line_num, formats=formats)
+            elif field_type == 'boolean':
+                default = criteria.get('default')
+                result[field] = parse_boolean(value, field, line_num, default=default)
+            elif field_type == 'station':
+                result[field] = find_station_by_identifier(value, field, line_num)
+            else:
+                # Default to string
+                result[field] = value.strip() if isinstance(value, str) else value
+        except CSVImportError as e:
+            if required:
+                # Re-raise for required fields
+                raise
+            else:
+                # Just warn for optional fields
+                progress.warning(e.message, row=row, line_num=line_num, field=field)
+    
+    return result

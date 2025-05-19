@@ -1,0 +1,100 @@
+/* Waterinfo Sidebar Styles */
+.waterinfo-sidebar {
+    width: 250px;
+    background-color: #fff;
+    border-right: 1px solid #dee2e6;
+    padding: 0;
+}
+
+.theme-dropdown {
+    margin-bottom: 1px;
+    background-color: #f8f9fa;
+}
+
+.theme-dropdown .dropdown-header {
+    cursor: pointer;
+    padding: 10px 10px;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #fff;
+    border-bottom: 1px solid #e9ecef;
+    position: relative;
+}
+
+.theme-dropdown .dropdown-header::before {
+    content: "";
+    display: block;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 16px;
+}
+
+.theme-dropdown .dropdown-header.normal::before {
+    background-color: #28a745;
+}
+
+.theme-dropdown .dropdown-header.pre-alert::before {
+    background-color: #ffc107;
+}
+
+.theme-dropdown .dropdown-header.alert::before {
+    background-color: #dc3545;
+}
+
+.theme-dropdown .dropdown-content {
+    display: none;
+    background-color: #fff;
+}
+
+.theme-dropdown.active .dropdown-content {
+    display: block;
+}
+
+.theme-dropdown .dropdown-item {
+    padding: 8px 15px 8px 30px;
+    display: block;
+    text-decoration: none;
+    color: #212529;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.theme-dropdown .dropdown-item:hover {
+    background-color: #e9ecef;
+}
+
+/* Status indicators */
+.status-indicator {
+    padding: 3px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: normal;
+    text-transform: lowercase;
+}
+
+.status-normal {
+    background-color: #28a745;
+    color: white;
+}
+
+.status-pre-alert {
+    background-color: #ffc107;
+    color: black;
+}
+
+.status-alert {
+    background-color: #dc3545;
+    color: white;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .waterinfo-sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #dee2e6;
+    }
+} 

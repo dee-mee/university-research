@@ -120,7 +120,7 @@ body, html {
 }
 
 .custom-navbar .dropdown-item {
-    color: #ffffff;
+    color: #133c86;
     font-weight: 500;
     padding: 12px 20px;
     transition: all 0.3s ease;
@@ -231,14 +231,14 @@ body, html {
     top: 0;
     left: 0;
     background-color: #343a40;
-    color: white;
+    color: rgb(0, 0, 0);
     padding-top: 20px;
     overflow-y: auto;
     transition: width 0.3s ease;
 }
 
 .sidebar .nav-link {
-    color: white;
+    color: rgb(0, 0, 0);
     padding: 20px;
     display: block;
     transition: background-color 0.3s ease;

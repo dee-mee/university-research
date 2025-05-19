@@ -1,0 +1,222 @@
+/* Dataset List Page Styles */
+
+/* Card hover effects */
+.hover-shadow {
+    transition: all 0.3s ease;
+}
+
+.hover-shadow:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Responsive sidebar */
+@media (max-width: 767.98px) {
+    #sidebar-card {
+        position: fixed;
+        top: 0;
+        left: -100%;
+        width: 85%;
+        height: 100vh;
+        z-index: 1050;
+        overflow-y: auto;
+        transition: left 0.3s ease;
+    }
+    
+    #sidebar-card.show {
+        left: 0;
+    }
+    
+    .sidebar-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1040;
+        display: none;
+    }
+    
+    .sidebar-backdrop.show {
+        display: block;
+    }
+}
+
+/* Badge styling */
+.badge {
+    font-weight: 500;
+    padding: 0.4em 0.8em;
+    font-size: 0.85rem;
+    line-height: 1;
+}
+
+/* Category filter styling */
+.categories-list {
+    margin: 0;
+    padding: 0;
+}
+
+.category-item {
+    margin-bottom: 0.5rem;
+}
+
+.category-link {
+    display: block;
+    color: #0d6efd;
+    text-decoration: none;
+    padding: 0.25rem 0;
+    font-size: 0.95rem;
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.category-link:hover {
+    color: #0a58ca;
+    text-decoration: underline;
+    transform: translateX(3px);
+}
+
+.category-link.active {
+    font-weight: 600;
+    color: #0a58ca;
+}
+
+/* Category group heading */
+.category-group-heading {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    padding: 0.5rem 0;
+    color: #212529;
+    border-bottom: 2px solid #e9ecef;
+    position: relative;
+}
+
+.category-group-heading::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 50px;
+    height: 2px;
+    background-color: #0d6efd;
+}
+
+/* Mobile category styling */
+@media (max-width: 767.98px) {
+    .category-item {
+        margin-bottom: 0.75rem;
+    }
+    
+    .category-link {
+        font-size: 1rem;
+        padding: 0.5rem 0;
+    }
+    
+    .category-group-heading {
+        font-size: 1.1rem;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+    }
+    
+    .category-group-heading::after {
+        width: 40px;
+    }
+}
+
+/* Loading state */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.8);
+    z-index: 2000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    display: none;
+}
+
+.loading-spinner {
+    width: 3rem;
+    height: 3rem;
+}
+
+/* Improved pagination */
+.pagination .page-link {
+    color: #0d6efd;
+    border-color: #dee2e6;
+    background-color: #fff;
+    transition: all 0.2s;
+}
+
+.pagination .page-link:hover {
+    z-index: 2;
+    color: #0a58ca;
+    background-color: #e9ecef;
+    border-color: #dee2e6;
+}
+
+.pagination .page-item.active .page-link {
+    z-index: 3;
+    color: #fff;
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+/* Tree view improvements */
+#jstree {
+    font-size: 0.95rem;
+}
+
+.jstree-default .jstree-anchor {
+    line-height: 24px;
+    height: 24px;
+}
+
+.jstree-default .jstree-icon {
+    width: 24px;
+    height: 24px;
+    line-height: 24px;
+}
+
+/* Improved form elements */
+.form-control:focus, .form-select:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Date range picker improvements */
+.input-group .form-control:not(:last-child) {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.input-group .form-control:not(:first-child) {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+/* Empty state styling */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+}
+
+.empty-state-icon {
+    font-size: 3rem;
+    color: #6c757d;
+    margin-bottom: 1rem;
+}
+
+/* Accordion improvements */
+.accordion-button:not(.collapsed) {
+    background-color: rgba(13, 110, 253, 0.1);
+    color: #0d6efd;
+}
+
+.accordion-button:focus {
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}

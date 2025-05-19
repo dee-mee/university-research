@@ -32,13 +32,15 @@ DEBUG = True
 ALLOWED_HOSTS = ['university-research.onrender.com', 'localhost', '127.0.0.1']
 CORS_ALLOWED_ORIGINS = [
     "https://university-research.onrender.com",
-    "http://localhost:5000",
+    "http://localhost:8000",
     "http://127.0.0.1:8000",
+    
 ]     
 CSRF_TRUSTED_ORIGINS = [
     "https://university-research.onrender.com",
-    "http://localhost:5000",
+    "http://localhost:8000",
     "http://127.0.0.1:8000",
+    
 ] 
 
 
@@ -57,6 +59,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'django.contrib.gis',
     'rest_framework_gis',
+    'channels',
     'django_filters',
     'data_repository',  # Add the data_repository app here
 ]
@@ -97,14 +100,14 @@ WSGI_APPLICATION = 'research_portal.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-# DATABASES = {
+DATABASES = {
 #     'default': {
 #         'ENGINE': 'django.db.backends.sqlite3',
 #         'NAME': BASE_DIR / 'db.sqlite3',
 #     }
 # }
 
-DATABASES = {
+# DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
         'NAME': 'geomap_db',
@@ -162,6 +165,16 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Channels configuration
+ASGI_APPLICATION = 'research_portal.asgi.application'
+
+# Channel layers for WebSocket communication
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
+
 
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
@@ -211,3 +224,6 @@ REST_FRAMEWORK = {
         'rest_framework.filters.OrderingFilter',
     ],
 }
+
+# Add base URL for use with different environments
+BASE_URL = os.environ.get('BASE_URL', 'http://127.0.0.1:8000')

@@ -116,167 +116,10 @@
         return chartColors[dataType] || chartColors.default;
     }
     
-    // Initial chart setup
-    document.addEventListener('DOMContentLoaded', function() {
-        // Get DOM elements
-        const dataTypeSelect = document.getElementById('dataTypeSelect');
-        const timeRangeSelect = document.getElementById('timeRangeSelect');
-        const intervalSelect = document.getElementById('intervalSelect');
-        const chartCanvas = document.getElementById('weatherChart');
-        const loadingIndicator = document.getElementById('loadingIndicator');
-        const noDataMessage = document.getElementById('noDataMessage');
-        
-        // Chart context
-        const ctx = chartCanvas.getContext('2d');
-        
-        // Create chart configuration
-        weatherChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: 'Loading data...',
-                    data: [],
-                    backgroundColor: getColorForDataType('temperature'),
-                    borderColor: getColorForDataType('temperature'),
-                    borderWidth: 2,
-                    tension: 0.2,
-                    pointRadius: 3,
-                    pointHoverRadius: 5
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: false,
-                        title: {
-                            display: true,
-                            text: 'Value'
-                        }
-                    },
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Time'
-                        }
-                    }
-                },
-                interaction: {
-                    mode: 'index',
-                    intersect: false
-                },
-                plugins: {
-                    tooltip: {
-                        enabled: true
-                    },
-                    legend: {
-                        position: 'top',
-                    }
-                }
-            }
-        });
-        
-        // Load initial data
-        loadChartData();
-        
-        // Event listeners for selection changes
-        dataTypeSelect.addEventListener('change', loadChartData);
-        timeRangeSelect.addEventListener('change', loadChartData);
-        intervalSelect.addEventListener('change', loadChartData);
-    });
-    
-    // Function to load chart data from API
-    function loadChartData() {
-        const dataType = document.getElementById('dataTypeSelect').value;
-        const days = document.getElementById('timeRangeSelect').value;
-        const interval = document.getElementById('intervalSelect').value;
-        const stationId = {{ station.id }};
-        const loadingIndicator = document.getElementById('loadingIndicator');
-        const noDataMessage = document.getElementById('noDataMessage');
-        
-        // Show loading indicator
-        loadingIndicator.style.display = 'block';
-        noDataMessage.style.display = 'none';
-        
-        // Clear chart data during loading
-        if (weatherChart) {
-            weatherChart.data.labels = [];
-            weatherChart.data.datasets[0].data = [];
-            weatherChart.update();
-        }
-        
-        // URL for API endpoint
-        const apiUrl = `{{ api_base_url }}/api/stations/${stationId}/graph-data/?data_type=${dataType}&days=${days}&interval=${interval}`;
-        
-        // Fetch data from API
-        fetch(apiUrl)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                // Hide loading indicator
-                loadingIndicator.style.display = 'none';
-                
-                // Check if we have data
-                if (data.error || !data.values || data.values.length === 0) {
-                    noDataMessage.style.display = 'block';
-                    noDataMessage.querySelector('p').textContent = data.error || 'No data available for the selected parameters';
-                    
-                    // Update chart to empty state
-                    weatherChart.data.labels = [];
-                    weatherChart.data.datasets[0].data = [];
-                    weatherChart.data.datasets[0].label = `No ${dataType} data available`;
-                    weatherChart.update();
-                    return;
-                }
-                
-                // Update chart with new data
-                weatherChart.data.labels = data.labels;
-                weatherChart.data.datasets[0].data = data.values;
-                
-                // Update chart appearance
-                const color = getColorForDataType(dataType);
-                weatherChart.data.datasets[0].backgroundColor = color;
-                weatherChart.data.datasets[0].borderColor = color;
-                
-                // Update labels and titles
-                const displayName = document.getElementById('dataTypeSelect').options[
-                    document.getElementById('dataTypeSelect').selectedIndex
-                ].text;
-                
-                weatherChart.data.datasets[0].label = displayName;
-                weatherChart.options.scales.y.title.text = data.unit || 'Value';
-                
-                // Update chart
-                weatherChart.update();
-            })
-            .catch(error => {
-                // Hide loading indicator and show error
-                loadingIndicator.style.display = 'none';
-                noDataMessage.style.display = 'block';
-                noDataMessage.querySelector('p').textContent = `Error loading data: ${error.message}`;
-                
-                console.error('Error fetching graph data:', error);
-                
-                // Update chart to error state
-                weatherChart.data.labels = [];
-                weatherChart.data.datasets[0].data = [];
-                weatherChart.data.datasets[0].label = `Error loading data`;
-                weatherChart.update();
-            });
-    }
-</script>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
-<script>
     document.addEventListener('DOMContentLoaded', function() {
         // Chart objects
         let charts = {
+            weather: null,
             temperature: null,
             precipitation: null,
             humidity: null,
@@ -287,8 +130,25 @@
         const stationId = {{ station.id }};
         let currentPeriod = 'week';
         
-        // Initial chart loading
-        loadAndRenderCharts(stationId, currentPeriod);
+        // Get DOM elements for the top chart
+        const dataTypeSelect = document.getElementById('dataTypeSelect');
+        const timeRangeSelect = document.getElementById('timeRangeSelect');
+        const intervalSelect = document.getElementById('intervalSelect');
+        const weatherChartCanvas = document.getElementById('weatherChart');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const noDataMessage = document.getElementById('noDataMessage');
+        
+        // Initialize the main weather chart
+        initWeatherChart();
+        
+        // Load initial data for both chart sections
+        loadChartData();
+        loadAndRenderDetailCharts(stationId, currentPeriod);
+        
+        // Event listeners for main chart selection changes
+        dataTypeSelect.addEventListener('change', loadChartData);
+        timeRangeSelect.addEventListener('change', loadChartData);
+        intervalSelect.addEventListener('change', loadChartData);
         
         // Event listeners for period buttons
         document.querySelectorAll('.period-selector').forEach(button => {
@@ -301,17 +161,156 @@
                 
                 // Get new period and refresh charts
                 currentPeriod = this.getAttribute('data-period');
-                loadAndRenderCharts(stationId, currentPeriod);
+                loadAndRenderDetailCharts(stationId, currentPeriod);
             });
         });
         
         /**
-         * Load data and render all charts
+         * Initialize the main weather chart
          */
-        function loadAndRenderCharts(stationId, period) {
-            // Show loading state
-            document.querySelectorAll('canvas').forEach(canvas => {
-                canvas.classList.add('loading');
+        function initWeatherChart() {
+            const ctx = weatherChartCanvas.getContext('2d');
+            
+            // Create chart configuration
+            charts.weather = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Loading data...',
+                        data: [],
+                        backgroundColor: getColorForDataType('temperature'),
+                        borderColor: getColorForDataType('temperature'),
+                        borderWidth: 2,
+                        tension: 0.2,
+                        pointRadius: 3,
+                        pointHoverRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            title: {
+                                display: true,
+                                text: 'Value'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        tooltip: {
+                            enabled: true
+                        },
+                        legend: {
+                            position: 'top',
+                        }
+                    }
+                }
+            });
+        }
+        
+        /**
+         * Load data for the main chart from API
+         */
+        function loadChartData() {
+            const dataType = dataTypeSelect.value;
+            const days = timeRangeSelect.value;
+            const interval = intervalSelect.value;
+            
+            // Show loading indicator
+            loadingIndicator.style.display = 'block';
+            noDataMessage.style.display = 'none';
+            
+            // Clear chart data during loading
+            if (charts.weather) {
+                charts.weather.data.labels = [];
+                charts.weather.data.datasets[0].data = [];
+                charts.weather.update();
+            }
+            
+            // URL for API endpoint
+            const apiUrl = `{{ api_base_url }}/api/stations/${stationId}/graph-data/?data_type=${dataType}&days=${days}&interval=${interval}`;
+            
+            // Fetch data from API
+            fetch(apiUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Hide loading indicator
+                    loadingIndicator.style.display = 'none';
+                    
+                    // Check if we have data
+                    if (data.error || !data.values || data.values.length === 0) {
+                        noDataMessage.style.display = 'block';
+                        noDataMessage.querySelector('p').textContent = data.error || 'No data available for the selected parameters';
+                        
+                        // Update chart to empty state
+                        charts.weather.data.labels = [];
+                        charts.weather.data.datasets[0].data = [];
+                        charts.weather.data.datasets[0].label = `No ${dataType} data available`;
+                        charts.weather.update();
+                        return;
+                    }
+                    
+                    // Update chart with new data
+                    charts.weather.data.labels = data.labels;
+                    charts.weather.data.datasets[0].data = data.values;
+                    
+                    // Update chart appearance
+                    const color = getColorForDataType(dataType);
+                    charts.weather.data.datasets[0].backgroundColor = color;
+                    charts.weather.data.datasets[0].borderColor = color;
+                    
+                    // Update labels and titles
+                    const displayName = dataTypeSelect.options[dataTypeSelect.selectedIndex].text;
+                    
+                    charts.weather.data.datasets[0].label = displayName;
+                    charts.weather.options.scales.y.title.text = data.unit || 'Value';
+                    
+                    // Update chart
+                    charts.weather.update();
+                })
+                .catch(error => {
+                    // Hide loading indicator and show error
+                    loadingIndicator.style.display = 'none';
+                    noDataMessage.style.display = 'block';
+                    noDataMessage.querySelector('p').textContent = `Error loading data: ${error.message}`;
+                    
+                    console.error('Error fetching graph data:', error);
+                    
+                    // Update chart to error state
+                    charts.weather.data.labels = [];
+                    charts.weather.data.datasets[0].data = [];
+                    charts.weather.data.datasets[0].label = `Error loading data`;
+                    charts.weather.update();
+                });
+        }
+        
+        /**
+         * Load data and render all detail charts
+         */
+        function loadAndRenderDetailCharts(stationId, period) {
+            // Show loading state for all detail charts
+            document.querySelectorAll('canvas[id$="Chart"]').forEach(canvas => {
+                if (canvas.id !== 'weatherChart') {
+                    canvas.classList.add('loading');
+                }
             });
             
             // Fetch temperature data
@@ -341,7 +340,7 @@
             // Fetch wind data
             fetch(`/maps/api/stations/${stationId}/graph-data/?period=${period}&data_type=wind`)
                 .then(response => response.json())
-                .then(data => {
+                .then data => {
                     renderWindChart(data);
                 })
                 .catch(error => console.error('Error loading wind data:', error));
