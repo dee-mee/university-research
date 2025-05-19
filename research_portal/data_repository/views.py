@@ -679,7 +679,12 @@ def api_dataset_timeseries(request, dataset_id):
         'version': current_version.version_number,
         'time_resolution': current_version.time_resolution,
         'time_start': current_version.time_start,
-        '
+        'time_end': current_version.time_end,
+        'variables': variables,
+        'data': time_series_data
+    }
+    
+    return JsonResponse(response_data)
 
 @login_required
 def dataset_create(request):
