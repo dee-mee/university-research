@@ -98,7 +98,7 @@ def process_data_export(export_id):
         try:
             export = DataExport.objects.get(id=export_id)
             export.status = 'failed'
-            export.error_message = str(e)
+            export.error_log = str(e)
             export.sanitize_error_message()  # Remove sensitive details
             export.save(update_fields=['status', 'error_message'])
         except:

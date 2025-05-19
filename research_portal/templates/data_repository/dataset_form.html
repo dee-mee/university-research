@@ -6,6 +6,16 @@
 <div class="dataset-form">
     <h1>{% if form.instance.pk %}Edit Dataset{% else %}Create New Dataset{% endif %}</h1>
     
+    {% if messages %}
+    <div class="alert alert-info message-container">
+        {% for message in messages %}
+        <div class="{% if message.tags %}alert alert-{{ message.tags }}{% else %}alert alert-info{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
         
@@ -80,4 +90,4 @@
         </div>
     </form>
 </div>
-{% endblock %} 
+{% endblock %}

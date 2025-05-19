@@ -1,0 +1,152 @@
+/**
+ * Styles for the Weather Station Hotspot Feature
+ */
+
+/* Parameter controls panel */
+.parameter-controls {
+    position: absolute;
+    top: 80px;
+    right: 10px;
+    width: 250px;
+    z-index: 1000;
+    background: white;
+    border-radius: 4px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.2);
+}
+
+/* Legend styles */
+.legend-color {
+    width: 20px;
+    height: 20px;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+.legend-item {
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+}
+
+.legend-label {
+    margin-left: 8px;
+    font-size: 12px;
+}
+
+/* Hotspot marker styles */
+.marker-content.hotspot,
+.custom-hotspot-marker .hotspot-dot {
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-weight: bold;
+    text-shadow: 0px 0px 2px rgba(0, 0, 0, 0.7);
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+    border: 2px solid white;
+    transition: all 0.3s ease;
+    z-index: 1000 !important;
+}
+
+.marker-content.hotspot:hover {
+    transform: scale(1.2);
+    z-index: 1000;
+}
+
+.marker-content.hotspot .marker-label {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.marker-content.hotspot:hover .marker-label {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Loading indicator */
+.hotspot-loader {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255, 255, 255, 0.9);
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 1500;
+}
+
+.hotspot-loader p {
+    margin-top: 10px;
+    font-weight: bold;
+}
+
+/* Chart container styles */
+.chart-container {
+    position: relative;
+    height: 200px;
+    margin-top: 15px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .parameter-controls {
+        top: auto;
+        bottom: 20px;
+        right: 10px;
+        left: 10px;
+        width: auto;
+    }
+}
+
+/* Parameter button styles */
+.parameter-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 10px;
+}
+
+.parameter-btn {
+    flex: 1;
+    min-width: 100px;
+    font-size: 12px;
+    padding: 6px 10px;
+}
+
+/* Marker size examples for legend */
+.marker-size-example {
+    border-radius: 50%;
+    background-color: #4285F4;
+    display: inline-block;
+}
+
+.marker-size-example.small {
+    width: 10px;
+    height: 10px;
+}
+
+.marker-size-example.medium {
+    width: 20px;
+    height: 20px;
+}
+
+.marker-size-example.large {
+    width: 30px;
+    height: 30px;
+}

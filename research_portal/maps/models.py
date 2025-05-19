@@ -37,12 +37,9 @@ class WeatherStation(models.Model):
     """Weather station or climate data collection point"""
     name = models.CharField(max_length=255)
     station_id = models.CharField(max_length=100, unique=True, null=True, blank=True)
-    station_id = models.CharField(max_length=100, unique=True, null=True, blank=True)
     description = models.TextField(blank=True, null=True)
     location = models.PointField(srid=4326, geography=True, spatial_index=True)  # Add spatial_index=True for better performance
     altitude = models.FloatField(help_text="Altitude in meters above sea level", null=True, blank=True)
-    country = models.ForeignKey(Country, on_delete=models.SET_NULL, null=True, related_name='stations')
-    region = models.CharField(max_length=100, blank=True, null=True, help_text="Administrative region within country")
     country = models.ForeignKey(Country, on_delete=models.SET_NULL, null=True, related_name='stations')
     region = models.CharField(max_length=100, blank=True, null=True, help_text="Administrative region within country")
     is_active = models.BooleanField(default=True)
@@ -415,8 +412,8 @@ class ClimateData(models.Model):
     
     station = models.ForeignKey(WeatherStation, on_delete=models.CASCADE, related_name='climate_data')
     timestamp = models.DateTimeField(db_index=True)
-    year = models.IntegerField(db_index=True, help_text="Year of the measurement for easier filtering")
-    month = models.IntegerField(db_index=True, help_text="Month of the measurement for easier filtering")
+    year = models.IntegerField(db_index=True, help_text="Year of the measurement for easier filtering", default=2000)
+    month = models.IntegerField(db_index=True, help_text="Month of the measurement for easier filtering", default=1)
     season = models.CharField(
         max_length=10, 
         choices=SEASON_CHOICES, 
@@ -513,37 +510,8 @@ class ClimateData(models.Model):
             self.year = self.timestamp.year
             self.month = self.timestamp.month
             
-            # Only set season if the field exists in the database
-            try:
-                # Determine whether station is in Southern Hemisphere
-                is_southern = self.station.is_southern_hemisphere
-                
-                # Determine season based on month and hemisphere
-                if is_southern:
-                    # Southern Hemisphere has opposite seasons
-                    if self.month in [12, 1, 2]:
-                        self.season = 'summer'
-                    elif self.month in [3, 4, 5]:
-                        self.season = 'autumn'
-                    elif self.month in [6, 7, 8]:
-                        self.season = 'winter'
-                    else:  # 9, 10, 11
-                        self.season = 'spring'
-                else:
-                    # Northern Hemisphere seasons
-                    if self.month in [12, 1, 2]:
-                        self.season = 'winter'
-                    elif self.month in [3, 4, 5]:
-                        self.season = 'spring'
-                    elif self.month in [6, 7, 8]:
-                        self.season = 'summer'
-                    else:  # 9, 10, 11
-                        self.season = 'autumn'
-            except Exception:
-                # If the season field doesn't exist yet (e.g., during migrations),
-                # just skip setting it rather than failing
-                logger.debug("Could not set season field, it may not exist yet", exc_info=True)
-                pass
+            # No regional season determination - each station stands alone
+            # Season needs to be explicitly set if required
                 
         super().save(*args, **kwargs)
 
@@ -580,7 +548,7 @@ class DataExport(models.Model):
     include_metadata = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     download_count = models.PositiveIntegerField(default=0, help_text="Number of times this export has been downloaded")
-    error_message = models.TextField(blank=True, null=True)
+    error_log = models.TextField(blank=True, null=True)
     
     # New fields we're adding
     file = models.FileField(upload_to='exports/', null=True, blank=True, help_text="The exported data file")
@@ -637,8 +605,7 @@ class WeatherAlert(models.Model):
     
     title = models.CharField(max_length=255)
     description = models.TextField()
-    data_type = models.ForeignKey(WeatherDataType, on_delete=models.CASCADE, related_name='alerts')
-    data_type = models.ForeignKey(WeatherDataType, on_delete=models.CASCADE, related_name='alerts')
+    data_type = models.ForeignKey(WeatherDataType, on_delete=models.CASCADE, related_name='alerts', null=True)
     threshold_value = models.FloatField()
     severity = models.CharField(max_length=10, choices=SEVERITY_CHOICES)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active')

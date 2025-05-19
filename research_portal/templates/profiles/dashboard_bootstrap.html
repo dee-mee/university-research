@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Research Portal - Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    .main-content {
+        padding: 1rem;
+        min-height: 100vh;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-md-3">
+            <!-- Profile Sidebar -->
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <img src="{% if user.profile.profile_image %}{{ user.profile.profile_image.url }}{% else %}{% static 'img/default-avatar.png' %}{% endif %}" 
+                         alt="Profile Picture" 
+                         class="rounded-circle mb-3" 
+                         style="width: 150px; height: 150px; object-fit: cover; border: 3px solid #0d5dc5;">
+                    <h4 class="mb-0">{{ user.get_full_name }}</h4>
+                    <p class="text-muted">{{ user.email }}</p>
+                    <a href="{% url 'profiles:edit_profile' %}" class="btn btn-primary mt-3">Edit Profile</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-9">
+            <!-- Quick Actions -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card bg-light text-center">
+                                <div class="card-body">
+                                    <i class="fas fa-plus-circle fa-3x mb-3"></i>
+                                    <h5 class="mb-0">Create Dataset</h5>
+                                    <a href="{% url 'repository:dataset_create' %}" class="btn btn-primary mt-3">Create</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light text-center">
+                                <div class="card-body">
+                                    <i class="fas fa-map-marker-alt fa-3x mb-3"></i>
+                                    <h5 class="mb-0">View Maps</h5>
+                                    <a href="{% url 'maps:map' %}" class="btn btn-primary mt-3">View Maps</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light text-center">
+                                <div class="card-body">
+                                    <i class="fas fa-bell fa-3x mb-3"></i>
+                                    <h5 class="mb-0">Notifications</h5>
+                                    <a href="{% url 'profiles:notifications' %}" class="btn btn-primary mt-3">View Notifications</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Data -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Live Data</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for station in recent_stations %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ station.name }}</h6>
+                                    <p class="small text-muted mb-2">{{ station.location.y|floatformat:2 }}, {{ station.location.x|floatformat:2 }}</p>
+                                    
+                                    <!-- Temperature -->
+                                    {% if station.has_temperature %}
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="fas fa-temperature-high text-primary me-2"></i>
+                                        <span class="fw-bold">{{ station.temperature|default:"-" }}°C</span>
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- Precipitation -->
+                                    {% if station.has_precipitation %}
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="fas fa-cloud-rain text-primary me-2"></i>
+                                        <span class="fw-bold">{{ station.precipitation|default:"-" }}mm</span>
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- Humidity -->
+                                    {% if station.has_humidity %}
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="fas fa-tint text-primary me-2"></i>
+                                        <span class="fw-bold">{{ station.humidity|default:"-" }}%</span>
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- Wind -->
+                                    {% if station.has_wind %}
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="fas fa-wind text-primary me-2"></i>
+                                        <span class="fw-bold">{{ station.wind_speed|default:"-" }}km/h</span>
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- Last Update -->
+                                    <div class="text-muted small">
+                                        Last update: {{ station.last_data_feed|timesince }} ago
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12">
+                            <p class="text-center text-muted">No live data available</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card bg-light text-center">
+                                <div class="card-body">
+                                    <i class="fas fa-plus-circle fa-3x mb-3"></i>
+                                    <h5 class="mb-0">Create Dataset</h5>
+                                    <a href="{% url 'repository:dataset_create' %}" class="btn btn-primary mt-3">Create</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light text-center">
+                                <div class="card-body">
+                                    <i class="fas fa-map-marker-alt fa-3x mb-3"></i>
+                                    <h5 class="mb-0">View Maps</h5>
+                                    <a href="{% url 'maps:map' %}" class="btn btn-primary mt-3">View Maps</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light text-center">
+                                <div class="card-body">
+                                    <i class="fas fa-bell fa-3x mb-3"></i>
+                                    <h5 class="mb-0">Notifications</h5>
+                                    <a href="{% url 'profiles:notifications' %}" class="btn btn-primary mt-3">View Notifications</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Recent Activity</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_activity %}
+                        <div class="list-group">
+                            {% for activity in recent_activity %}
+                            <div class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">{{ activity.action }}</h6>
+                                    <small class="text-muted">{{ activity.timestamp|timesince }} ago</small>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No recent activity recorded.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Statistics -->
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card bg-light text-center">
+                                <div class="card-body">
+                                    <h2 class="mb-0">{{ user.profile.datasets.count }}</h2>
+                                    <p class="text-muted mb-0">Datasets Created</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light text-center">
+                                <div class="card-body">
+                                    <h2 class="mb-0">{{ user.profile.downloads.count }}</h2>
+                                    <p class="text-muted mb-0">Downloads</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light text-center">
+                                <div class="card-body">
+                                    <h2 class="mb-0">{{ user.profile.contributions.count }}</h2>
+                                    <p class="text-muted mb-0">Contributions</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add smooth scroll to navigation links
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+            if (this.getAttribute('href').startsWith('#')) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth' });
+                }
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
