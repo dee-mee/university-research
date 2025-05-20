@@ -84,32 +84,62 @@ class DatasetVersionForm(forms.ModelForm):
             'metadata': forms.Textarea(attrs={'class': 'json-editor', 'rows': 5}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['metadata'].required = False
+        self.fields['file_path'].label = "Dataset File"
+        self.fields['file_path'].help_text = "Upload the dataset file (max 100MB)"
+
     def clean_version_number(self):
         version_number = self.cleaned_data['version_number']
         if not version_number:
             raise forms.ValidationError('Version number is required.')
+        
+        # Check for valid semantic versioning format (e.g., 1.0.0)
+        import re
+        if not re.match(r'^\d+(\.\d+)*$', version_number):
+            raise forms.ValidationError('Please use a valid version format (e.g., 1.0, 2.1.3).')
+        
         return version_number
 
     def clean_file_path(self):
-        file_path = self.cleaned_data['file_path']
+        file_path = self.cleaned_data.get('file_path')
         if not file_path:
-            raise forms.ValidationError('File path is required.')
+            raise forms.ValidationError('You must upload a dataset file.')
+        
+        # Check file size (limit to 100MB)
+        if file_path.size > 1024 * 1024 * 100:
+            raise forms.ValidationError('File is too large. Maximum file size is 100MB.')
+        
+        # Validate file extension
+        allowed_extensions = ['.csv', '.txt', '.json', '.nc', '.netcdf', '.xls', '.xlsx']
+        import os
+        ext = os.path.splitext(file_path.name)[1].lower()
+        if ext not in allowed_extensions:
+            raise forms.ValidationError(
+                f'Unsupported file format. Allowed formats: {", ".join(allowed_extensions)}'
+            )
+        
         return file_path
     
     def clean_metadata(self):
-        metadata = self.cleaned_data['metadata']
+        metadata = self.cleaned_data.get('metadata')
+        if not metadata:
+            return {}
+            
         if isinstance(metadata, str):
             try:
                 return json.loads(metadata)
             except json.JSONDecodeError:
-                raise forms.ValidationError('Invalid JSON format')
+                raise forms.ValidationError('Invalid JSON format in metadata field.')
         return metadata
     
     def clean_variables(self):
         variables = self.cleaned_data.get('variables')
-        if variables:
-            return [v.strip() for v in variables.split(',')]
-        return []
+        if not variables:
+            return []
+            
+        return [v.strip() for v in variables.split(',') if v.strip()]
     
     def save(self, commit=True):
         instance = super().save(commit=False)
@@ -130,6 +160,10 @@ class DatasetVersionForm(forms.ModelForm):
             metadata['variables'] = self.clean_variables()
         
         instance.metadata = metadata
+        
+        # Set file size
+        if instance.file_path:
+            instance.file_size = instance.file_path.size
         
         if commit:
             instance.save()

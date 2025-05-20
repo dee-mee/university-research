@@ -1,8 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
-{% load static %}
 
-{% block title %}Import CSV Data{% endblock %}
 {% block title %}Import CSV Data{% endblock %}
 
 {% block content %}
@@ -25,32 +23,7 @@
                                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                                 </div>
                             {% endfor %}
-<div class="container py-4">
-    <div class="row">
-        <div class="col-md-8 offset-md-2">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <h2 class="card-title mb-0">
-                        <i class="fas fa-file-upload me-2"></i>CSV Data Import
-                    </h2>
-                </div>
-
-                <div class="card-body">
-                    {% if messages %}
-                        <div class="alert-container mb-4">
-                            {% for message in messages %}
-                                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                                    {{ message }}
-                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                                </div>
-                            {% endfor %}
                         </div>
-                    {% endif %}
-
-                    <div class="mb-4">
-                        <p class="text-muted">
-                            Current date and time: {{ current_datetime|date:"F j, Y, g:i a" }}
-                        </p>
                     {% endif %}
 
                     <div class="mb-4">
@@ -58,109 +31,6 @@
                             Current date and time: {{ current_datetime|date:"F j, Y, g:i a" }}
                         </p>
                     </div>
-
-                    <form method="post" enctype="multipart/form-data" id="csv-upload-form">
-                        {% csrf_token %}
-                        
-                        <div class="mb-4">
-                            <label for="{{ form.import_type.id_for_label }}" class="form-label fw-bold">
-                                Import Type:
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="fas fa-tag"></i>
-                                </span>
-                                {{ form.import_type }}
-                            </div>
-                            <div class="form-text">
-                                Select the type of data you are importing
-                            </div>
-                            {% if form.import_type.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {{ form.import_type.errors }}
-                                </div>
-                            {% endif %}
-                        </div>
-
-                        <div class="mb-4">
-                            <label for="{{ form.csv_file.id_for_label }}" class="form-label fw-bold">
-                                CSV File:
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="fas fa-file-csv"></i>
-                                </span>
-                                {{ form.csv_file }}
-                            </div>
-                            <div class="form-text">
-                                Select a CSV file to upload. Make sure it follows the required format.
-                            </div>
-                            {% if form.csv_file.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {{ form.csv_file.errors }}
-                                </div>
-                            {% endif %}
-                        </div>
-
-                        <div class="format-guides collapse mb-4" id="formatGuidesCollapse">
-                            <div class="card card-body bg-light">
-                                <h5>CSV Format Guidelines</h5>
-                                <ul class="nav nav-tabs" id="formatTabs" role="tablist">
-                                    <li class="nav-item" role="presentation">
-                                        <button class="nav-link active" id="stations-tab" data-bs-toggle="tab" data-bs-target="#stations-format" type="button" role="tab">Stations</button>
-                                    </li>
-                                    <li class="nav-item" role="presentation">
-                                        <button class="nav-link" id="climate-tab" data-bs-toggle="tab" data-bs-target="#climate-format" type="button" role="tab">Climate Data</button>
-                                    </li>
-                                    <li class="nav-item" role="presentation">
-                                        <button class="nav-link" id="datatypes-tab" data-bs-toggle="tab" data-bs-target="#datatypes-format" type="button" role="tab">Data Types</button>
-                                    </li>
-                                    <li class="nav-item" role="presentation">
-                                        <button class="nav-link" id="countries-tab" data-bs-toggle="tab" data-bs-target="#countries-format" type="button" role="tab">Countries</button>
-                                    </li>
-                                </ul>
-                                <div class="tab-content pt-3" id="formatTabsContent">
-                                    <div class="tab-pane fade show active" id="stations-format" role="tabpanel">
-                                        <h6>Required fields:</h6>
-                                        <code>name</code> and either (<code>latitude</code> and <code>longitude</code>) or <code>location</code>
-                                        <h6>Optional fields:</h6>
-                                        <code>station_id</code>, <code>description</code>, <code>altitude</code>, <code>is_active</code>, <code>date_installed</code>, <code>date_decommissioned</code>, <code>country</code>, <code>region</code>, <code>has_temperature</code>, <code>has_precipitation</code>, <code>has_humidity</code>, <code>has_wind</code>, <code>has_air_quality</code>, <code>has_soil_moisture</code>, <code>has_water_level</code>
-                                    </div>
-                                    <div class="tab-pane fade" id="climate-format" role="tabpanel">
-                                        <h6>Required fields:</h6>
-                                        <code>timestamp</code> and one of (<code>station_name</code>, <code>station_id</code>, or <code>station</code>)
-                                        <h6>Optional fields:</h6>
-                                        <code>temperature</code>, <code>humidity</code>, <code>precipitation</code>, <code>air_quality_index</code>, <code>wind_speed</code>, <code>wind_direction</code>, <code>barometric_pressure</code>, <code>cloud_cover</code>, <code>soil_moisture</code>, <code>water_level</code>, <code>uv_index</code>, <code>data_quality</code>
-                                    </div>
-                                    <div class="tab-pane fade" id="datatypes-format" role="tabpanel">
-                                        <h6>Required fields:</h6>
-                                        <code>name</code>
-                                        <h6>Optional fields:</h6>
-                                        <code>display_name</code>, <code>description</code>, <code>unit</code>, <code>min_value</code>, <code>max_value</code>, <code>icon</code>
-                                    </div>
-                                    <div class="tab-pane fade" id="countries-format" role="tabpanel">
-                                        <h6>Required fields:</h6>
-                                        <code>name</code>, <code>code</code>
-                                    </div>
-                                </div>
-                                <div class="mt-3">
-                                    <a href="#" class="btn btn-sm btn-outline-secondary">
-                                        <i class="fas fa-download me-1"></i>Download Template Files
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="d-flex align-items-center mb-4">
-                            <button type="button" class="btn btn-link text-decoration-none" data-bs-toggle="collapse" href="#formatGuidesCollapse">
-                                <i class="fas fa-info-circle me-1"></i>View Format Guidelines
-                            </button>
-                        </div>
-
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary btn-lg" id="submit-button">
-                                <i class="fas fa-upload me-2"></i>Upload and Process
-                            </button>
 
                     <form method="post" enctype="multipart/form-data" id="csv-upload-form">
                         {% csrf_token %}
@@ -298,51 +168,14 @@
             <div class="modal-body text-center py-4">
                 <div class="spinner-border text-primary mb-3" role="status">
                     <span class="visually-hidden">Loading...</span>
-                    </form>
                 </div>
-
-                <div class="card-footer bg-light">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <a href="{% url 'maps:map' %}" class="btn btn-outline-secondary">
-                            <i class="fas fa-arrow-left me-1"></i>Back to Map
-                        </a>
-                        <div class="btn-group">
-                            <a href="{% url 'maps:flash_drive_import' %}" class="btn btn-outline-info">
-                                <i class="fas fa-usb me-1"></i>Import from Flash Drive
-                            </a>
-                            <a href="#" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#formatGuidesCollapse">
-                                <i class="fas fa-info-circle me-1"></i>View Format Guide
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Modal for displaying processing status -->
-<div class="modal fade" id="processingModal" tabindex="-1" aria-labelledby="processingModalLabel" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="processingModalLabel">Processing Data</h5>
-            </div>
-            <div class="modal-body text-center py-4">
-                <div class="spinner-border text-primary mb-3" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                <p class="mb-0">Please wait while your CSV file is being processed...</p>
-            </div>
                 <p class="mb-0">Please wait while your CSV file is being processed...</p>
             </div>
         </div>
     </div>
 </div>
 {% endblock %}
-{% endblock %}
 
-{% block extra_js %}
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {

@@ -4,7 +4,13 @@ from django.urls import re_path
 from . import views
 from .views import MapView, CSVUploadView, ImportSuccessView, flash_drive_import_view, field_data_upload
 from .field_views import field_data_upload_detail, field_data_visualize, field_data_retry
-from .api_views import DeviceTypeViewSet, FieldDeviceViewSet, DeviceCalibrationViewSet, FieldDataUploadViewSet
+from .api_views import (
+    DeviceTypeViewSet, 
+    FieldDeviceViewSet, 
+    DeviceCalibrationViewSet, 
+    FieldDataUploadViewSet,
+    StationViewSet
+)
 from .field_device_api import device_data_upload
 from .field_data_views import field_data_analysis, field_data_analysis_api
 from .batch_operations import batch_operations_view, batch_operations_api
@@ -19,6 +25,7 @@ router.register(r'device-types', DeviceTypeViewSet)
 router.register(r'field-devices', FieldDeviceViewSet)
 router.register(r'device-calibrations', DeviceCalibrationViewSet)
 router.register(r'field-data-uploads', FieldDataUploadViewSet, basename='field-data-upload')
+router.register(r'stations', StationViewSet, basename='stations')  # Register StationViewSet
 
 # Add custom action URL configuration
 FieldDataUploadViewSet.basename = 'field-data-upload'
