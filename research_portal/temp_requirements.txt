@@ -1,0 +1,56 @@
+# Core Django requirements
+Django>=4.2.0,<5.0.0
+djangorestframework>=3.14.0,<4.0.0
+django-filter>=23.5,<25.0
+django-crispy-forms>=1.12.0,<2.0.0
+
+# PostgreSQL and GeoDjango support
+psycopg2-binary>=2.8.6,<2.10.0
+# Temporarily commented out until system GDAL is properly installed
+# GDAL>=3.8.4,<4.0.0
+djangorestframework-gis==0.17
+
+# Data processing and visualization
+numpy==2.2.4
+pandas>=2.0.0 
+matplotlib>=3.7.0
+pytz>=2021.1
+
+# CSV processing enhancements
+chardet>=4.0.0,<5.0.0  # For automatic encoding detection
+xlsxwriter>=1.4.0,<2.0.0  # Excel export support
+python-dateutil>=2.8.1,<3.0.0  # Improved date parsing
+
+# Background processing
+APScheduler>=3.7.0,<4.0.0  # For scheduled tasks
+
+# Development utilities
+pytest>=6.2.0,<7.0.0
+pytest-django>=4.4.0,<5.0.0
+flake8>=3.9.0,<4.0.0
+
+asgiref==3.8.1
+certifi==2025.1.31
+charset-normalizer==3.4.1
+djangorestframework-gis==0.17
+dotenv==0.9.9
+# gis==0.2.1
+gunicorn==23.0.0
+idna==3.10
+packaging==24.2
+pillow==11.1.0
+requests==2.32.3
+six==1.17.0
+sqlparse==0.5.3
+tzdata==2025.1
+tzlocal==5.3.1
+urllib3==2.3.0
+whitenoise==6.9.0
+xlsxwriter
+cgi-tools
+prettytable
+
+# Test Data Generation
+tqdm
+faker
+netCDF4

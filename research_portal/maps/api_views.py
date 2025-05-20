@@ -7,11 +7,15 @@ from django.contrib.gis.geos import Point
 from django.utils import timezone
 from django.db import transaction
 from django.core.exceptions import ValidationError
+from datetime import datetime
+from rest_framework.views import APIView
+from django.db.models import Max
 
 # Set up logger
 logger = logging.getLogger(__name__)
 
 from .field_models import DeviceType, FieldDevice, DeviceCalibration, FieldDataUpload, FieldDataRecord
+from .models import WeatherStation
 from .serializers import (
     DeviceTypeSerializer,
     FieldDeviceSerializer,
@@ -265,3 +269,71 @@ class FieldDataUploadViewSet(viewsets.ModelViewSet):
             upload.status = 'failed'
             upload.error_log = str(e)
             upload.save()
+
+class StationViewSet(viewsets.ViewSet):
+    """API endpoint for retrieving all station data for the map"""
+    permission_classes = [AllowAny]  # Allow public access to station locations
+    
+    def list(self, request):
+        """Return a list of all stations with their location and status information"""
+        # Get weather stations
+        weather_stations = WeatherStation.objects.all().annotate(
+            last_data_received=Max('weatherdata__timestamp')
+        )
+        
+        # Get field devices 
+        field_devices = FieldDevice.objects.all().annotate(
+            last_data_received=Max('fielddatarecord__timestamp')
+        )
+        
+        # Combine data from both sources
+        stations = []
+        
+        # Process weather stations
+        for station in weather_stations:
+            is_online = station.is_active
+            if station.last_data_received:
+                time_diff = timezone.now() - station.last_data_received
+                is_online = time_diff.total_seconds() < 86400  # 24 hours
+            
+            stations.append({
+                'id': f"ws_{station.id}",
+                'name': station.name,
+                'device_type': 'weather_station',
+                'latitude': station.latitude,
+                'longitude': station.longitude,
+                'location_name': station.location_description,
+                'status': 'active' if station.is_active else 'inactive',
+                'is_online': is_online,
+                'last_data_received': station.last_data_received,
+                'has_alerts': station.has_alerts if hasattr(station, 'has_alerts') else False,
+                'battery_level': station.battery_level if hasattr(station, 'battery_level') else None,
+                'signal_strength': station.signal_strength if hasattr(station, 'signal_strength') else None,
+                'show_label': True
+            })
+        
+        # Process field devices
+        for device in field_devices:
+            is_online = device.status == 'active'
+            if device.last_communication:
+                time_diff = timezone.now() - device.last_communication
+                is_online = time_diff.total_seconds() < 86400  # 24 hours
+            
+            if device.location:
+                stations.append({
+                    'id': device.device_id,
+                    'name': device.name,
+                    'device_type': 'field_device',
+                    'latitude': device.location.y,  # GeoDjango Point stores lat in y
+                    'longitude': device.location.x, # GeoDjango Point stores lon in x
+                    'location_name': device.location_description if hasattr(device, 'location_description') else '',
+                    'status': device.status,
+                    'is_online': is_online,
+                    'last_data_received': device.last_communication,
+                    'has_alerts': False,  # Set default value
+                    'battery_level': device.battery_level if hasattr(device, 'battery_level') else None,
+                    'signal_strength': device.signal_strength if hasattr(device, 'signal_strength') else None,
+                    'show_label': True
+                })
+        
+        return Response(stations)

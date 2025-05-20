@@ -105,57 +105,70 @@ function initMap() {
 
 // Load map data from API
 function loadMapData() {
-    fetch('/maps/api/map-data/')
-        .then(response => response.json())
+    // Show loading indicator
+    document.getElementById('map-loading').style.display = 'block';
+    
+    // Reset counters
+    weatherStationCount = 0;
+    fieldDeviceCount = 0;
+    manualEntryCount = 0;
+    
+    statusActiveCount = 0;
+    statusMaintenanceCount = 0;
+    statusInactiveCount = 0;
+    statusLostCount = 0;
+    
+    batteryGoodCount = 0;
+    batteryLowCount = 0;
+    batteryCriticalCount = 0;
+    
+    // Clear existing layers
+    weatherStations.clearLayers();
+    fieldDevices.clearLayers();
+    manualEntries.clearLayers();
+    
+    // Fetch station data from the database through API
+    fetch('/api/stations/')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
         .then(data => {
-            // Reset counters
-            weatherStationCount = 0;
-            fieldDeviceCount = 0;
-            manualEntryCount = 0;
+            // Process the data
+            console.log('Received map data:', data);
             
-            statusActiveCount = 0;
-            statusMaintenanceCount = 0;
-            statusInactiveCount = 0;
-            statusLostCount = 0;
-            
-            batteryGoodCount = 0;
-            batteryLowCount = 0;
-            batteryCriticalCount = 0;
-            
-            // Clear existing layers
-            weatherStations.clearLayers();
-            fieldDevices.clearLayers();
-            manualEntries.clearLayers();
-            
-            // Process weather stations
-            if (data.weather_stations && data.weather_stations.features) {
-                weatherStationCount = data.weather_stations.features.length;
-                processWeatherStations(data.weather_stations);
-            }
-            
-            // Process field devices
-            if (data.field_devices && data.field_devices.features) {
-                fieldDeviceCount = data.field_devices.features.length;
-                processFieldDevices(data.field_devices);
-            }
-            
-            // Process manual entries
-            if (data.manual_entries && data.manual_entries.features) {
-                manualEntryCount = data.manual_entries.features.length;
-                processManualEntries(data.manual_entries);
-            }
+            // Process all stations
+            data.forEach(station => {
+                if (station.device_type === 'weather_station') {
+                    processWeatherStation(station);
+                } else if (station.device_type === 'field_device') {
+                    processFieldDevice(station);
+                } else if (station.device_type === 'manual_entry') {
+                    processManualEntry(station);
+                }
+            });
             
             // Update filter counts
             updateFilterCounts();
             
-            // Fit map to bounds if we have data
-            if (weatherStationCount > 0 || fieldDeviceCount > 0 || manualEntryCount > 0) {
-                const allLayers = L.layerGroup([weatherStations, fieldDevices, manualEntries]);
-                map.fitBounds(allLayers.getBounds());
-            }
+            // Hide loading indicator
+            document.getElementById('map-loading').style.display = 'none';
+            
+            // Make sure all layers are added to the map
+            weatherStations.addTo(map);
+            fieldDevices.addTo(map);
+            manualEntries.addTo(map);
+            
+            // Update station dropdown
+            updateStationDropdown(data);
         })
         .catch(error => {
-            console.error('Error loading map data:', error);
+            console.error('Error fetching map data:', error);
+            document.getElementById('map-error').textContent = 'Failed to load map data. Please try again later.';
+            document.getElementById('map-error').style.display = 'block';
+            document.getElementById('map-loading').style.display = 'none';
         });
 }
 

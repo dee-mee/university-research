@@ -66,6 +66,11 @@
                 <a href="{% url 'maps:map' %}" class="btn btn-outline-secondary">
                     <i class="fas fa-arrow-left me-2"></i>Back to Map
                 </a>
+                {% if user.is_staff or user.is_superuser %}
+                <a href="{% url 'maps:station_data_stack' station_id %}" class="btn btn-outline-primary">
+                    <i class="fas fa-layer-group me-2"></i>Data Stack
+                </a>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -231,26 +236,82 @@
         </div>
     </div>
 
-    <!-- Time Series Visualization -->
+    <!-- Data Visualization Tabs -->
     <div class="card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h2 class="h5 mb-0">Temperature Trend</h2>
+        <div class="card-header">
+            <ul class="nav nav-tabs card-header-tabs" id="data-visualizations" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="temperature-tab" data-bs-toggle="tab" data-bs-target="#temperature-pane" type="button" role="tab">Temperature</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="precipitation-tab" data-bs-toggle="tab" data-bs-target="#precipitation-pane" type="button" role="tab">Precipitation</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="humidity-tab" data-bs-toggle="tab" data-bs-target="#humidity-pane" type="button" role="tab">Humidity</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="wind-tab" data-bs-toggle="tab" data-bs-target="#wind-pane" type="button" role="tab">Wind</button>
+                </li>
+            </ul>
         </div>
         <div class="card-body">
-            <div class="chart-container">
-                <canvas id="temperature-chart"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- Precipitation Visualization -->
-    <div class="card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h2 class="h5 mb-0">Precipitation Trend</h2>
-        </div>
-        <div class="card-body">
-            <div class="chart-container">
-                <canvas id="precipitation-chart"></canvas>
+            <div class="tab-content" id="data-visualizations-content">
+                <div class="tab-pane fade show active" id="temperature-pane" role="tabpanel" aria-labelledby="temperature-tab">
+                    <div class="chart-container">
+                        <canvas id="temperature-chart"></canvas>
+                        <div id="temperature-loading" class="text-center py-5" style="display:none;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Loading temperature data...</p>
+                        </div>
+                        <div id="temperature-no-data" class="text-center py-5" style="display:none;">
+                            <p class="text-muted">No temperature data available for the selected time range</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="precipitation-pane" role="tabpanel" aria-labelledby="precipitation-tab">
+                    <div class="chart-container">
+                        <canvas id="precipitation-chart"></canvas>
+                        <div id="precipitation-loading" class="text-center py-5" style="display:none;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Loading precipitation data...</p>
+                        </div>
+                        <div id="precipitation-no-data" class="text-center py-5" style="display:none;">
+                            <p class="text-muted">No precipitation data available for the selected time range</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="humidity-pane" role="tabpanel" aria-labelledby="humidity-tab">
+                    <div class="chart-container">
+                        <canvas id="humidity-chart"></canvas>
+                        <div id="humidity-loading" class="text-center py-5" style="display:none;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Loading humidity data...</p>
+                        </div>
+                        <div id="humidity-no-data" class="text-center py-5" style="display:none;">
+                            <p class="text-muted">No humidity data available for the selected time range</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="wind-pane" role="tabpanel" aria-labelledby="wind-tab">
+                    <div class="chart-container">
+                        <canvas id="wind-chart"></canvas>
+                        <div id="wind-loading" class="text-center py-5" style="display:none;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Loading wind data...</p>
+                        </div>
+                        <div id="wind-no-data" class="text-center py-5" style="display:none;">
+                            <p class="text-muted">No wind data available for the selected time range</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
