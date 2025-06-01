@@ -1,1 +1,0 @@
-This is a test dataset file containing sample data.\n\nTemperature Data:\nDate,Location,Temperature\n2024-01-01,Station A,25.5\n2024-01-02,Station A,26.2\n2024-01-03,Station A,24.8\n\nPrecipitation Data:\nDate,Location,Precipitation (mm)\n2024-01-01,Station A,12.5\n2024-01-02,Station A,8.3\n2024-01-03,Station A,15.7
