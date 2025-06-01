@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Sync Data Between Apps{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h1>Data Synchronization</h1>
+            <p class="lead">Synchronize data between Map and Data Repository apps</p>
+            
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">Weather Stations to Data Repository</h5>
+                </div>
+                <div class="card-body">
+                    <p>Export climate data from weather stations to the data repository as datasets.</p>
+                    
+                    <form method="post" action="{% url 'integration:sync_data' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="sync_weather_data">
+                        
+                        <div class="mb-3">
+                            <label for="station_ids" class="form-label">Weather Stations to Sync</label>
+                            <select class="form-select" id="station_ids" name="station_ids" multiple size="5">
+                                <option value="">-- All Active Stations --</option>
+                                {% for station in weather_stations %}
+                                {% if station.is_active %}
+                                <option value="{{ station.id }}">{{ station.name }} ({{ station.station_id }})</option>
+                                {% else %}
+                                <option value="{{ station.id }}" class="text-muted">{{ station.name }} (Inactive)</option>
+                                {% endif %}
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Hold Ctrl/Cmd to select multiple stations, or leave blank for all active stations.</div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">Sync Weather Data</button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="card-title mb-0">Field Data Integration</h5>
+                </div>
+                <div class="card-body">
+                    <p>Integrate field device data with datasets in the data repository.</p>
+                    
+                    <form method="post" action="{% url 'integration:sync_data' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="sync_field_data">
+                        
+                        <div class="mb-3">
+                            <label for="date_range" class="form-label">Date Range</label>
+                            <div class="input-group">
+                                <input type="date" class="form-control" id="start_date" name="start_date">
+                                <span class="input-group-text">to</span>
+                                <input type="date" class="form-control" id="end_date" name="end_date">
+                            </div>
+                            <div class="form-text">Optional date range to limit data synchronization.</div>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="include_manual" name="include_manual" value="true" checked>
+                            <label class="form-check-label" for="include_manual">Include manually collected field data</label>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-success">Integrate Field Data</button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card shadow-sm mt-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="card-title mb-0">Sync Status</h5>
+                </div>
+                <div class="card-body">
+                    <h6>Last Synchronization: <span id="last_sync">Never</span></h6>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-4">
+                            <div class="card border-primary">
+                                <div class="card-body text-center">
+                                    <h3 id="weather_station_count">{{ weather_stations.count }}</h3>
+                                    <p class="mb-0">Weather Stations</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card border-success">
+                                <div class="card-body text-center">
+                                    <h3 id="dataset_count">--</h3>
+                                    <p class="mb-0">Datasets</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card border-info">
+                                <div class="card-body text-center">
+                                    <h3 id="linked_count">--</h3>
+                                    <p class="mb-0">Linked Records</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Initialize the current date in the date fields
+        var today = new Date();
+        var thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(today.getDate() - 30);
+        
+        // Format dates for the date inputs
+        var formatDate = function(date) {
+            var d = date,
+                month = '' + (d.getMonth() + 1),
+                day = '' + d.getDate(),
+                year = d.getFullYear();
+            
+            if (month.length < 2) month = '0' + month;
+            if (day.length < 2) day = '0' + day;
+            
+            return [year, month, day].join('-');
+        };
+        
+        $('#start_date').val(formatDate(thirtyDaysAgo));
+        $('#end_date').val(formatDate(today));
+        
+        // Enable multiple selection for station IDs
+        $('#station_ids').on('change', function() {
+            var selected = $(this).val();
+            if (selected && selected.indexOf("") >= 0) {
+                // If "All Active Stations" is selected, deselect others
+                $(this).val("");
+            }
+        });
+        
+        // Function to load sync status (could be implemented to call an API endpoint)
+        function loadSyncStatus() {
+            // This would typically be an AJAX call to a backend endpoint
+            // For now, we'll just simulate with static data
+            $('#dataset_count').text("{{ weather_stations.count }}");
+            $('#linked_count').text("--");
+            $('#last_sync').text("Not available");
+        }
+        
+        // Load initial status
+        loadSyncStatus();
+    });
+</script>
+{% endblock %}

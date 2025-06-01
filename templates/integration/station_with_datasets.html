@@ -1,0 +1,398 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ station.name }} - Station & Datasets{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@4.0.0/dist/chart.min.css">
+<style>
+    .station-header {
+        background-color: #f5f5f5;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .station-status {
+        font-size: 14px;
+        padding: 5px 10px;
+        border-radius: 20px;
+        display: inline-block;
+    }
+    
+    .status-active {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .status-inactive {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    
+    .map-container {
+        height: 300px;
+        border-radius: 8px;
+        overflow: hidden;
+        margin-bottom: 20px;
+    }
+    
+    .info-box {
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .chart-container {
+        height: 300px;
+        margin-bottom: 20px;
+    }
+    
+    .dataset-card {
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 15px;
+        margin-bottom: 20px;
+        transition: transform 0.2s;
+    }
+    
+    .dataset-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .dataset-actions {
+        margin-top: 10px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 5px;
+    }
+    
+    .btn-export {
+        margin-top: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'integration:dashboard' %}">Integration Dashboard</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ station.name }}</li>
+        </ol>
+    </nav>
+    
+    <div class="station-header">
+        <div class="row">
+            <div class="col-md-8">
+                <h1>{{ station.name }}</h1>
+                <div class="mb-2">
+                    <span class="station-status {% if station.is_active %}status-active{% else %}status-inactive{% endif %}">
+                        {% if station.is_active %}Active{% else %}Inactive{% endif %}
+                    </span>
+                    {% if station.station_id %}
+                    <span class="text-muted ml-2">Station ID: {{ station.station_id }}</span>
+                    {% endif %}
+                </div>
+                {% if station.description %}
+                <p>{{ station.description }}</p>
+                {% endif %}
+            </div>
+            <div class="col-md-4 text-md-right">
+                <a href="{% url 'maps:station_detail' station_id=station.id %}" class="btn btn-outline-primary">View in Maps</a>
+                
+                <button type="button" class="btn btn-success ml-2" data-bs-toggle="modal" data-bs-target="#exportModal">
+                    Export to Repository
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-5">
+            <div class="info-box">
+                <h4>Location Information</h4>
+                <div id="station-map" class="map-container"></div>
+                <table class="table table-sm">
+                    <tr>
+                        <th>Latitude:</th>
+                        <td>{{ station.latitude }}</td>
+                    </tr>
+                    <tr>
+                        <th>Longitude:</th>
+                        <td>{{ station.longitude }}</td>
+                    </tr>
+                    {% if station.altitude %}
+                    <tr>
+                        <th>Altitude:</th>
+                        <td>{{ station.altitude }} m</td>
+                    </tr>
+                    {% endif %}
+                    {% if station.country %}
+                    <tr>
+                        <th>Country:</th>
+                        <td>{{ station.country.name }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if station.region %}
+                    <tr>
+                        <th>Region:</th>
+                        <td>{{ station.region }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if station.date_installed %}
+                    <tr>
+                        <th>Installed:</th>
+                        <td>{{ station.date_installed }}</td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+            
+            <div class="info-box">
+                <h4>Available Data Types</h4>
+                <ul class="list-group">
+                    {% for data_type in station.available_data_types %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ data_type|title }}
+                        <span class="badge bg-primary rounded-pill">
+                            <i class="fas fa-check"></i>
+                        </span>
+                    </li>
+                    {% empty %}
+                    <li class="list-group-item text-muted">No data types available</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        
+        <div class="col-md-7">
+            <div class="info-box">
+                <h4>Recent Climate Data</h4>
+                {% if climate_data %}
+                <div class="chart-container">
+                    <canvas id="climateChart"></canvas>
+                </div>
+                <div class="d-flex justify-content-center">
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-primary" data-type="temperature">Temperature</button>
+                        <button type="button" class="btn btn-outline-primary" data-type="humidity">Humidity</button>
+                        <button type="button" class="btn btn-outline-primary" data-type="precipitation">Precipitation</button>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-muted">No recent climate data available.</p>
+                {% endif %}
+            </div>
+            
+            <div class="info-box">
+                <h4>Linked Datasets ({{ datasets|length }})</h4>
+                {% for dataset in datasets %}
+                <div class="dataset-card">
+                    <h5>{{ dataset.title }}</h5>
+                    <div class="d-flex justify-content-between">
+                        <span class="badge bg-info">{{ dataset.category }}</span>
+                        <small class="text-muted">Created: {{ dataset.created_at|date:"M d, Y" }}</small>
+                    </div>
+                    <p class="mt-2">{{ dataset.description|truncatechars:150 }}</p>
+                    <div class="dataset-actions">
+                        <a href="{% url 'repository:dataset_detail' dataset.id %}" class="btn btn-sm btn-outline-primary">
+                            View in Repository
+                        </a>
+                        <a href="{% url 'integration:dataset_with_stations' dataset.id %}" class="btn btn-sm btn-primary">
+                            View Details
+                        </a>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-muted">No datasets linked to this station.</p>
+                <div class="text-center">
+                    <button type="button" class="btn btn-success btn-export" data-bs-toggle="modal" data-bs-target="#exportModal">
+                        Export Station Data to Repository
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Export Modal -->
+<div class="modal fade" id="exportModal" tabindex="-1" aria-labelledby="exportModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exportModalLabel">Export Station Data to Repository</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="{% url 'integration:export_station_to_repository' station.id %}" method="post">
+          {% csrf_token %}
+          <div class="modal-body">
+              <div class="mb-3">
+                <label for="datasetTitle" class="form-label">Dataset Title</label>
+                <input type="text" class="form-control" id="datasetTitle" name="title" value="Weather data from {{ station.name }}" required>
+              </div>
+              <div class="mb-3">
+                <label for="description" class="form-label">Description</label>
+                <textarea class="form-control" id="description" name="description" rows="3">Weather data collected from station {{ station.name }}. Includes data for {{ station.available_data_types|join:", " }}.</textarea>
+              </div>
+              <div class="mb-3">
+                <label for="categorySelect" class="form-label">Category</label>
+                <select class="form-select" id="categorySelect" name="category_id">
+                    <option selected value="">Use Default (Weather Data)</option>
+                    <!-- Categories would be populated dynamically in a real implementation -->
+                </select>
+              </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary">Export Data</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.0.0/dist/chart.umd.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize map
+        const map = L.map('station-map').setView([{{ station.latitude }}, {{ station.longitude }}], 10);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        
+        // Add marker for the station
+        L.marker([{{ station.latitude }}, {{ station.longitude }}])
+            .addTo(map)
+            .bindPopup("<strong>{{ station.name }}</strong><br>{{ station.station_id }}");
+            
+        // Initialize climate chart if we have data
+        {% if climate_data %}
+            // Prepare data for charts
+            const timestamps = [
+                {% for record in climate_data %}
+                    "{{ record.timestamp|date:'Y-m-d H:i' }}",
+                {% endfor %}
+            ];
+            
+            const temperatureData = [
+                {% for record in climate_data %}
+                    {{ record.temperature|default:"null" }},
+                {% endfor %}
+            ];
+            
+            const humidityData = [
+                {% for record in climate_data %}
+                    {{ record.humidity|default:"null" }},
+                {% endfor %}
+            ];
+            
+            const precipitationData = [
+                {% for record in climate_data %}
+                    {{ record.precipitation|default:"null" }},
+                {% endfor %}
+            ];
+            
+            // Create chart
+            const ctx = document.getElementById('climateChart').getContext('2d');
+            let currentChart = null;
+            
+            function createChart(dataType) {
+                // Clear existing chart if any
+                if (currentChart) {
+                    currentChart.destroy();
+                }
+                
+                // Set chart data based on data type
+                let data, label, color, unit;
+                
+                switch(dataType) {
+                    case 'temperature':
+                        data = temperatureData;
+                        label = 'Temperature';
+                        color = 'rgb(255, 99, 132)';
+                        unit = '°C';
+                        break;
+                    case 'humidity':
+                        data = humidityData;
+                        label = 'Humidity';
+                        color = 'rgb(54, 162, 235)';
+                        unit = '%';
+                        break;
+                    case 'precipitation':
+                        data = precipitationData;
+                        label = 'Precipitation';
+                        color = 'rgb(75, 192, 192)';
+                        unit = 'mm';
+                        break;
+                    default:
+                        data = temperatureData;
+                        label = 'Temperature';
+                        color = 'rgb(255, 99, 132)';
+                        unit = '°C';
+                }
+                
+                // Create new chart
+                currentChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: timestamps,
+                        datasets: [{
+                            label: label,
+                            data: data,
+                            borderColor: color,
+                            backgroundColor: color.replace(')', ', 0.2)').replace('rgb', 'rgba'),
+                            tension: 0.1,
+                            pointRadius: 3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: unit
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Date/Time'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Initial chart - temperature
+            createChart('temperature');
+            
+            // Add click handlers for data type buttons
+            document.querySelectorAll('.btn-group button').forEach(button => {
+                button.addEventListener('click', function() {
+                    const dataType = this.getAttribute('data-type');
+                    document.querySelectorAll('.btn-group button').forEach(b => 
+                        b.classList.remove('active'));
+                    this.classList.add('active');
+                    createChart(dataType);
+                });
+            });
+            
+            // Set first button as active
+            document.querySelector('.btn-group button[data-type="temperature"]').classList.add('active');
+        {% endif %}
+    });
+</script>
+{% endblock %}

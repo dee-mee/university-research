@@ -1,0 +1,657 @@
+<div class="graphs-container my-4">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">Weather Data Graphs</h5>
+            <div class="graph-controls">
+                <select id="dataTypeSelect" class="form-select form-select-sm" aria-label="Data type selection">
+                    {% for data_type in available_data_types %}
+                    <option value="{{ data_type.field }}" {% if forloop.first %}selected{% endif %}>
+                        {{ data_type.display_name }}{% if data_type.unit %} ({{ data_type.unit }}){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+                <select id="timeRangeSelect" class="form-select form-select-sm ms-2" aria-label="Time range selection">
+                    <option value="1">Last 24 hours</option>
+                    <option value="7">Last 7 days</option>
+                    <option value="30" selected>Last 30 days</option>
+                    <option value="90">Last 3 months</option>
+                    <option value="365">Last year</option>
+                </select>
+                <select id="intervalSelect" class="form-select form-select-sm ms-2" aria-label="Time interval selection">
+                    <option value="hour">Hourly</option>
+                    <option value="day" selected>Daily</option>
+                    <option value="week">Weekly</option>
+                    <option value="month">Monthly</option>
+                </select>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="chart-container" style="position: relative; height:400px; width:100%">
+                <canvas id="weatherChart"></canvas>
+                <div id="loadingIndicator" class="text-center py-5" style="display:none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading data...</p>
+                </div>
+                <div id="noDataMessage" class="text-center py-5" style="display:none;">
+                    <p class="text-muted">No data available for the selected parameters</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <div class="d-flex justify-content-between align-items-center">
+            <h4 class="mb-0"><i class="fas fa-chart-line"></i> Weather Data Visualization</h4>
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-light btn-sm period-selector" data-period="day">Day</button>
+                <button type="button" class="btn btn-light btn-sm period-selector active" data-period="week">Week</button>
+                <button type="button" class="btn btn-light btn-sm period-selector" data-period="month">Month</button>
+                <button type="button" class="btn btn-light btn-sm period-selector" data-period="year">Year</button>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                <div class="graph-container">
+                    <h5>Temperature (°C)</h5>
+                    <canvas id="tempChart" width="400" height="250"></canvas>
+                    <div class="text-center mt-2">
+                        <small class="text-muted">Showing continuous temperature trends over time</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="graph-container">
+                    <h5>Precipitation (mm)</h5>
+                    <canvas id="precipChart" width="400" height="250"></canvas>
+                    <div class="text-center mt-2">
+                        <small class="text-muted">Rainfall accumulation over time</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="graph-container">
+                    <h5>Humidity (%)</h5>
+                    <canvas id="humidityChart" width="400" height="250"></canvas>
+                    <div class="text-center mt-2">
+                        <small class="text-muted">Relative humidity levels</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="graph-container">
+                    <h5>Wind Speed (m/s)</h5>
+                    <canvas id="windChart" width="400" height="250"></canvas>
+                    <div class="text-center mt-2">
+                        <small class="text-muted">Average and maximum wind speed</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+    // Chart.js configuration
+    let weatherChart = null;
+    const chartColors = {
+        temperature: 'rgb(255, 99, 132)',
+        precipitation: 'rgb(54, 162, 235)',
+        humidity: 'rgb(75, 192, 192)',
+        wind_speed: 'rgb(153, 102, 255)',
+        barometric_pressure: 'rgb(255, 159, 64)',
+        air_quality_index: 'rgb(201, 203, 207)',
+        uv_index: 'rgb(255, 205, 86)',
+        default: 'rgb(75, 192, 192)'
+    };
+    
+    // Function to get color for data type
+    function getColorForDataType(dataType) {
+        return chartColors[dataType] || chartColors.default;
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // Chart objects
+        let charts = {
+            weather: null,
+            temperature: null,
+            precipitation: null,
+            humidity: null,
+            wind: null
+        };
+        
+        // Station ID from the page
+        const stationId = {{ station.id }};
+        let currentPeriod = 'week';
+        
+        // Get DOM elements for the top chart
+        const dataTypeSelect = document.getElementById('dataTypeSelect');
+        const timeRangeSelect = document.getElementById('timeRangeSelect');
+        const intervalSelect = document.getElementById('intervalSelect');
+        const weatherChartCanvas = document.getElementById('weatherChart');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const noDataMessage = document.getElementById('noDataMessage');
+        
+        // Initialize the main weather chart
+        initWeatherChart();
+        
+        // Load initial data for both chart sections
+        loadChartData();
+        loadAndRenderDetailCharts(stationId, currentPeriod);
+        
+        // Event listeners for main chart selection changes
+        dataTypeSelect.addEventListener('change', loadChartData);
+        timeRangeSelect.addEventListener('change', loadChartData);
+        intervalSelect.addEventListener('change', loadChartData);
+        
+        // Event listeners for period buttons
+        document.querySelectorAll('.period-selector').forEach(button => {
+            button.addEventListener('click', function() {
+                // Update active state
+                document.querySelectorAll('.period-selector').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                this.classList.add('active');
+                
+                // Get new period and refresh charts
+                currentPeriod = this.getAttribute('data-period');
+                loadAndRenderDetailCharts(stationId, currentPeriod);
+            });
+        });
+        
+        /**
+         * Initialize the main weather chart
+         */
+        function initWeatherChart() {
+            const ctx = weatherChartCanvas.getContext('2d');
+            
+            // Create chart configuration
+            charts.weather = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Loading data...',
+                        data: [],
+                        backgroundColor: getColorForDataType('temperature'),
+                        borderColor: getColorForDataType('temperature'),
+                        borderWidth: 2,
+                        tension: 0.2,
+                        pointRadius: 3,
+                        pointHoverRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            title: {
+                                display: true,
+                                text: 'Value'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        tooltip: {
+                            enabled: true
+                        },
+                        legend: {
+                            position: 'top',
+                        }
+                    }
+                }
+            });
+        }
+        
+        /**
+         * Load data for the main chart from API
+         */
+        function loadChartData() {
+            const dataType = dataTypeSelect.value;
+            const days = timeRangeSelect.value;
+            const interval = intervalSelect.value;
+            
+            // Show loading indicator
+            loadingIndicator.style.display = 'block';
+            noDataMessage.style.display = 'none';
+            
+            // Clear chart data during loading
+            if (charts.weather) {
+                charts.weather.data.labels = [];
+                charts.weather.data.datasets[0].data = [];
+                charts.weather.update();
+            }
+            
+            // URL for API endpoint
+            const apiUrl = `{{ api_base_url }}/api/stations/${stationId}/graph-data/?data_type=${dataType}&days=${days}&interval=${interval}`;
+            
+            // Fetch data from API
+            fetch(apiUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Hide loading indicator
+                    loadingIndicator.style.display = 'none';
+                    
+                    // Check if we have data
+                    if (data.error || !data.values || data.values.length === 0) {
+                        noDataMessage.style.display = 'block';
+                        noDataMessage.querySelector('p').textContent = data.error || 'No data available for the selected parameters';
+                        
+                        // Update chart to empty state
+                        charts.weather.data.labels = [];
+                        charts.weather.data.datasets[0].data = [];
+                        charts.weather.data.datasets[0].label = `No ${dataType} data available`;
+                        charts.weather.update();
+                        return;
+                    }
+                    
+                    // Update chart with new data
+                    charts.weather.data.labels = data.labels;
+                    charts.weather.data.datasets[0].data = data.values;
+                    
+                    // Update chart appearance
+                    const color = getColorForDataType(dataType);
+                    charts.weather.data.datasets[0].backgroundColor = color;
+                    charts.weather.data.datasets[0].borderColor = color;
+                    
+                    // Update labels and titles
+                    const displayName = dataTypeSelect.options[dataTypeSelect.selectedIndex].text;
+                    
+                    charts.weather.data.datasets[0].label = displayName;
+                    charts.weather.options.scales.y.title.text = data.unit || 'Value';
+                    
+                    // Update chart
+                    charts.weather.update();
+                })
+                .catch(error => {
+                    // Hide loading indicator and show error
+                    loadingIndicator.style.display = 'none';
+                    noDataMessage.style.display = 'block';
+                    noDataMessage.querySelector('p').textContent = `Error loading data: ${error.message}`;
+                    
+                    console.error('Error fetching graph data:', error);
+                    
+                    // Update chart to error state
+                    charts.weather.data.labels = [];
+                    charts.weather.data.datasets[0].data = [];
+                    charts.weather.data.datasets[0].label = `Error loading data`;
+                    charts.weather.update();
+                });
+        }
+        
+        /**
+         * Load data and render all detail charts
+         */
+        function loadAndRenderDetailCharts(stationId, period) {
+            // Show loading state for all detail charts
+            document.querySelectorAll('canvas[id$="Chart"]').forEach(canvas => {
+                if (canvas.id !== 'weatherChart') {
+                    canvas.classList.add('loading');
+                }
+            });
+            
+            // Fetch temperature data
+            fetch(`/maps/api/stations/${stationId}/graph-data/?period=${period}&data_type=temperature`)
+                .then(response => response.json())
+                .then(data => {
+                    renderTemperatureChart(data);
+                })
+                .catch(error => console.error('Error loading temperature data:', error));
+            
+            // Fetch precipitation data
+            fetch(`/maps/api/stations/${stationId}/graph-data/?period=${period}&data_type=precipitation`)
+                .then(response => response.json())
+                .then(data => {
+                    renderPrecipitationChart(data);
+                })
+                .catch(error => console.error('Error loading precipitation data:', error));
+            
+            // Fetch humidity data
+            fetch(`/maps/api/stations/${stationId}/graph-data/?period=${period}&data_type=humidity`)
+                .then(response => response.json())
+                .then(data => {
+                    renderHumidityChart(data);
+                })
+                .catch(error => console.error('Error loading humidity data:', error));
+            
+            // Fetch wind data
+            fetch(`/maps/api/stations/${stationId}/graph-data/?period=${period}&data_type=wind`)
+                .then(response => response.json())
+                .then data => {
+                    renderWindChart(data);
+                })
+                .catch(error => console.error('Error loading wind data:', error));
+        }
+        
+        /**
+         * Render temperature chart with min, max, and average
+         */
+        function renderTemperatureChart(data) {
+            const ctx = document.getElementById('tempChart').getContext('2d');
+            
+            // Destroy existing chart if it exists
+            if (charts.temperature) {
+                charts.temperature.destroy();
+            }
+            
+            // Create continuous dataset labels
+            const labels = data.timestamps.map(t => t.display);
+            
+            // Create chart
+            charts.temperature = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Average',
+                            data: data.datasets.avg_temp,
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: false
+                        },
+                        {
+                            label: 'Maximum',
+                            data: data.datasets.max_temp,
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1,
+                            tension: 0.4,
+                            fill: false
+                        },
+                        {
+                            label: 'Minimum',
+                            data: data.datasets.min_temp,
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderWidth: 1,
+                            tension: 0.4,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        },
+                        legend: {
+                            position: 'top',
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        },
+                        y: {
+                            beginAtZero: false,
+                            title: {
+                                display: true,
+                                text: 'Temperature (°C)'
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'nearest'
+                    }
+                }
+            });
+        }
+        
+        /**
+         * Render precipitation chart
+         */
+        function renderPrecipitationChart(data) {
+            const ctx = document.getElementById('precipChart').getContext('2d');
+            
+            // Destroy existing chart if it exists
+            if (charts.precipitation) {
+                charts.precipitation.destroy();
+            }
+            
+            // Create continuous dataset labels
+            const labels = data.timestamps.map(t => t.display);
+            
+            // Create chart
+            charts.precipitation = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Precipitation',
+                            data: data.datasets.total_precipitation,
+                            backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Precipitation (mm)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        /**
+         * Render humidity chart
+         */
+        function renderHumidityChart(data) {
+            const ctx = document.getElementById('humidityChart').getContext('2d');
+            
+            // Destroy existing chart if it exists
+            if (charts.humidity) {
+                charts.humidity.destroy();
+            }
+            
+            // Create continuous dataset labels
+            const labels = data.timestamps.map(t => t.display);
+            
+            // Create chart - area chart for humidity
+            charts.humidity = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Humidity',
+                            data: data.datasets.avg_humidity,
+                            backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                            borderColor: 'rgba(153, 102, 255, 1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Humidity (%)'
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'nearest'
+                    }
+                }
+            });
+        }
+        
+        /**
+         * Render wind speed chart
+         */
+        function renderWindChart(data) {
+            const ctx = document.getElementById('windChart').getContext('2d');
+            
+            // Destroy existing chart if it exists
+            if (charts.wind) {
+                charts.wind.destroy();
+            }
+            
+            // Create continuous dataset labels
+            const labels = data.timestamps.map(t => t.display);
+            
+            // Create chart
+            charts.wind = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Average Wind',
+                            data: data.datasets.avg_wind_speed,
+                            backgroundColor: 'rgba(255, 159, 64, 0.2)',
+                            borderColor: 'rgba(255, 159, 64, 1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: false
+                        },
+                        {
+                            label: 'Maximum Wind',
+                            data: data.datasets.max_wind_speed,
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1,
+                            tension: 0.4,
+                            pointStyle: 'triangle',
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Wind Speed (m/s)'
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'nearest'
+                    }
+                }
+            });
+        }
+    });
+</script>
+
+<!-- Custom styles for graphs -->
+<style>
+    .graph-container {
+        position: relative;
+        height: 250px;
+        margin-bottom: 20px;
+    }
+    
+    canvas.loading {
+        opacity: 0.5;
+    }
+    
+    .period-selector.active {
+        background-color: #0056b3;
+        color: white;
+    }
+</style>

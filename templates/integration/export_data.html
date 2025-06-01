@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+
+{% block title %}Unified Data Export{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h1>Unified Data Export</h1>
+            <p class="lead">Export data from any application in various formats</p>
+            
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" id="exportTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="maps-tab" data-bs-toggle="tab" data-bs-target="#maps-content" type="button" role="tab" aria-controls="maps-content" aria-selected="true">Maps App</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="repository-tab" data-bs-toggle="tab" data-bs-target="#repository-content" type="button" role="tab" aria-controls="repository-content" aria-selected="false">Data Repository</button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="exportTabsContent">
+                        <!-- Maps Export Tab -->
+                        <div class="tab-pane fade show active" id="maps-content" role="tabpanel" aria-labelledby="maps-tab">
+                            <form method="post" action="{% url 'integration:export_data' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="source_app" value="maps">
+                                
+                                <div class="mb-3">
+                                    <label for="maps_model_name" class="form-label">Model to Export</label>
+                                    <select class="form-select" id="maps_model_name" name="model_name" required>
+                                        <option value="">-- Select Model --</option>
+                                        {% for value, label in maps_models %}
+                                        <option value="{{ value }}">{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="maps_export_format" class="form-label">Export Format</label>
+                                    <select class="form-select" id="maps_export_format" name="export_format">
+                                        {% for value, label in export_formats %}
+                                        <option value="{{ value }}">{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3 form-check">
+                                    <input type="checkbox" class="form-check-input" id="maps_include_related" name="include_related" value="true">
+                                    <label class="form-check-label" for="maps_include_related">Include related objects</label>
+                                </div>
+                                
+                                <!-- Filter section - for climate data -->
+                                <div id="maps_climate_filters" class="climate-filters mb-3 p-3 border rounded" style="display: none;">
+                                    <h5>Climate Data Filters</h5>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="filter_station" class="form-label">Weather Station</label>
+                                                <input type="text" class="form-control" id="filter_station" name="filter_station__name" placeholder="Station name...">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="filter_year" class="form-label">Year</label>
+                                                <input type="number" class="form-control" id="filter_year" name="filter_year" placeholder="Filter by year...">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="filter_data_quality" class="form-label">Data Quality</label>
+                                                <select class="form-select" id="filter_data_quality" name="filter_data_quality">
+                                                    <option value="">-- Any Quality --</option>
+                                                    <option value="high">High</option>
+                                                    <option value="medium">Medium</option>
+                                                    <option value="low">Low</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="filter_season" class="form-label">Season</label>
+                                                <select class="form-select" id="filter_season" name="filter_season">
+                                                    <option value="">-- Any Season --</option>
+                                                    <option value="winter">Winter</option>
+                                                    <option value="spring">Spring</option>
+                                                    <option value="summer">Summer</option>
+                                                    <option value="autumn">Autumn</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="date_range" class="form-label">Date Range</label>
+                                        <div class="input-group">
+                                            <input type="date" class="form-control" id="filter_date_from" name="filter_timestamp__gte">
+                                            <span class="input-group-text">to</span>
+                                            <input type="date" class="form-control" id="filter_date_to" name="filter_timestamp__lte">
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Data Types to Include</label>
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input" id="include_temperature" name="include_temperature" value="true" checked>
+                                            <label class="form-check-label" for="include_temperature">Temperature</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input" id="include_humidity" name="include_humidity" value="true" checked>
+                                            <label class="form-check-label" for="include_humidity">Humidity</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input" id="include_precipitation" name="include_precipitation" value="true" checked>
+                                            <label class="form-check-label" for="include_precipitation">Precipitation</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input" id="include_wind" name="include_wind" value="true" checked>
+                                            <label class="form-check-label" for="include_wind">Wind Data</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Filter section - for stations -->
+                                <div id="maps_station_filters" class="station-filters mb-3 p-3 border rounded" style="display: none;">
+                                    <h5>Weather Station Filters</h5>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="filter_country" class="form-label">Country</label>
+                                                <input type="text" class="form-control" id="filter_country" name="filter_country__name" placeholder="Country...">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="filter_is_active" class="form-label">Status</label>
+                                                <select class="form-select" id="filter_is_active" name="filter_is_active">
+                                                    <option value="">-- Any Status --</option>
+                                                    <option value="true">Active</option>
+                                                    <option value="false">Inactive</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Data Types Available</label>
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input" id="filter_has_temperature" name="filter_has_temperature" value="true">
+                                            <label class="form-check-label" for="filter_has_temperature">Temperature</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input" id="filter_has_precipitation" name="filter_has_precipitation" value="true">
+                                            <label class="form-check-label" for="filter_has_precipitation">Precipitation</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input" id="filter_has_soil_moisture" name="filter_has_soil_moisture" value="true">
+                                            <label class="form-check-label" for="filter_has_soil_moisture">Soil Moisture</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-primary">Export Data</button>
+                            </form>
+                        </div>
+                        
+                        <!-- Data Repository Export Tab -->
+                        <div class="tab-pane fade" id="repository-content" role="tabpanel" aria-labelledby="repository-tab">
+                            <form method="post" action="{% url 'integration:export_data' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="source_app" value="data_repository">
+                                
+                                <div class="mb-3">
+                                    <label for="repo_model_name" class="form-label">Model to Export</label>
+                                    <select class="form-select" id="repo_model_name" name="model_name" required>
+                                        <option value="">-- Select Model --</option>
+                                        {% for value, label in repository_models %}
+                                        <option value="{{ value }}">{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="repo_export_format" class="form-label">Export Format</label>
+                                    <select class="form-select" id="repo_export_format" name="export_format">
+                                        {% for value, label in export_formats %}
+                                        {% if value != 'geojson' %}
+                                        <option value="{{ value }}">{{ label }}</option>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3 form-check">
+                                    <input type="checkbox" class="form-check-input" id="repo_include_related" name="include_related" value="true">
+                                    <label class="form-check-label" for="repo_include_related">Include related objects</label>
+                                </div>
+                                
+                                <!-- Filter section - for datasets -->
+                                <div id="repo_dataset_filters" class="dataset-filters mb-3 p-3 border rounded" style="display: none;">
+                                    <h5>Dataset Filters</h5>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="filter_category" class="form-label">Category</label>
+                                                <input type="text" class="form-control" id="filter_category" name="filter_category__name" placeholder="Category name...">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="filter_status" class="form-label">Status</label>
+                                                <select class="form-select" id="filter_status" name="filter_status">
+                                                    <option value="">-- Any Status --</option>
+                                                    <option value="draft">Draft</option>
+                                                    <option value="published">Published</option>
+                                                    <option value="archived">Archived</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3 form-check">
+                                        <input type="checkbox" class="form-check-input" id="filter_is_featured" name="filter_is_featured" value="true">
+                                        <label class="form-check-label" for="filter_is_featured">Featured datasets only</label>
+                                    </div>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-primary">Export Data</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Initialize date fields
+        var today = new Date();
+        var thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(today.getDate() - 30);
+        
+        // Format dates for the date inputs
+        var formatDate = function(date) {
+            var d = date,
+                month = '' + (d.getMonth() + 1),
+                day = '' + d.getDate(),
+                year = d.getFullYear();
+            
+            if (month.length < 2) month = '0' + month;
+            if (day.length < 2) day = '0' + day;
+            
+            return [year, month, day].join('-');
+        };
+        
+        $('#filter_date_from').val(formatDate(thirtyDaysAgo));
+        $('#filter_date_to').val(formatDate(today));
+        
+        // Show/hide relevant filters based on selected model
+        $('#maps_model_name').on('change', function() {
+            var selectedModel = $(this).val();
+            
+            // Hide all filter sections first
+            $('.climate-filters, .station-filters').hide();
+            
+            // Show appropriate filters based on selected model
+            if (selectedModel === 'climate_data') {
+                $('#maps_climate_filters').show();
+                
+                // Update export format options
+                $('#maps_export_format').html(
+                    '<option value="csv">CSV</option>' +
+                    '<option value="json">JSON</option>'
+                );
+            } else if (selectedModel === 'weather_station') {
+                $('#maps_station_filters').show();
+                
+                // Update export format options
+                $('#maps_export_format').html(
+                    '<option value="csv">CSV</option>' +
+                    '<option value="json">JSON</option>' +
+                    '<option value="geojson">GeoJSON</option>'
+                );
+            } else {
+                // For other models, default formats
+                $('#maps_export_format').html(
+                    '<option value="json">JSON</option>' +
+                    '<option value="csv">CSV</option>'
+                );
+            }
+        });
+        
+        // Show/hide repository filters
+        $('#repo_model_name').on('change', function() {
+            var selectedModel = $(this).val();
+            
+            // Hide all filter sections first
+            $('.dataset-filters').hide();
+            
+            // Show appropriate filters based on selected model
+            if (selectedModel === 'dataset') {
+                $('#repo_dataset_filters').show();
+            }
+        });
+    });
+</script>
+{% endblock %}

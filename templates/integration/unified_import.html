@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block title %}Unified Data Import{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h1>Unified Data Import</h1>
+            <p class="lead">Import data from CSV or JSON files into any application</p>
+            
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" id="importTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="maps-tab" data-bs-toggle="tab" data-bs-target="#maps-content" type="button" role="tab" aria-controls="maps-content" aria-selected="true">Maps App</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="repository-tab" data-bs-toggle="tab" data-bs-target="#repository-content" type="button" role="tab" aria-controls="repository-content" aria-selected="false">Data Repository</button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="importTabsContent">
+                        <!-- Maps Import Tab -->
+                        <div class="tab-pane fade show active" id="maps-content" role="tabpanel" aria-labelledby="maps-tab">
+                            <form method="post" enctype="multipart/form-data" action="{% url 'integration:unified_import' %}" class="import-form">
+                                {% csrf_token %}
+                                <input type="hidden" name="target_app" value="maps">
+                                
+                                <div class="mb-3">
+                                    <label for="maps_model_name" class="form-label">Model to Import</label>
+                                    <select class="form-select" id="maps_model_name" name="model_name" required>
+                                        <option value="">-- Select Model --</option>
+                                        {% for value, label in maps_models %}
+                                        <option value="{{ value }}">{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="maps_file" class="form-label">Data File</label>
+                                    <input type="file" class="form-control file-input" id="maps_file" name="file" required>
+                                    <div class="form-text">Upload CSV, JSON, or Excel file containing data to import.</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="maps_file_format" class="form-label">File Format</label>
+                                    <select class="form-select" id="maps_file_format" name="file_format">
+                                        {% for value, label in supported_formats %}
+                                        <option value="{{ value }}">{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="maps_id_field" class="form-label">ID Field (for updates)</label>
+                                    <input type="text" class="form-control" id="maps_id_field" name="id_field" placeholder="Leave blank for new records only">
+                                    <div class="form-text">Field to identify existing records for update.</div>
+                                </div>
+                                
+                                <div class="mb-3 form-check">
+                                    <input type="checkbox" class="form-check-input" id="maps_auto_convert" name="auto_convert" value="true">
+                                    <label class="form-check-label" for="maps_auto_convert">Auto-convert between formats if needed</label>
+                                </div>
+                                
+                                <!-- Field mappings will be added dynamically here -->
+                                <div class="mb-3 field-mappings" id="maps_field_mappings" style="display: none;">
+                                    <h5>Field Mappings</h5>
+                                    <div class="alert alert-info">
+                                        <p>Map fields from your file to model fields. Leave blank to use the same field names.</p>
+                                    </div>
+                                    <div class="mapping-fields">
+                                        <!-- Fields will be inserted here dynamically -->
+                                    </div>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-primary">Import Data</button>
+                            </form>
+                        </div>
+                        
+                        <!-- Data Repository Import Tab -->
+                        <div class="tab-pane fade" id="repository-content" role="tabpanel" aria-labelledby="repository-tab">
+                            <form method="post" enctype="multipart/form-data" action="{% url 'integration:unified_import' %}" class="import-form">
+                                {% csrf_token %}
+                                <input type="hidden" name="target_app" value="data_repository">
+                                
+                                <div class="mb-3">
+                                    <label for="repo_model_name" class="form-label">Model to Import</label>
+                                    <select class="form-select" id="repo_model_name" name="model_name" required>
+                                        <option value="">-- Select Model --</option>
+                                        {% for value, label in repository_models %}
+                                        <option value="{{ value }}">{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="repo_file" class="form-label">Data File</label>
+                                    <input type="file" class="form-control file-input" id="repo_file" name="file" required>
+                                    <div class="form-text">Upload CSV, JSON, or Excel file containing data to import.</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="repo_file_format" class="form-label">File Format</label>
+                                    <select class="form-select" id="repo_file_format" name="file_format">
+                                        {% for value, label in supported_formats %}
+                                        <option value="{{ value }}">{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="repo_id_field" class="form-label">ID Field (for updates)</label>
+                                    <input type="text" class="form-control" id="repo_id_field" name="id_field" placeholder="Leave blank for new records only">
+                                    <div class="form-text">Field to identify existing records for update.</div>
+                                </div>
+                                
+                                <div class="mb-3 form-check">
+                                    <input type="checkbox" class="form-check-input" id="repo_auto_convert" name="auto_convert" value="true">
+                                    <label class="form-check-label" for="repo_auto_convert">Auto-convert between formats if needed</label>
+                                </div>
+                                
+                                <!-- Field mappings will be added dynamically here -->
+                                <div class="mb-3 field-mappings" id="repo_field_mappings" style="display: none;">
+                                    <h5>Field Mappings</h5>
+                                    <div class="alert alert-info">
+                                        <p>Map fields from your file to model fields. Leave blank to use the same field names.</p>
+                                    </div>
+                                    <div class="mapping-fields">
+                                        <!-- Fields will be inserted here dynamically -->
+                                    </div>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-primary">Import Data</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Function to handle file selection
+        $('.file-input').change(function() {
+            var fileInput = $(this);
+            var form = fileInput.closest('form');
+            var fieldMappings = form.find('.field-mappings');
+            var mappingFieldsContainer = fieldMappings.find('.mapping-fields');
+            
+            // Only proceed if a file is selected
+            if (fileInput.val()) {
+                // Create a FormData object
+                var formData = new FormData();
+                formData.append('file', fileInput[0].files[0]);
+                formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+                
+                // Show loading indicator
+                mappingFieldsContainer.html('<p>Analyzing file structure...</p>');
+                fieldMappings.show();
+                
+                // Make AJAX request to check file format and fields
+                $.ajax({
+                    url: '{% url "integration:check_file_format" %}',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        // Set the detected format in the select box
+                        if (response.format && response.format !== 'auto') {
+                            form.find('select[name="file_format"]').val(response.format);
+                        }
+                        
+                        // Clear the mappings container
+                        mappingFieldsContainer.empty();
+                        
+                        // If we have fields, create mapping inputs
+                        if (response.fields && response.fields.length > 0) {
+                            // Add a table for the mappings
+                            var table = $('<table class="table table-sm">').appendTo(mappingFieldsContainer);
+                            var thead = $('<thead>').appendTo(table);
+                            var tbody = $('<tbody>').appendTo(table);
+                            
+                            // Add header row
+                            $('<tr>')
+                                .append($('<th>').text('File Field'))
+                                .append($('<th>').text('Map To Model Field'))
+                                .appendTo(thead);
+                            
+                            // Add a row for each field
+                            response.fields.forEach(function(field) {
+                                var row = $('<tr>').appendTo(tbody);
+                                $('<td>').text(field).appendTo(row);
+                                $('<td>')
+                                    .append(
+                                        $('<input>')
+                                            .attr('type', 'text')
+                                            .attr('class', 'form-control form-control-sm')
+                                            .attr('name', 'map_' + field)
+                                            .attr('placeholder', 'Leave blank to use same name')
+                                    )
+                                    .appendTo(row);
+                            });
+                            
+                            // Show the mappings section
+                            fieldMappings.show();
+                        } else {
+                            // No fields or error
+                            if (response.error) {
+                                mappingFieldsContainer.html('<div class="alert alert-warning">' + response.error + '</div>');
+                            } else {
+                                mappingFieldsContainer.html('<div class="alert alert-info">No fields detected in the file.</div>');
+                            }
+                            fieldMappings.show();
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error checking file format:', error);
+                        mappingFieldsContainer.html('<div class="alert alert-danger">Error analyzing file: ' + error + '</div>');
+                    }
+                });
+            } else {
+                // No file selected, hide the mappings
+                fieldMappings.hide();
+            }
+        });
+    });
+</script>
+{% endblock %}

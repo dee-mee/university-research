@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Integrated Dashboard - Maps & Data Repository{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+    .dashboard-card {
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+        margin-bottom: 20px;
+        background: white;
+    }
+    
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .card-header {
+        background-color: #f5f5f5;
+        padding: 15px;
+        border-radius: 8px 8px 0 0;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .card-body {
+        padding: 20px;
+    }
+    
+    .stat-value {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #3498db;
+    }
+    
+    .stat-label {
+        font-size: 1rem;
+        color: #777;
+    }
+    
+    .map-container {
+        height: 450px;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .dataset-list {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    
+    .dataset-item {
+        padding: 10px;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .dataset-item:last-child {
+        border-bottom: none;
+    }
+    
+    .overview-section {
+        background-color: #f9f9f9;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1>Integrated Dashboard</h1>
+            <p class="lead">A unified view of weather stations and datasets</p>
+        </div>
+    </div>
+    
+    <div class="overview-section">
+        <div class="row">
+            <div class="col-md-3 text-center">
+                <div class="stat-value">{{ active_stations }}</div>
+                <div class="stat-label">Active Stations</div>
+            </div>
+            <div class="col-md-3 text-center">
+                <div class="stat-value">{{ total_stations }}</div>
+                <div class="stat-label">Total Stations</div>
+            </div>
+            <div class="col-md-3 text-center">
+                <div class="stat-value">{{ dataset_count }}</div>
+                <div class="stat-label">Datasets</div>
+            </div>
+            <div class="col-md-3 text-center">
+                <div class="stat-value">{{ recent_data_count|default:"0" }}</div>
+                <div class="stat-label">New Readings (7d)</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="dashboard-card">
+                <div class="card-header d-flex justify-content-between">
+                    <h2>Weather Station Map</h2>
+                    <a href="{% url 'maps:map' %}" class="btn btn-sm btn-outline-primary">Full Map</a>
+                </div>
+                <div class="card-body p-0">
+                    <div id="dashboard-map" class="map-container"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="dashboard-card">
+                <div class="card-header d-flex justify-content-between">
+                    <h2>Featured Datasets</h2>
+                    <a href="{% url 'repository:dataset_list' %}" class="btn btn-sm btn-outline-primary">All Datasets</a>
+                </div>
+                <div class="card-body">
+                    <div class="dataset-list">
+                        {% for dataset in featured_datasets %}
+                            <div class="dataset-item">
+                                <h5>{{ dataset.title }}</h5>
+                                <p class="text-muted">{{ dataset.description|truncatechars:100 }}</p>
+                                <div class="d-flex justify-content-between">
+                                    <span class="badge bg-info">{{ dataset.category.name }}</span>
+                                    <a href="{% url 'integration:dataset_with_stations' dataset.id %}" class="btn btn-sm btn-primary">View</a>
+                                </div>
+                            </div>
+                        {% empty %}
+                            <p>No featured datasets available.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h2>Recent Datasets</h2>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Category</th>
+                                <th>Created</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for dataset in recent_datasets %}
+                                <tr>
+                                    <td>{{ dataset.title }}</td>
+                                    <td>{{ dataset.category.name }}</td>
+                                    <td>{{ dataset.created_at|date:"M d, Y" }}</td>
+                                    <td>
+                                        <a href="{% url 'integration:dataset_with_stations' dataset.id %}" class="btn btn-sm btn-outline-primary">View</a>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="4">No datasets available.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h2>Unified Search</h2>
+                </div>
+                <div class="card-body">
+                    <form action="{% url 'integration:unified_search' %}" method="get">
+                        <div class="input-group mb-3">
+                            <input type="text" class="form-control" name="q" placeholder="Search stations, datasets, climate data...">
+                            <button class="btn btn-primary" type="submit">Search</button>
+                        </div>
+                        <div class="text-muted small">
+                            Search across weather stations, field devices, datasets and climate data in one place.
+                        </div>
+                    </form>
+                    
+                    <div class="row mt-4">
+                        <div class="col-6">
+                            <h5>Quick Links</h5>
+                            <ul class="list-group">
+                                <li class="list-group-item">
+                                    <a href="{% url 'maps:map' %}">Interactive Weather Map</a>
+                                </li>
+                                <li class="list-group-item">
+                                    <a href="{% url 'repository:dataset_list' %}">Datasets Library</a>
+                                </li>
+                                <li class="list-group-item">
+                                    <a href="{% url 'maps:data_export' %}">Export Weather Data</a>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-6">
+                            <h5>Tools</h5>
+                            <ul class="list-group">
+                                <li class="list-group-item">
+                                    <a href="{% url 'maps:field_data_dashboard' %}">Field Data Dashboard</a>
+                                </li>
+                                <li class="list-group-item">
+                                    <a href="{% url 'repository:dataset_create' %}">Upload New Dataset</a>
+                                </li>
+                                <li class="list-group-item">
+                                    <a href="{% url 'maps:csv_import' %}">Import CSV Data</a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    // Initialize dashboard map
+    document.addEventListener('DOMContentLoaded', function() {
+        // Create map
+        const map = L.map('dashboard-map').setView([0, 0], 2);
+        
+        // Add base layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        
+        // Fetch stations
+        fetch('/maps/api/stations/')
+            .then(response => response.json())
+            .then(data => {
+                // Active stations layer
+                const activeStations = L.layerGroup().addTo(map);
+                // Inactive stations layer
+                const inactiveStations = L.layerGroup();
+                
+                // Create bounds object to fit map
+                const bounds = L.latLngBounds();
+                
+                // Process stations
+                data.forEach(station => {
+                    if (station.latitude && station.longitude) {
+                        // Create marker with popup
+                        const marker = L.marker([station.latitude, station.longitude]);
+                        
+                        marker.bindPopup(`
+                            <strong>${station.name}</strong><br>
+                            ${station.is_active ? '<span class="text-success">Active</span>' : '<span class="text-secondary">Inactive</span>'}<br>
+                            <a href="/integrated/station/${station.id}/" class="btn btn-sm btn-primary mt-2">View Details</a>
+                        `);
+                        
+                        // Add to appropriate layer
+                        if (station.is_active) {
+                            marker.addTo(activeStations);
+                        } else {
+                            marker.addTo(inactiveStations);
+                        }
+                        
+                        // Extend bounds
+                        bounds.extend([station.latitude, station.longitude]);
+                    }
+                });
+                
+                // Add layer control
+                const overlays = {
+                    "Active Stations": activeStations,
+                    "Inactive Stations": inactiveStations
+                };
+                
+                L.control.layers(null, overlays).addTo(map);
+                
+                // Fit map to bounds if we have any stations
+                if (bounds.isValid()) {
+                    map.fitBounds(bounds);
+                }
+            })
+            .catch(error => console.error('Error loading stations:', error));
+    });
+</script>
+{% endblock %}

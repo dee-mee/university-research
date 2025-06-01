@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Research Portal - Profile{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-md-3">
+            <!-- Profile Sidebar -->
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <img src="{% if user.profile.profile_image %}{{ user.profile.profile_image.url }}{% else %}{% static 'img/default-avatar.png' %}{% endif %}" 
+                         alt="Profile Picture" 
+                         class="rounded-circle mb-3" 
+                         style="width: 150px; height: 150px; object-fit: cover; border: 3px solid #0d5dc5;">
+                    <h4 class="mb-0">{{ user.get_full_name }}</h4>
+                    <p class="text-muted">{{ user.email }}</p>
+                    <a href="{% url 'profiles:edit_profile' %}" class="btn btn-primary mt-3">Edit Profile</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-9">
+            <!-- Profile Information -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Profile Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Username:</strong> {{ user.username }}</p>
+                            <p><strong>Role:</strong> {{ user.profile.get_role_display }}</p>
+                            <p><strong>Department:</strong> {{ user.profile.department|default:"-" }}</p>
+                            <p><strong>Research Interests:</strong> {{ user.profile.research_interests|default:"-" }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Phone:</strong> {{ user.profile.phone|default:"-" }}</p>
+                            <p><strong>Gender:</strong> {{ user.profile.get_gender_display|default:"-" }}</p>
+                            <p><strong>ID Number:</strong> {{ user.profile.id_number|default:"-" }}</p>
+                            <p><strong>Joined:</strong> {{ user.date_joined|date:"F j, Y" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile Statistics -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Profile Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card bg-light text-center">
+                                <div class="card-body">
+                                    <h2 class="mb-0">{{ user.profile.datasets.count }}</h2>
+                                    <p class="text-muted mb-0">Datasets Created</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light text-center">
+                                <div class="card-body">
+                                    <h2 class="mb-0">{{ user.profile.downloads.count }}</h2>
+                                    <p class="text-muted mb-0">Downloads</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light text-center">
+                                <div class="card-body">
+                                    <h2 class="mb-0">{{ user.profile.contributions.count }}</h2>
+                                    <p class="text-muted mb-0">Contributions</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Recent Activity</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_activity %}
+                        <div class="list-group">
+                            {% for activity in recent_activity %}
+                            <div class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">{{ activity.action }}</h6>
+                                    <small class="text-muted">{{ activity.timestamp|timesince }} ago</small>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No recent activity recorded.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Custom JavaScript for profile image handling -->
+<script>
+    function submitProfileImage() {
+        // Show loading state
+        document.getElementById('profile-image').style.opacity = "0.5";
+        
+        // Submit the form
+        document.getElementById('profile-image-form').submit();
+    }
+    
+    // Preview image before upload
+    document.getElementById('profile-image-upload').addEventListener('change', function(e) {
+        if (e.target.files && e.target.files[0]) {
+            const reader = new FileReader();
+            
+            reader.onload = function(event) {
+                document.getElementById('profile-image').src = event.target.result;
+            }
+            
+            reader.readAsDataURL(e.target.files[0]);
+        }
+    });
+</script>
+{% endblock %}

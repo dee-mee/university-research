@@ -1,0 +1,360 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ dataset.title }} - Dataset & Stations{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+    .dataset-header {
+        background-color: #f5f5f5;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .dataset-status {
+        font-size: 14px;
+        padding: 5px 10px;
+        border-radius: 20px;
+        display: inline-block;
+    }
+    
+    .status-published {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .status-draft {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    
+    .status-archived {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    
+    .map-container {
+        height: 400px;
+        border-radius: 8px;
+        overflow: hidden;
+        margin-bottom: 20px;
+    }
+    
+    .info-box {
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .station-card {
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 15px;
+        margin-bottom: 15px;
+        transition: transform 0.2s;
+    }
+    
+    .station-card:hover {
+        transform: translateY(-3px);
+    }
+    
+    .station-active {
+        border-left: 4px solid #28a745;
+    }
+    
+    .station-inactive {
+        border-left: 4px solid #dc3545;
+    }
+    
+    .metadata-table {
+        font-size: 0.9rem;
+    }
+    
+    .metadata-table th {
+        width: 40%;
+    }
+    
+    .file-download {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 15px;
+    }
+    
+    .version-badge {
+        background-color: #e9ecef;
+        color: #495057;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'integration:dashboard' %}">Integration Dashboard</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ dataset.title }}</li>
+        </ol>
+    </nav>
+    
+    <div class="dataset-header">
+        <div class="row">
+            <div class="col-md-8">
+                <h1>{{ dataset.title }}</h1>
+                <div class="mb-2">
+                    <span class="dataset-status 
+                        {% if dataset.status == 'published' %}status-published{% elif dataset.status == 'draft' %}status-draft{% else %}status-archived{% endif %}">
+                        {{ dataset.status|title }}
+                    </span>
+                    <span class="text-muted ml-2">Category: {{ dataset.category.name }}</span>
+                </div>
+                <p>{{ dataset.description }}</p>
+            </div>
+            <div class="col-md-4 text-md-right">
+                <a href="{% url 'repository:dataset_detail' dataset.id %}" class="btn btn-outline-primary">View in Repository</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        {% if has_location or stations %}
+        <div class="col-lg-6">
+            <div class="info-box">
+                <h4>Spatial Visualization</h4>
+                <div id="dataset-map" class="map-container"></div>
+                <div class="text-muted small">
+                    {% if stations %}
+                    Showing {{ stations|length }} linked weather station{% if stations|length != 1 %}s{% endif %}.
+                    {% elif has_location %}
+                    Showing dataset location.
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="info-box">
+                <h4>Linked Weather Stations ({{ stations|length }})</h4>
+                {% for station in stations %}
+                <div class="station-card {% if station.is_active %}station-active{% else %}station-inactive{% endif %}">
+                    <div class="d-flex justify-content-between">
+                        <h5>{{ station.name }}</h5>
+                        <span class="badge {% if station.is_active %}bg-success{% else %}bg-danger{% endif %}">
+                            {% if station.is_active %}Active{% else %}Inactive{% endif %}
+                        </span>
+                    </div>
+                    {% if station.station_id %}<div class="small text-muted">ID: {{ station.station_id }}</div>{% endif %}
+                    {% if station.country %}<div class="small">{{ station.region|default:"" }}{% if station.region and station.country %}, {% endif %}{{ station.country }}</div>{% endif %}
+                    <div class="mt-2">
+                        Available data: 
+                        {% for data_type in station.data_types %}
+                            <span class="badge bg-info">{{ data_type }}</span>
+                        {% empty %}
+                            <span class="text-muted">None</span>
+                        {% endfor %}
+                    </div>
+                    <div class="mt-2 d-flex justify-content-end">
+                        <a href="{% url 'integration:station_with_datasets' station.id %}" class="btn btn-sm btn-primary">
+                            View Station Details
+                        </a>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-muted">No weather stations linked to this dataset.</p>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+        {% else %}
+        <div class="col-12">
+        {% endif %}
+            <div class="info-box">
+                <h4>Dataset Information</h4>
+                <table class="table table-sm metadata-table">
+                    <tr>
+                        <th>Created by</th>
+                        <td>{{ dataset.created_by.get_full_name|default:dataset.created_by.username }}</td>
+                    </tr>
+                    <tr>
+                        <th>Created</th>
+                        <td>{{ dataset.created_at }}</td>
+                    </tr>
+                    <tr>
+                        <th>Last updated</th>
+                        <td>{{ dataset.updated_at }}</td>
+                    </tr>
+                    <tr>
+                        <th>Published</th>
+                        <td>{{ dataset.published_at|default:"Not published" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Category</th>
+                        <td>{{ dataset.category.name }}</td>
+                    </tr>
+                    {% if dataset.doi %}
+                    <tr>
+                        <th>DOI</th>
+                        <td><a href="https://doi.org/{{ dataset.doi }}" target="_blank">{{ dataset.doi }}</a></td>
+                    </tr>
+                    {% endif %}
+                </table>
+                
+                {% if latest_version %}
+                <div class="file-download">
+                    <h5>Current Version <span class="version-badge">v{{ latest_version.version_number }}</span></h5>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small">{{ latest_version.created_at }}</div>
+                            {% if latest_version.file_size %}
+                            <div class="text-muted small">Size: {{ latest_version.file_size|filesizeformat }}</div>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <a href="{{ latest_version.file_path.url }}" class="btn btn-primary" download>
+                                <i class="fas fa-download"></i> Download
+                            </a>
+                        </div>
+                    </div>
+                    {% if latest_version.description %}
+                    <div class="mt-2">
+                        <p>{{ latest_version.description }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="info-box">
+                <h4>Metadata</h4>
+                {% if dataset.metadata %}
+                <table class="table table-sm table-striped metadata-table">
+                    {% for key, value in dataset.metadata.items %}
+                    <tr>
+                        <th>{{ key|title }}</th>
+                        <td>
+                            {% if value|stringformat:"s"|slice:":1" == "{" or value|stringformat:"s"|slice:":1" == "[" %}
+                                <pre class="mb-0"><code>{{ value|pprint }}</code></pre>
+                            {% else %}
+                                {{ value }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </table>
+                {% else %}
+                <p class="text-muted">No metadata available for this dataset.</p>
+                {% endif %}
+            </div>
+            
+            {% if latest_version and latest_version.metadata %}
+            <div class="info-box">
+                <h4>Version Metadata</h4>
+                <table class="table table-sm table-striped metadata-table">
+                    {% for key, value in latest_version.metadata.items %}
+                    <tr>
+                        <th>{{ key|title }}</th>
+                        <td>
+                            {% if value|stringformat:"s"|slice:":1" == "{" or value|stringformat:"s"|slice:":1" == "[" %}
+                                <pre class="mb-0"><code>{{ value|pprint }}</code></pre>
+                            {% else %}
+                                {{ value }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        {% if has_location or stations %}
+        // Initialize map
+        const map = L.map('dataset-map');
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        
+        const bounds = L.latLngBounds();
+        let hasValidBounds = false;
+        
+        {% if has_location %}
+        // Add marker for dataset location
+        const datasetMarker = L.marker([{{ dataset.location.y }}, {{ dataset.location.x }}], {
+            icon: L.divIcon({
+                className: 'dataset-marker',
+                html: '<div style="background-color: #3498db; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>',
+                iconSize: [12, 12],
+                iconAnchor: [6, 6]
+            })
+        }).addTo(map);
+        
+        datasetMarker.bindPopup("<strong>Dataset Location</strong>");
+        bounds.extend([{{ dataset.location.y }}, {{ dataset.location.x }}]);
+        hasValidBounds = true;
+        
+        {% if has_bounding_box %}
+        // Add bounding box for dataset if available
+        const boundingBox = {{ dataset.bounding_box.geojson|safe }};
+        L.geoJSON(boundingBox, {
+            style: {
+                color: '#3498db',
+                weight: 2,
+                opacity: 0.7,
+                fillOpacity: 0.1
+            }
+        }).addTo(map);
+        {% endif %}
+        {% endif %}
+        
+        {% if stations %}
+        // Add markers for stations
+        {% for station in stations %}
+        {% if station.location.latitude and station.location.longitude %}
+        const marker{{ station.id }} = L.marker([{{ station.location.latitude }}, {{ station.location.longitude }}], {
+            icon: L.divIcon({
+                className: 'station-marker',
+                html: '<div style="background-color: {% if station.is_active %}#28a745{% else %}#dc3545{% endif %}; width: 10px; height: 10px; border-radius: 50%; border: 2px solid white;"></div>',
+                iconSize: [10, 10],
+                iconAnchor: [5, 5]
+            })
+        }).addTo(map);
+        
+        marker{{ station.id }}.bindPopup(
+            "<strong>{{ station.name }}</strong><br>" +
+            "{{ station.station_id|default:'' }}<br>" +
+            "<a href='{% url 'integration:station_with_datasets' station.id %}' class='btn btn-sm btn-primary mt-2'>View Details</a>"
+        );
+        
+        bounds.extend([{{ station.location.latitude }}, {{ station.location.longitude }}]);
+        hasValidBounds = true;
+        {% endif %}
+        {% endfor %}
+        {% endif %}
+        
+        // Fit map to bounds if we have any valid coordinates
+        if (hasValidBounds) {
+            map.fitBounds(bounds, {
+                padding: [30, 30]
+            });
+        } else {
+            map.setView([0, 0], 2);
+        }
+        {% endif %}
+    });
+</script>
+{% endblock %}

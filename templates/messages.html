@@ -1,0 +1,624 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Messages | Research Portal{% endblock %}
+
+{% block content %}
+<div class="container alerts-container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="alerts-title">Messages</h1>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12 col-lg-8">
+            <!-- Alert Cards List -->
+            <div class="alert-cards">
+                <!-- Tide Alert -->
+                <div class="alert-card">
+                    <div class="alert-category tide-normal">
+                        <div class="alert-icon">
+                            <i class="bi bi-water"></i>
+                        </div>
+                        <div class="alert-type">
+                            <span class="alert-label">TIDE - NORMAL</span>
+                            <span class="alert-date">02/05/2025 - 07:05</span>
+                        </div>
+                    </div>
+                    <div class="alert-content">
+                        <h3 class="alert-title">Hydrological situation on 02/05/2025 at 8 o'clock</h3>
+                        <p class="alert-description">The drainage situation on the waterways is and will remain normal for the next 48 hours.</p>
+                    </div>
+                </div>
+
+                <!-- Flood Alert -->
+                <div class="alert-card">
+                    <div class="alert-category flood-normal">
+                        <div class="alert-icon">
+                            <i class="bi bi-cloud-rain"></i>
+                        </div>
+                        <div class="alert-type">
+                            <span class="alert-label">FLOOD - NORMAL</span>
+                            <span class="alert-date">02/05/2025 - 07:05</span>
+                        </div>
+                    </div>
+                    <div class="alert-content">
+                        <h3 class="alert-title">Hydrological situation on 02/05/2025 at 8 o'clock</h3>
+                        <p class="alert-description">The drainage situation on the waterways is and will remain normal for the next 48 hours.</p>
+                    </div>
+                </div>
+
+                <!-- Condition Alert -->
+                <div class="alert-card">
+                    <div class="alert-category flood-normal">
+                        <div class="alert-icon">
+                            <i class="bi bi-droplet"></i>
+                        </div>
+                        <div class="alert-type">
+                            <span class="alert-label">FLOOD - NORMAL</span>
+                            <span class="alert-date">02/05/2025 - 07:00</span>
+                        </div>
+                    </div>
+                    <div class="alert-content">
+                        <h3 class="alert-title">Condition on the immovable watercourses 02/05 8h</h3>
+                        <p class="alert-description">The condition on the unnavigable watercourses is normal</p>
+                    </div>
+                </div>
+
+                <!-- Drought Alert -->
+                <div class="alert-card">
+                    <div class="alert-category drought-watch">
+                        <div class="alert-icon">
+                            <i class="bi bi-thermometer-sun"></i>
+                        </div>
+                        <div class="alert-type">
+                            <span class="alert-label">DROUGHT - PRE-WATCH</span>
+                            <span class="alert-date">15/04/2025 - 12:00</span>
+                        </div>
+                    </div>
+                    <div class="alert-content">
+                        <h3 class="alert-title">Current Drought Status in Kenya</h3>
+                        <p class="alert-description">The current water scarcity and drought status in Kenya can be found on our drought monitoring portal.</p>
+                    </div>
+                </div>
+                
+                <!-- News Item 1 -->
+                <div class="alert-card">
+                    <div class="alert-category news-item">
+                        <div class="alert-icon">
+                            <i class="bi bi-newspaper"></i>
+                        </div>
+                        <div class="alert-type">
+                            <span class="alert-label">NEWS ITEM</span>
+                            <span class="alert-date">09/04/2025 - 10:00</span>
+                        </div>
+                    </div>
+                    <div class="alert-content">
+                        <h3 class="alert-title">State of the water system April 9, 2025</h3>
+                        <p class="alert-description">The report 'State of the water system April 9, 2025' is available under reports. You can read the summary via the magnifying glass.</p>
+                    </div>
+                </div>
+                
+                <!-- News Item 2 -->
+                <div class="alert-card">
+                    <div class="alert-category news-item">
+                        <div class="alert-icon">
+                            <i class="bi bi-newspaper"></i>
+                        </div>
+                        <div class="alert-type">
+                            <span class="alert-label">NEWS ITEM</span>
+                            <span class="alert-date">08/04/2025 - 4 pm</span>
+                        </div>
+                    </div>
+                    <div class="alert-content">
+                        <h3 class="alert-title">Low water report Waterways April 7, 2025</h3>
+                        <p class="alert-description">The most recent low water message from the Waterways can be found under 'Reports' or via the link behind the magnifying glass of this message.</p>
+                    </div>
+                </div>
+                
+                <!-- News Item 3 -->
+                <div class="alert-card">
+                    <div class="alert-category news-item">
+                        <div class="alert-icon">
+                            <i class="bi bi-newspaper"></i>
+                        </div>
+                        <div class="alert-type">
+                            <span class="alert-label">NEWS ITEM</span>
+                            <span class="alert-date">01/04/2025 - 08:00</span>
+                        </div>
+                    </div>
+                    <div class="alert-content">
+                        <h3 class="alert-title">Summary low water season 2024 available</h3>
+                        <p class="alert-description">The summary of the 2024 low water season is available under "Reports". You can read the summary via the magnifying glass.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-4">
+            <!-- Alert Detail View (appears when user clicks an alert) -->
+            <div class="alert-detail-view">
+                <div class="alert-detail-header tide-normal">
+                    <div class="alert-icon">
+                        <i class="bi bi-water"></i>
+                    </div>
+                    <div class="alert-type">
+                        <span class="alert-label">TIDE - NORMAL</span>
+                    </div>
+                    <button class="btn btn-print">
+                        <i class="bi bi-printer"></i> Print
+                    </button>
+                </div>
+                <div class="alert-detail-content">
+                    <h2>Hydrological situation on 02/05/2025 at 8 o'clock</h2>
+                    <p class="alert-last-modified">last modified on 02/05/2025 08:05</p>
+                    
+                    <h3>1. Meteorological expectations</h3>
+                    <p><strong>Today</strong> it remains dry and warm.</p>
+                    <p><strong>Tomorrow</strong> a disturbance from central regions reaches our country with sometimes rain or showers that can be stormy. The chance of precipitation is greatest across the southern half of the country, while it can even remain dry to the north.</p>
+                    <p>Precipitation expectation: 0 to 15mm depending on the location of the showers</p>
+                    <p><strong>Sunday</strong> there are still some showers here and there.</p>
+                    <p><strong>Monday to Wednesday</strong> it remains dry in many regions, but a few showers are possible locally.</p>
+                    <p><strong>Thursday</strong> it seems to remain mostly dry.</p>
+                    <p class="alert-source">Source: RMI, HIC</p>
+                    
+                    <h3>2. Current situation</h3>
+                    <p>The drainage situation on the waterways is normal.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const alertCards = document.querySelectorAll('.alert-card');
+        const alertDetailView = document.querySelector('.alert-detail-view');
+        const alertDetailHeader = document.querySelector('.alert-detail-header');
+        const alertDetailContent = document.querySelector('.alert-detail-content');
+        const printBtn = document.querySelector('.btn-print');
+        
+        // Show alert details when clicking on an alert card
+        alertCards.forEach(card => {
+            card.addEventListener('click', function() {
+                // Get alert data
+                const category = card.querySelector('.alert-category').className.split(' ')[1];
+                const icon = card.querySelector('.alert-icon i').className;
+                const label = card.querySelector('.alert-label').textContent;
+                const title = card.querySelector('.alert-title').textContent;
+                const description = card.querySelector('.alert-description').textContent;
+                const date = card.querySelector('.alert-date').textContent;
+                
+                // Update detail view header
+                alertDetailHeader.className = 'alert-detail-header ' + category;
+                alertDetailHeader.querySelector('.alert-icon i').className = icon;
+                alertDetailHeader.querySelector('.alert-label').textContent = label;
+                
+                // Update detail view content
+                let contentHTML = `
+                    <h2>${title}</h2>
+                    <p class="alert-last-modified">last modified on ${date.split(' - ')[0]} 08:05</p>
+                `;
+                
+                // Generate different content based on alert type
+                if (label.includes('TIDE')) {
+                    contentHTML += `
+                        <h3>1. Meteorological expectations</h3>
+                        <p><strong>Today</strong> it remains dry and warm.</p>
+                        <p><strong>Tomorrow</strong> a disturbance from central regions reaches our country with sometimes rain or showers that can be stormy. The chance of precipitation is greatest across the southern half of the country, while it can even remain dry to the north.</p>
+                        <p>Precipitation expectation: 0 to 15mm depending on the location of the showers</p>
+                        <p><strong>Sunday</strong> there are still some showers here and there.</p>
+                        <p><strong>Monday to Wednesday</strong> it remains dry in many regions, but a few showers are possible locally.</p>
+                        <p><strong>Thursday</strong> it seems to remain mostly dry.</p>
+                        <p class="alert-source">Source: RMI, HIC</p>
+                        
+                        <h3>2. Current situation</h3>
+                        <p>The drainage situation on the waterways is normal.</p>
+                        
+                        <h3>3. Overview of water levels and drains at significant measuring stations</h3>
+                        <p>There are currently no relevant stations where warning thresholds are exceeded.</p>
+                        
+                        <h3>4. Hydrological expectations</h3>
+                        <p>The drainage situation on the waterways is and remains <strong>the next 48 hours</strong> normal.</p>
+                        
+                        <p>The table below shows the time expectations for the Coast and Scheldt.</p>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Location</th>
+                                        <th>High water<br>Time — Water level (mTAW)</th>
+                                        <th>Low water<br>Time — Water level (mTAW)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="3"><strong>Location: Ostend MVB tide</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Ostend MVB tide</td>
+                                        <td>02/05/2025 18:20 — 4.45</td>
+                                        <td>02/05/2025 12:30 — 0.55</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Ostend MVB tide</td>
+                                        <td>03/05/2025 07:00 — 4.35</td>
+                                        <td>03/05/2025 01:00 — 0.30</td>
+                                    </tr>
+                                    <tr>
+                                        <td colspan="3"><strong>Location: Zeebrugge MVB tide</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Zeebrugge MVB tide</td>
+                                        <td>02/05/2025 18:40 — 4.30</td>
+                                        <td>02/05/2025 12:40 — 0.75</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Zeebrugge MVB tide</td>
+                                        <td>03/05/2025 07:20 — 4.25</td>
+                                        <td>03/05/2025 01:10 — 0.45</td>
+                                    </tr>
+                                    <tr>
+                                        <td colspan="3"><strong>Location: Antwerp tide</strong></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                } else if (label.includes('FLOOD')) {
+                    contentHTML += `
+                        <h3>1. Current flood status</h3>
+                        <p><strong>Current situation:</strong> ${description}</p>
+                        <p><strong>Forecast:</strong> No significant flood risk is expected in the next 48 hours.</p>
+                        <p>Water levels in all monitored rivers and waterways are within normal parameters.</p>
+                        <p class="alert-source">Source: HIC, Water Authority</p>
+                        
+                        <h3>2. Recommendations</h3>
+                        <p>No special precautions are necessary at this time.</p>
+                        <p>Regular monitoring of local conditions is advised for areas prone to flooding.</p>
+                        
+                        <h3>3. River level monitoring</h3>
+                        <p>Current river levels are within safe parameters across all monitored regions.</p>
+                        
+                        <h3>4. Regional flood risk assessment</h3>
+                        <p>The table below shows the current flood risk levels for major regions:</p>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Region</th>
+                                        <th>River</th>
+                                        <th>Current Level (m)</th>
+                                        <th>Warning Level (m)</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="5"><strong>Central Region</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Central</td>
+                                        <td>Nairobi River</td>
+                                        <td>1.20</td>
+                                        <td>2.50</td>
+                                        <td>Normal</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Central</td>
+                                        <td>Athi River</td>
+                                        <td>1.85</td>
+                                        <td>3.00</td>
+                                        <td>Normal</td>
+                                    </tr>
+                                    <tr>
+                                        <td colspan="5"><strong>Western Region</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Western</td>
+                                        <td>Nzoia River</td>
+                                        <td>1.50</td>
+                                        <td>2.80</td>
+                                        <td>Normal</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Western</td>
+                                        <td>Sirua River</td>
+                                        <td>1.10</td>
+                                        <td>2.30</td>
+                                        <td>Normal</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                } else if (title.includes('Condition')) {
+                    contentHTML += `
+                        <h3>1. Immovable watercourses status</h3>
+                        <p><strong>Current status:</strong> ${description}</p>
+                        <p><strong>Details:</strong> All unnavigable watercourses are flowing within normal parameters.</p>
+                        <p>No obstructions or abnormal flow conditions have been reported.</p>
+                        <p class="alert-source">Source: Regional Water Management Authority</p>
+                        
+                        <h3>2. Monitoring</h3>
+                        <p>Continuous monitoring is in place for all major unnavigable watercourses.</p>
+                        <p>Next scheduled assessment: 03/05/2025 at 8:00.</p>
+                        
+                        <h3>3. Watercourse conditions</h3>
+                        <p>All monitored watercourses are currently in good condition with no reported issues.</p>
+                        
+                        <h3>4. Regional watercourse status</h3>
+                        <p>The table below shows the current status of major watercourses:</p>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Region</th>
+                                        <th>Watercourse</th>
+                                        <th>Flow Rate (m³/s)</th>
+                                        <th>Water Quality</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="5"><strong>Eastern Region</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Eastern</td>
+                                        <td>Tana River</td>
+                                        <td>250</td>
+                                        <td>Good</td>
+                                        <td>Normal</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Eastern</td>
+                                        <td>Athi River</td>
+                                        <td>180</td>
+                                        <td>Good</td>
+                                        <td>Normal</td>
+                                    </tr>
+                                    <tr>
+                                        <td colspan="5"><strong>Western Region</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Western</td>
+                                        <td>Nzoia River</td>
+                                        <td>120</td>
+                                        <td>Good</td>
+                                        <td>Normal</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Western</td>
+                                        <td>Sirua River</td>
+                                        <td>85</td>
+                                        <td>Good</td>
+                                        <td>Normal</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                } else if (label.includes('DROUGHT')) {
+                    contentHTML += `
+                        <h3>1. Drought conditions</h3>
+                        <p><strong>Current status:</strong> Pre-Watch level</p>
+                        <p><strong>Affected areas:</strong> Central and Eastern regions of Kenya</p>
+                        <p>Precipitation levels are below seasonal averages in the affected regions.</p>
+                        <p>Soil moisture levels are decreasing but remain above critical thresholds.</p>
+                        <p class="alert-source">Source: Kenya Meteorological Department, Water Resources Authority</p>
+                        
+                        <h3>2. Outlook and recommendations</h3>
+                        <p>Long-range forecasts indicate below-average rainfall may continue for the next 2-3 weeks.</p>
+                        <p>Water conservation measures are recommended but not mandatory at this time.</p>
+                        <p>Agricultural operations should plan for potential water restrictions if conditions worsen.</p>
+                        
+                        <h3>3. Precipitation analysis</h3>
+                        <p>The table below shows the current precipitation levels across major regions:</p>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Region</th>
+                                        <th>Current Precipitation (mm)</th>
+                                        <th>Normal Range (mm)</th>
+                                        <th>Deficit (%)</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Central</td>
+                                        <td>120</td>
+                                        <td>200-250</td>
+                                        <td>35%</td>
+                                        <td>Pre-Watch</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Eastern</td>
+                                        <td>150</td>
+                                        <td>220-280</td>
+                                        <td>30%</td>
+                                        <td>Pre-Watch</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Western</td>
+                                        <td>180</td>
+                                        <td>250-300</td>
+                                        <td>25%</td>
+                                        <td>Normal</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Northern</td>
+                                        <td>100</td>
+                                        <td>180-220</td>
+                                        <td>40%</td>
+                                        <td>Pre-Watch</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                } else if (label.includes('NEWS ITEM')) {
+                    // Handle different news items based on title
+                    if (title.includes('State of the water system April 9')) {
+                        contentHTML += `
+                            <h3>State of the water system April 9, 2025</h3>
+                            <p class="alert-last-modified">last modified on 09/04/2025 11:00</p>
+                            
+                            <p>The report 'State of the water system April 9, 2025' is available under reports. You can read the summary via this link. You can read the summary below.</p>
+                            
+                            <h3>Meteorology</h3>
+                            <p>March 2025 was a very dry month with a rainfall total of 7.8 mm in Uccle, which is only 13% of the normal rainfall amount of 59.3 mm (1991-2020, source RMI). Similarly low values are also recorded everywhere in Flanders. The precipitation totals in the VMM pluviometer network vary between 1.8 mm (Moerbeke) and 12.4 mm (Maasmechelen) for the past month. On average over the VMM measurement locations we find a precipitation total of 5.2 mm or 9% of the climatic normal in Uccle.</p>
+                            
+                            <p>The precipitation totals for the past 3 months (January to March '25) show the lowest values (120 - 150 mm roughly) in the north of East Flanders, Antwerp and the coast. In recent months, the most precipitation fell in the eastern basins and the Leie basin (around 180 mm). The totals for the first 3 months of this year range from 117.1 mm in the pluviometer of Boekhoute where the least precipitation fell, to 221.8 mm for the pluviometer in Waregem with the most precipitation. On average, the VMM stations recorded a total of 160.1 mm of precipitation for the past 3 months, which is about 20% lower than the climatic normal of 199.9 mm for the period January - March (reference period 1991-2020, source RMI).</p>
+                            
+                            <h3>Groundwater</h3>
+                            <p>The groundwater levels show a mixed picture. In about 40% of the measuring locations, the groundwater levels are at normal levels for the time of year. In about 30% of the measuring locations, the groundwater levels are low to very low for the time of year. In about 30% of the measuring locations, the groundwater levels are high to very high for the time of year. The low groundwater levels are mainly found in the central part of Flanders. The high groundwater levels are mainly found in the western and eastern parts of Flanders.</p>
+                            
+                            <div class="text-center mt-4">
+                                <a href="#" class="btn btn-primary">Download Full Report</a>
+                            </div>
+                        `;
+                    } else if (title.includes('Low water report Waterways April 7')) {
+                        contentHTML += `
+                            <h3>Low water report Waterways April 7, 2025</h3>
+                            <p class="alert-last-modified">last modified on 08/04/2025 16:00</p>
+                            
+                            <p>The most recent low water message from the Waterways can be found under 'Reports' or via the link behind the magnifying glass of this message.</p>
+                            
+                            <h3>Current situation</h3>
+                            <p>The flow rates on the unnavigable waterways are currently normal for the time of year. The flow rates on the navigable waterways are low for the time of year. The water levels on the canals are being maintained at normal levels.</p>
+                            
+                            <h3>Flow rates on unnavigable waterways</h3>
+                            <p>The flow rates on the unnavigable waterways are currently normal for the time of year. The flow rates on the Demer and Dijle are slightly below normal levels for the time of year. The flow rates on the other unnavigable waterways are normal for the time of year.</p>
+                            
+                            <h3>Flow rates on navigable waterways</h3>
+                            <p>The flow rates on the navigable waterways are low for the time of year. The flow rates on the Leie and Bovenschelde are very low for the time of year. The flow rates on the other navigable waterways are low for the time of year.</p>
+                            
+                            <h3>Water levels on canals</h3>
+                            <p>The water levels on the canals are being maintained at normal levels. There are no problems with water supply to the canals.</p>
+                            
+                            <div class="text-center mt-4">
+                                <a href="#" class="btn btn-primary">Download Full Report</a>
+                            </div>
+                        `;
+                    } else if (title.includes('Summary low water season 2024')) {
+                        contentHTML += `
+                            <h3>Summary low water season 2024 available</h3>
+                            <p class="alert-last-modified">last modified on 01/04/2025 08:00</p>
+                            
+                            <p>The summary of the 2024 low water season is available under "Reports". You can read the summary via the magnifying glass.</p>
+                            
+                            <h3>Overview</h3>
+                            <p>The 2024 low water season was characterized by a dry summer with low precipitation and high temperatures. This led to low flow rates on the waterways and low groundwater levels in many areas. The low water situation was most severe in the months of July and August.</p>
+                            
+                            <h3>Precipitation</h3>
+                            <p>The precipitation during the summer months (June, July, August) was well below normal levels. The total precipitation for the summer months was around 100 mm, which is about 50% of the normal precipitation for this period.</p>
+                            
+                            <h3>Flow rates</h3>
+                            <p>The flow rates on the waterways were low to very low during the summer months. The flow rates on the Leie and Bovenschelde were particularly low, with values below the minimum flow rates required for navigation during several weeks in July and August.</p>
+                            
+                            <h3>Groundwater</h3>
+                            <p>The groundwater levels were low to very low in many areas during the summer months. The groundwater levels were particularly low in the central part of Flanders, with values well below the normal levels for the time of year.</p>
+                            
+                            <h3>Measures taken</h3>
+                            <p>Several measures were taken to manage the low water situation, including:</p>
+                            <ul>
+                                <li>Restrictions on water extraction from waterways</li>
+                                <li>Temporary navigation restrictions on some waterways</li>
+                                <li>Water conservation measures in various sectors</li>
+                                <li>Increased monitoring of water quality</li>
+                            </ul>
+                            
+                            <div class="text-center mt-4">
+                                <a href="#" class="btn btn-primary">Download Full Report</a>
+                            </div>
+                        `;
+                    }
+                }
+                
+                alertDetailContent.innerHTML = contentHTML;
+                
+                // Show the detail view
+                alertDetailView.style.display = 'block';
+                
+                // On mobile, scroll to the detail view
+                if (window.innerWidth < 992) {
+                    alertDetailView.scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        });
+        
+        // Print functionality
+        printBtn.addEventListener('click', function() {
+            const printWindow = window.open('', '_blank');
+            const alertHeader = alertDetailHeader.cloneNode(true);
+            const alertContent = alertDetailContent.cloneNode(true);
+            
+            // Create print document
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Alert Details</title>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; }
+                        .alert-header { 
+                            display: flex; 
+                            align-items: center; 
+                            padding: 15px; 
+                            margin-bottom: 20px; 
+                            border-radius: 5px;
+                            background-color: #f8f9fa;
+                        }
+                        .tide-normal { background-color: #cce5ff; }
+                        .flood-normal { background-color: #d4edda; }
+                        .drought-watch { background-color: #fff3cd; }
+                        .alert-icon { font-size: 24px; margin-right: 15px; }
+                        .alert-label { font-weight: bold; }
+                        h2 { color: #333; }
+                        h3 { color: #555; margin-top: 20px; }
+                        p { line-height: 1.5; }
+                        .alert-source { font-style: italic; color: #777; margin-top: 15px; }
+                        .alert-last-modified { color: #777; font-size: 0.9em; }
+                    </style>
+                </head>
+                <body>
+                    <div class="alert-header ${alertHeader.className.split(' ')[1]}">
+                        <div class="alert-icon">${alertHeader.querySelector('.alert-icon').innerHTML}</div>
+                        <div class="alert-type">
+                            <span class="alert-label">${alertHeader.querySelector('.alert-label').textContent}</span>
+                        </div>
+                    </div>
+                    <div class="alert-content">
+                        ${alertContent.innerHTML}
+                    </div>
+                    <div class="footer">
+                        <p>Printed from Research Portal - ${new Date().toLocaleString()}</p>
+                    </div>
+                </body>
+                </html>
+            `);
+            
+            // Wait for content to load then print
+            printWindow.document.close();
+            printWindow.addEventListener('load', function() {
+                printWindow.print();
+                printWindow.close();
+            });
+        });
+    });
+</script>
+{% endblock %}

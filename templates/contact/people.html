@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Meet Our Team{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* Modern color palette */
+  :root {
+    --primary: #3a86ff;
+    --primary-light: #f0f5ff;
+    --dark: #2b3445;
+    --gray: #94a3b8;
+    --light-gray: #f1f5f9;
+    --white: #ffffff;
+  }
+
+  .team-section {
+    padding: 100px 0;
+    background-color: var(--light-gray);
+    position: relative;
+  }
+  
+  .section-title {
+    margin-bottom: 60px;
+    text-align: center;
+    color: var(--dark);
+    font-weight: 800;
+    font-size: 2.5rem;
+    position: relative;
+  }
+  
+  .section-title:after {
+    content: '';
+    display: block;
+    width: 60px;
+    height: 4px;
+    background: var(--primary);
+    margin: 20px auto;
+    border-radius: 2px;
+  }
+  
+  .category-container {
+    margin-bottom: 60px;
+  }
+  
+  .category-title {
+    font-size: 1.5rem;
+    margin-bottom: 30px;
+    color: var(--dark);
+    font-weight: 700;
+    position: relative;
+    padding-left: 20px;
+    display: inline-block;
+  }
+  
+  .category-title:before {
+    content: '';
+    height: 100%;
+    width: 4px;
+    background: var(--primary);
+    position: absolute;
+    left: 0;
+    top: 0;
+    border-radius: 2px;
+  }
+  
+  .team-card {
+    background: var(--white);
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+    transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+    margin-bottom: 30px;
+    overflow: hidden;
+    border: none;
+    height: 100%;
+  }
+  
+  .team-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 30px rgba(0,0,0,0.1);
+  }
+  
+  .team-card-header {
+    background: var(--primary);
+    color: var(--white);
+    padding: 15px 20px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-radius: 12px 12px 0 0;
+  }
+  
+  .team-card-body {
+    padding: 25px 20px;
+  }
+  
+  .member-name {
+    font-size: 1.2rem;
+    margin-bottom: 10px;
+    color: var(--dark);
+    font-weight: 700;
+  }
+  
+  .member-info {
+    color: var(--gray);
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+  
+  .empty-message {
+    font-style: italic;
+    color: var(--gray);
+    text-align: center;
+    padding: 30px;
+    background: var(--white);
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.03);
+  }
+  
+  /* Card hover effects */
+  .team-card:hover .team-card-header {
+    background: var(--dark);
+  }
+  
+  /* Media queries for responsiveness */
+  @media (max-width: 992px) {
+    .team-section {
+      padding: 70px 0;
+    }
+    
+    .section-title {
+      font-size: 2rem;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .team-section {
+      padding: 50px 0;
+    }
+    
+    .section-title {
+      font-size: 1.8rem;
+    }
+    
+    .category-title {
+      font-size: 1.3rem;
+    }
+  }
+  
+  /* Card groups */
+  .card-row {
+    margin-bottom: 15px;
+    display: flex;
+    flex-wrap: wrap;
+  }
+  
+  .card-column {
+    margin-bottom: 20px;
+    height: 100%;
+  }
+
+  /* Subtle decorative elements */
+  .team-section:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: radial-gradient(var(--primary-light) 10%, transparent 10%);
+    background-size: 30px 30px;
+    opacity: 0.3;
+    pointer-events: none;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="team-section">
+  <div class="container">
+    <h2 class="section-title">Meet Our Team</h2>
+    
+    <div class="row">
+      <!-- PhD Students -->
+      <div class="col-lg-6 category-container">
+        <h3 class="category-title">PhD Students</h3>
+        {% if phd_students %}
+          <div class="row g-4">
+            {% for student in phd_students %}
+              <div class="col-md-6 card-column">
+                <div class="team-card">
+                  <div class="team-card-header">PhD Researcher</div>
+                  <div class="team-card-body">
+                    <h5 class="member-name">{{ student.name }}</h5>
+                    <p class="member-info">{{ student.research_area }}</p>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-message">No PhD students listed at this time.</div>
+        {% endif %}
+      </div>
+      
+      <!-- Local Coordinators -->
+      <div class="col-lg-6 category-container">
+        <h3 class="category-title">Local Coordinators</h3>
+        {% if local_coordinators %}
+          <div class="row g-4">
+            {% for coordinator in local_coordinators %}
+              <div class="col-md-6 card-column">
+                <div class="team-card">
+                  <div class="team-card-header">Coordinator</div>
+                  <div class="team-card-body">
+                    <h5 class="member-name">{{ coordinator.name }}</h5>
+                    <p class="member-info">{{ coordinator.department }}</p>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-message">No local coordinators listed at this time.</div>
+        {% endif %}
+      </div>
+    </div>
+    
+    <div class="row">
+      <!-- Project Leaders -->
+      <div class="col-lg-6 category-container">
+        <h3 class="category-title">Project Leaders</h3>
+        {% if project_leaders %}
+          <div class="row g-4">
+            {% for leader in project_leaders %}
+              <div class="col-md-6 card-column">
+                <div class="team-card">
+                  <div class="team-card-header">Project Lead</div>
+                  <div class="team-card-body">
+                    <h5 class="member-name">{{ leader.name }}</h5>
+                    <p class="member-info">{{ leader.project }}</p>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-message">No project leaders listed at this time.</div>
+        {% endif %}
+      </div>
+      
+      <!-- Project Members -->
+      <div class="col-lg-6 category-container">
+        <h3 class="category-title">Project Members</h3>
+        {% if project_members %}
+          <div class="row g-4">
+            {% for member in project_members %}
+              <div class="col-md-6 card-column">
+                <div class="team-card">
+                  <div class="team-card-header">Team Member</div>
+                  <div class="team-card-body">
+                    <h5 class="member-name">{{ member.name }}</h5>
+                    <p class="member-info">{{ member.role }}</p>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-message">No project members listed at this time.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

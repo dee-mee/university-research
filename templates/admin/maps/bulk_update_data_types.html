@@ -1,0 +1,120 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .data-type-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        grid-gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .data-type-item {
+        padding: 10px;
+        background-color: #f8f9fa;
+        border-radius: 5px;
+        border: 1px solid #ddd;
+    }
+    
+    .station-list {
+        background-color: #f9f9f9;
+        border-left: 4px solid #2271b1;
+        padding: 15px;
+        margin-bottom: 20px;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <h1>{% trans "Bulk Update Data Types" %}</h1>
+    
+    <p>{% trans "Update available data types for the selected weather stations. Check the types of data that these stations can provide." %}</p>
+    
+    <div class="station-list">
+        <h3>{% trans "Selected Weather Stations" %}</h3>
+        <ul>
+            {% for station in queryset %}
+                <li>{{ station.name }} ({{ station.station_id|default:"No ID" }})</li>
+            {% endfor %}
+        </ul>
+    </div>
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        <div class="data-type-grid">
+            <div class="data-type-item">
+                <label>
+                    <input type="checkbox" name="has_temperature" checked>
+                    {% trans "Temperature" %}
+                </label>
+                <p class="help">{% trans "Temperature data in Celsius" %}</p>
+            </div>
+            
+            <div class="data-type-item">
+                <label>
+                    <input type="checkbox" name="has_precipitation" checked>
+                    {% trans "Precipitation" %}
+                </label>
+                <p class="help">{% trans "Precipitation data in mm" %}</p>
+            </div>
+            
+            <div class="data-type-item">
+                <label>
+                    <input type="checkbox" name="has_humidity" checked>
+                    {% trans "Humidity" %}
+                </label>
+                <p class="help">{% trans "Relative humidity (%)" %}</p>
+            </div>
+            
+            <div class="data-type-item">
+                <label>
+                    <input type="checkbox" name="has_wind" checked>
+                    {% trans "Wind" %}
+                </label>
+                <p class="help">{% trans "Wind speed and direction" %}</p>
+            </div>
+            
+            <div class="data-type-item">
+                <label>
+                    <input type="checkbox" name="has_air_quality">
+                    {% trans "Air Quality" %}
+                </label>
+                <p class="help">{% trans "Air quality index and pollutants" %}</p>
+            </div>
+            
+            <div class="data-type-item">
+                <label>
+                    <input type="checkbox" name="has_soil_moisture">
+                    {% trans "Soil Moisture" %}
+                </label>
+                <p class="help">{% trans "Soil moisture content (%)" %}</p>
+            </div>
+            
+            <div class="data-type-item">
+                <label>
+                    <input type="checkbox" name="has_water_level">
+                    {% trans "Water Level" %}
+                </label>
+                <p class="help">{% trans "Water level measurements" %}</p>
+            </div>
+        </div>
+        
+        {% for obj in queryset %}
+            <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
+        {% endfor %}
+        <input type="hidden" name="action" value="bulk_update_data_types">
+        <input type="hidden" name="apply" value="1">
+        
+        <div class="submit-row">
+            <input type="submit" value="{% trans 'Apply to Selected Stations' %}" class="default" name="_apply">
+            <a class="button" href="{% url 'admin:maps_weatherstation_changelist' %}">{% trans "Cancel" %}</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
